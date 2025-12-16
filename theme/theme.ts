@@ -4,47 +4,27 @@ import { colors } from './colors';
 
 export const theme = createTheme({
   palette: {
-    primary: {
-      main: colors.primary,
-    },
-    secondary: {
-      main: colors.secondary,
-    },
-    success: {
-      main: colors.secondary,
-    },
-    warning: {
-      main: colors.accent,
-    },
-    background: {
-      default: colors.background,
-      paper: colors.surface,
-    },
-    text: {
-      primary: colors.textPrimary,
-      secondary: colors.textSecondary,
-    },
-    divider: colors.border,
+    mode: 'dark',
+    primary: { main: colors.primary },
+    background: { default: colors.background, paper: colors.surface },
+    text: { primary: colors.textPrimary, secondary: colors.textSecondary },
   },
   typography: {
-    fontFamily: 'inherit', // Uses Next.js font
+    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+    h6: { fontWeight: 600 },
   },
   components: {
-    MuiPaper: {
+    MuiCssBaseline: {
       styleOverrides: {
-        root: {
-          borderRadius: 12,
-          boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
-        },
+        html: { height: '100%', margin: 0, padding: 0 },
+        body: { height: '100%', margin: 0, padding: 0, backgroundColor: colors.background },
+        '#__next': { height: '100%' }, // If using Next.js
+        '#root': { height: '100%' },   // If using pure React
       },
     },
-    MuiButton: {
+    MuiPaper: {
       styleOverrides: {
-        root: {
-          textTransform: 'none',
-          borderRadius: 8,
-          fontWeight: 600,
-        },
+        root: { backgroundImage: 'none', backgroundColor: colors.surface },
       },
     },
   },
