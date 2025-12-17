@@ -30,7 +30,7 @@ export const LayoutHeader = ({ onToggleSidebar }: HeaderProps) => {
         fontWeight: 'bold', 
         letterSpacing: '-0.5px' 
       }}>
-        Voltavision <span style={{ color: colors.textSecondary, fontSize: '0.8em', fontWeight: 'normal' }}>Demo</span>
+        Voltavision <span style={{ color: colors.textSecondary, fontSize: '0.8em', fontWeight: 'normal' }}>Processly Demo</span>
       </Typography>
     </Box>
   );

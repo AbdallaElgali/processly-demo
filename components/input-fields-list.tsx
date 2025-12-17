@@ -41,7 +41,7 @@ export const InputFieldsList = ({
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h6" fontWeight="bold" color="text.primary">
-          Extracted Data
+          Parameters
         </Typography>
         
         <Box>

@@ -21,7 +21,7 @@ export const DocumentViewer = () => {
       {/* The Document Container - Flex grow to fill available space */}
       <Paper sx={{ 
         flexGrow: 1, 
-        bgcolor: '#fff', // PDF/Doc background is usually white
+        bgcolor: colors.surface, 
         borderRadius: 1,
         overflow: 'hidden',
         position: 'relative'

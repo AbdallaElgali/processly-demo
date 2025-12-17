@@ -2,7 +2,8 @@ export const colors = {
   // Brand Colors
   primary: '#00AAB9',       // The Voltavision Cyan
   primaryHover: '#008e9b',
-  
+  darkTeal: '#00444a',
+
   // Backgrounds (Dark Theme)
   background: '#121212',    // Deepest black/grey for main background
   surface: '#1E1E1E',       // Slightly lighter for sidebar/header

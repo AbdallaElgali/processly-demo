@@ -20,7 +20,7 @@ export const analyzeDocument = async(file: File): Promise<any> => {
   console.log('API Response Status:', response.status);
   const data = await response.json();
   
-  const specs = data.specifications;
+  const specs = data.specifications[0];
   console.log('Extracted Specifications:', specs);
 
   const fieldIDs = Object.keys(specs);
@@ -28,24 +28,17 @@ export const analyzeDocument = async(file: File): Promise<any> => {
   const extractedFields: InputField[] = fieldIDs.map((fieldId: string) => {
         const item = specs[fieldId];
         
-        // You need external logic to determine the 'label' and 'unit' 
-        // since they are not in the raw data from your first example.
-        // You should use the FIELD_TYPES list you created earlier for this!
-        
         const field: InputField = {
-            // ID comes from the key of the dictionary
             id: fieldId, 
             
-            // You need to pull 'label' and 'unit' from your static FIELD_TYPES map
-            // (This requires having the FIELD_TYPES list available and searchable)
-            label: 'Label Placeholder', 
+            label: fieldId, 
             type: 'Type Placeholder',
             
-            confidence: item.confidence,
-            source: item.source, // Assuming 'source' exists in the original data
+            confidence: item.confidence * 100,
+            source: item.source, // Assuming 'source' exists
             value: item.value,
-            calculated: item.is_calculated, // Use is_calculated from your Python output
-            source_confidence: item.source_confidence,
+            calculated: item.is_calculated, 
+            source_confidence: item.source_confidence * 100,
             rule_passed: item.rule_passed,
             rule_violations: item.rule_violations,
             requires_review: item.requires_review,
