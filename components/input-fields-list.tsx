@@ -12,6 +12,7 @@ interface InputFieldsListProps {
   onFieldChange: (id: string, value: string) => void;
   onRemoveField: (id: string) => void;
   onAddField: (fieldTypeId: string) => void;
+  onShowSource: (source: any) => void;
 }
 
 export const InputFieldsList = ({
@@ -20,6 +21,7 @@ export const InputFieldsList = ({
   onFieldChange,
   onRemoveField,
   onAddField,
+  onShowSource
 }: InputFieldsListProps) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
@@ -81,6 +83,7 @@ export const InputFieldsList = ({
               field={field}
               onChange={onFieldChange}
               onRemove={onRemoveField}
+              onShowSource={onShowSource}
             />
           ))
         )}

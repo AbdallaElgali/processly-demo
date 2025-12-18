@@ -32,10 +32,15 @@ export const analyzeDocument = async(file: File): Promise<any> => {
             id: fieldId, 
             
             label: fieldId, 
-            type: 'Type Placeholder',
+            type: 'type',
             
             confidence: item.confidence * 100,
-            source: item.source, // Assuming 'source' exists
+
+            source: {pageNumber: item.verification_result?.page_index + 1, // pdf Pages are 1-indexed
+                    textSnippet: item.verification_result?.matched_text, 
+                    boundingBox: item.verification_result?.bbox,
+                    reason: item.verification_result?.reason}, 
+
             value: item.value,
             calculated: item.is_calculated, 
             source_confidence: item.source_confidence * 100,
@@ -47,6 +52,6 @@ export const analyzeDocument = async(file: File): Promise<any> => {
         return field;
         });
 
-  return extractedFields;
+  return [extractedFields, data.file_id];
 }
 

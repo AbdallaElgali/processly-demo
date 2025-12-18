@@ -9,7 +9,14 @@ export interface InputField {
   label: string;
   value: string;
   confidence: number | null;
-  source: string | null;
+
+  source: {
+            pageNumber: number | null;
+            textSnippet: string | null;
+            boundingBox: { x: number; y: number; width: number; height: number } | null;
+            reason: string | null;
+          } | null;
+
   calculated?: boolean;
   source_confidence?: number | null;
   rule_passed?: boolean;

@@ -20,16 +20,17 @@ interface InputFieldItemProps {
   field: InputField;
   onChange: (id: string, value: string) => void;
   onRemove: (id: string) => void;
+  onShowSource: (source: any) => void;
 }
 
 const getConfidenceColor = (confidence: number | null) => {
   if (confidence === null) return colors.border;
-  if (confidence >= 95) return colors.secondary; // Green
-  if (confidence >= 80) return colors.accent;    // Orange/Yellow
+  if (confidence >= 95) return colors.success; // Green
+  if (confidence >= 80) return colors.warning;    // Orange/Yellow
   return '#ef4444'; // Red (Standard MUI error red)
 };
 
-export const InputFieldItem = ({ field, onChange, onRemove }: InputFieldItemProps) => {
+export const InputFieldItem = ({ field, onChange, onRemove, onShowSource }: InputFieldItemProps) => {
   const confidenceColor = getConfidenceColor(field.confidence);
 
   return (
@@ -92,10 +93,10 @@ export const InputFieldItem = ({ field, onChange, onRemove }: InputFieldItemProp
                 </Box>
                 
                 {field.source && (
-                  <Tooltip title={`Source: ${field.source}`}>
+                  <Tooltip title={`Source: ${field.source.textSnippet || 'N/A'}`}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, cursor: 'help' }}>
                       <InfoIcon sx={{ fontSize: 16, color: colors.textSecondary }} />
-                      <Button variant="text" size="small">
+                      <Button variant="text" size="small" onClick={() => onShowSource(field.source)}>
                         Source
                       </Button>
                     </Box>

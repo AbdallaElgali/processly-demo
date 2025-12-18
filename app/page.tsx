@@ -30,8 +30,8 @@ export const FIELD_TYPES: FieldType[] = [
   { id: "E_NOMINAL_WH_DB", label: "Nominal Energy", unit: "Wh" },
 
   // --- Voltages ---
-  { id: "U_MAX_DYN_DB", label: "Max Dynamic Voltage", unit: "V" },
-  { id: "U_MIN_DYN_DB", label: "Min Dynamic Voltage", unit: "V" },
+  { id: "U_MAX_DYN_DB", label: "Max Dynamic Voltage (Operating)", unit: "V" },
+  { id: "U_MIN_DYN_DB", label: "Min Dynamic Voltage (Operating)", unit: "V" },
   { id: "U_MAX_PULSE_DB", label: "Max Pulse Voltage", unit: "V" },
   { id: "U_MIN_PULSE_DB", label: "Min Pulse Voltage", unit: "V" },
   { id: "U_MAX_SAFETY_DB", label: "Max Safety Voltage", unit: "V" },
@@ -60,20 +60,29 @@ const SIDEBAR_WIDTH = 260;
 const MIN_VIEWER_WIDTH = 300;
 const MIN_MAIN_WIDTH = 400;
 
+interface UploadedFile {
+  id: string;
+  name: string;
+  specs: InputField[];
+  fileBlob: File; 
+}
+
 export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
+  
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [activeFileId, setActiveFileId] = useState<string | null>(null);
   const [viewerWidth, setViewerWidth] = useState(600); 
   const isResizing = useRef(false);
 
   const [isDocumentProcessed, setIsDocumentProcessed] = useState(false);
-
-  // Initialize with 5 empty fields
+  const [pdfDocument, setPdfDocument] = useState<string>('');
+  const [activeSource, setActiveSource] = useState<{pageNumber: number, boundingBox: [number, number, number, number], textSnippet: string} | null>(null);
+  
+  // Initialize with 5 empty fields for the "No File Selected" state
   const [fields, setFields] = useState<InputField[]>(() => 
-    Array.from({ length: 5 }).map((_, i) => ({
-      FieldType: FIELD_TYPES[i % FIELD_TYPES.length], 
+    Array.from({ length: 0 }).map((_, i) => ({
       id: `init-${i}`, 
       type: FIELD_TYPES[i % FIELD_TYPES.length].id, 
       label: FIELD_TYPES[i % FIELD_TYPES.length].label, 
@@ -83,19 +92,52 @@ export default function App() {
     }))
   );
 
-  // --- LOGIC: ADD FIELD ---
+  // --- HELPER: SYNC STATE ---
+  // This ensures that whenever we change the UI, we also save it to the "Database" (uploadedFiles)
+  const updateActiveFileState = (newFields: InputField[]) => {
+    // 1. Update the immediate UI
+    setFields(newFields);
+
+    // 2. Persist to the file storage if a file is selected
+    if (activeFileId) {
+      setUploadedFiles(prev => prev.map(file => 
+        file.id === activeFileId 
+          ? { ...file, specs: newFields } 
+          : file
+      ));
+    }
+  };
+
+  const handleSourceBtnPress = useCallback((source: {pageNumber: number, boundingBox: [number, number, number, number], textSnippet: string}) => {
+    if (source && pdfDocument) {
+      setActiveSource({ ...source });
+    }
+  }, [pdfDocument]);
+
+  // --- HANDLER: FIELD CHANGES ---
+  const handleFieldChange = (id: string, value: string) => {
+    const newFields = fields.map(f => f.id === id ? { ...f, value } : f);
+    updateActiveFileState(newFields);
+  };
+
+  const handleRemoveField = (id: string) => {
+    const newFields = fields.filter(f => f.id !== id);
+    updateActiveFileState(newFields);
+  };
+
   const handleAddField = (typeId: string) => {
     const type = FIELD_TYPES.find(t => t.id === typeId);
     if (type) {
       const newField: InputField = {
-        id: `new-${Date.now()}`,
+        id: `new-${Date.now()}`, // Unique ID is crucial
         type: type.id,
         label: type.label,
         value: '',
         confidence: null,
         source: null
       };
-      setFields(prev => [...prev, newField]);
+      const newFields = [...fields, newField];
+      updateActiveFileState(newFields);
     }
   };
 
@@ -103,19 +145,44 @@ export default function App() {
   const handleDocumentUpload = async (file: File) => {
     try {
       setIsLoading(true);
-      const specs = await analyzeDocument(file);
+      const [specs, fileId] = await analyzeDocument(file);
       if (specs) {
-        const newFile = { id: Date.now().toString(), name: file.name, specs };
+        const newFile: UploadedFile = { 
+            id: Date.now().toString(), 
+            name: file.name, 
+            specs: specs,
+            fileBlob: file 
+        };
+
         setUploadedFiles(prev => [...prev, newFile]);
         setActiveFileId(newFile.id);
+        
+        // Update UI View
         setFields(specs);
+        setPdfDocument(URL.createObjectURL(file));
         setIsDocumentProcessed(true);
+        setActiveSource(null);
       }
     } catch (error) {
       console.error(error);
       alert('Analysis failed.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // --- LOGIC: SWITCHING FILES ---
+  const handleSelectFile = (id: string) => {
+    const file = uploadedFiles.find(f => f.id === id);
+    if (file) {
+        setActiveFileId(id);
+        
+        // Load the SAVED fields (which now include your edits)
+        setFields(file.specs); 
+        
+        setPdfDocument(URL.createObjectURL(file.fileBlob));
+        setIsDocumentProcessed(true);
+        setActiveSource(null);
     }
   };
 
@@ -169,10 +236,7 @@ export default function App() {
             <Sidebar 
               files={uploadedFiles} 
               currentFileId={activeFileId} 
-              onSelectFile={(id) => {
-                const file = uploadedFiles.find(f => f.id === id);
-                if (file) { setActiveFileId(id); setFields(file.specs); }
-              }}
+              onSelectFile={handleSelectFile}
             />
           </Box>
 
@@ -196,22 +260,26 @@ export default function App() {
             }}>
               <Paper sx={{ p: 3, mb: 3, bgcolor: colors.surface, border: `1px dashed ${colors.border}`, textAlign: 'center' }}>
                 <Typography variant="h6" sx={{ mb: 1 }}>Upload Specification</Typography>
-                {/* FIXED: Hooked up handleDocumentUpload */}
                 <DocumentUpload onUpload={handleDocumentUpload} isUploaded={isDocumentProcessed} />
               </Paper>
 
               <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 'bold', color: colors.primary }}>
-                {isDocumentProcessed ? 'Processed' : 'Unprocessed'} Parameters ({fields.length} items)
+                {activeFileId ? uploadedFiles.find(f => f.id === activeFileId)?.name : 'Parameters'} ({fields.length} items)
               </Typography>
 
-              <InputFieldsList
-                fields={fields}
-                onFieldChange={(id, val) => setFields(fields.map(f => f.id === id ? { ...f, value: val } : f))}
-                onRemoveField={(id) => setFields(fields.filter(f => f.id !== id))}
-                // FIXED: Hooked up handleAddField
-                onAddField={handleAddField}
-                availableFieldTypes={FIELD_TYPES}
-              />
+              {/* KEY FIX: Adding a key here forces React to destroy and recreate the list 
+                 when switching files. This clears any lingering DOM state in the inputs. 
+              */}
+              <Box key={activeFileId || 'empty'}>
+                <InputFieldsList
+                  fields={fields}
+                  onFieldChange={handleFieldChange} // Updated handler
+                  onRemoveField={handleRemoveField} // Updated handler
+                  onAddField={handleAddField}       // Updated handler
+                  availableFieldTypes={FIELD_TYPES}
+                  onShowSource={handleSourceBtnPress}
+                />
+              </Box>
             </Box>
 
             <Box sx={{ 
@@ -237,7 +305,6 @@ export default function App() {
                 variant="contained" 
                 sx={{ 
                   px: 3,
-                  // Hover styling as requested previously
                   '&:hover': { transform: 'translateY(-1px)', boxShadow: 4 }
                 }}
               >
@@ -267,7 +334,7 @@ export default function App() {
           />
 
           <Box sx={{ width: viewerWidth, display: 'flex', flexDirection: 'column', borderLeft: `1px solid ${colors.border}`, bgcolor: '#e4e4e7', minWidth: MIN_VIEWER_WIDTH }}>
-            <DocumentViewer />
+            <DocumentViewer pdfDocument={pdfDocument} activeHighlight={activeSource}/>
           </Box>
         </Box>
       </Box>
