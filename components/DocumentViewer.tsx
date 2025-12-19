@@ -24,7 +24,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/b
 
 interface Highlight {
   pageNumber: number;
-  boundingBox: [number, number, number, number]; // [x1, y1, x2, y2]
+  boundingBox: [number, number, number, number];
   textSnippet?: string;
 }
 
@@ -33,7 +33,7 @@ interface DocumentViewerProps {
   activeHighlight: Highlight | null;
 }
 
-export const DocumentViewer = ({ pdfDocument, activeHighlight }: DocumentViewerProps) => {
+const DocumentViewer = ({ pdfDocument, activeHighlight }: DocumentViewerProps) => {
   const [numPages, setNumPages] = useState<number>(0);
   const [baseWidth, setBaseWidth] = useState<number>(0);
   const [scale, setScale] = useState<number>(1.0);
@@ -44,17 +44,23 @@ export const DocumentViewer = ({ pdfDocument, activeHighlight }: DocumentViewerP
   const containerRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
-  // 1. Handle Scrolling
+  // --- FIX: SCROLLING LOGIC ---
   useEffect(() => {
+    // We check if the highlight exists AND if the specific page ref is ready.
     if (activeHighlight && pageRefs.current[activeHighlight.pageNumber]) {
-      setTimeout(() => {
-        pageRefs.current[activeHighlight.pageNumber]?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center',
-        });
-      }, 100);
+        // Use a slight timeout to ensure layout painting is complete
+        const timer = setTimeout(() => {
+            pageRefs.current[activeHighlight.pageNumber]?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center', // Centers the highlighted page in the container
+            });
+        }, 100);
+        return () => clearTimeout(timer);
     }
-  }, [activeHighlight, scale]);
+  // DEPENDENCY UPDATE: Add `pageDimensions` (or numPages) here. 
+  // This ensures that when the PDF finishes loading (and dimensions update), 
+  // the effect re-runs and finally catches the ref that was missing before.
+  }, [activeHighlight, scale, pageDimensions]); 
 
   // 2. Initial Measurement
   useEffect(() => {
@@ -215,7 +221,7 @@ export const DocumentViewer = ({ pdfDocument, activeHighlight }: DocumentViewerP
         )}
       </Box>
 
-      {/* 3. NEW: SNIPPET FOOTER BAR */}
+      {/* 3. SNIPPET FOOTER BAR */}
       {activeHighlight?.textSnippet && (
         <Paper 
           elevation={6}
@@ -243,7 +249,6 @@ export const DocumentViewer = ({ pdfDocument, activeHighlight }: DocumentViewerP
               color: 'text.secondary',
               borderLeft: `2px solid ${colors.border}`,
               ml: 0.5,
-              pl: 1.5,
               py: 0.5
             }}
           >
@@ -254,3 +259,5 @@ export const DocumentViewer = ({ pdfDocument, activeHighlight }: DocumentViewerP
     </Box>
   );
 };
+
+export default DocumentViewer;

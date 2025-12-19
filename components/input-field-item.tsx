@@ -64,7 +64,7 @@ export const InputFieldItem = ({ field, onChange, onRemove, onShowSource }: Inpu
             <TextField
               fullWidth
               size="small"
-              value={field.value}
+              value={field.value || ''}
               onChange={(e) => onChange(field.id, e.target.value)}
               placeholder="Value not found"
               variant="outlined"

@@ -1,62 +1,84 @@
 import React from 'react';
-import { CircularProgress, Box, Typography } from '@mui/material';
+import { Backdrop, Box, CircularProgress, Typography } from '@mui/material';
+import { colors } from '@/theme/colors'; // Assuming this exists from previous steps
 
-// Optional: Define a prop type for flexibility
 interface LoadingSpinnerProps {
   message?: string;
-  size?: number; // Size in pixels
+  open?: boolean; // Added control prop
 }
 
-const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ message, size = 60 }) => {
+const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ 
+  message = "Processing...", 
+  open = true 
+}) => {
   return (
-    // OUTER BOX: Creates the full-screen, opaque overlay (The "Backdrop")
-    <Box
+    <Backdrop
+      open={open}
       sx={{
-        // 1. Full-screen covering the viewport
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        
-        // 2. Semi-transparent background (blocks interaction)
-        backgroundColor: 'rgba(255, 255, 255, 0.8)', // White with 80% opacity
-        
-        // 3. Center the content (the spinner)
+        // 1. Dark, semi-transparent background (No more white flash)
+        color: '#fff',
+        zIndex: (theme) => theme.zIndex.drawer + 999,
+        backgroundColor: 'rgba(0, 0, 0, 0.7)', 
+        // 2. The "Pro" touch: blurs the dashboard behind it
+        backdropFilter: 'blur(4px)', 
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center',
-        
-        // 4. Ensure it sits on top of all other content
-        zIndex: 9999, 
-        
-        // Disable pointer events on the overlay itself, but we need them active 
-        // to receive the mouse click and effectively block the elements beneath.
-        // We ensure the whole box is the blocking element.
+        gap: 2
       }}
     >
-      {/* INNER BOX: Centers the CircularProgress and Message */}
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          color: 'primary.main', // Color for the spinner
-          padding: 4,
-          // You can add a background here if you want the spinner area to stand out more
-        }}
-      >
-        <CircularProgress size={size} color="inherit" />
+      <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+        {/* Background Track (The "Rail") */}
+        <CircularProgress
+          variant="determinate"
+          value={100}
+          size={50}
+          thickness={4}
+          sx={{
+            color: colors.border, // Dark gray track
+            position: 'absolute',
+            left: 0,
+          }}
+        />
         
-        {/* Conditionally render the message if provided */}
-        {message && (
-          <Typography variant="body1" sx={{ mt: 2, color: 'text.secondary' }}>
-            {message}
-          </Typography>
-        )}
+        {/* Foreground Spinner (The "Active" part) */}
+        <CircularProgress
+          variant="indeterminate"
+          disableShrink
+          size={50}
+          thickness={4}
+          sx={{
+            color: colors.primary, // Voltavision Cyan
+            animationDuration: '800ms',
+            // Custom rounded caps look cleaner
+            [`& .MuiCircularProgress-circle`]: {
+              strokeLinecap: 'round',
+            },
+          }}
+        />
       </Box>
-    </Box>
+
+      {/* Compact, Technical Text */}
+      {message && (
+        <Typography 
+          variant="caption" 
+          sx={{ 
+            color: colors.textSecondary,
+            fontFamily: 'monospace', // Adds that "Terminal/System" feel
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase',
+            fontWeight: 600,
+            animation: 'pulse 1.5s infinite ease-in-out',
+            '@keyframes pulse': {
+              '0%': { opacity: 0.6 },
+              '50%': { opacity: 1 },
+              '100%': { opacity: 0.6 },
+            }
+          }}
+        >
+          {message}
+        </Typography>
+      )}
+    </Backdrop>
   );
 };
 

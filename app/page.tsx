@@ -19,10 +19,13 @@ import { DocumentUpload } from '@/components/document-upload';
 import { InputFieldsList } from '@/components/input-fields-list';
 import { LayoutHeader } from '@/components/LayoutHeader';
 import { Sidebar } from '@/components/Sidebar';
-import { DocumentViewer } from '@/components/DocumentViewer';
+import { SummaryView } from '@/components/SummaryView';
+import { SubmitModal } from '@/components/SubmitModal'; // <--- IMPORT THIS
 import { InputField, FieldType } from '@/types';
 import { analyzeDocument } from '@/api/analyze-document';
 import LoadingSpinner from '@/components/Loading';
+import { DEMO_FILES } from '@/lib/data/demo-files';
+import dynamic from 'next/dynamic';
 
 export const FIELD_TYPES: FieldType[] = [
   // --- Capacity & Energy ---
@@ -70,7 +73,11 @@ interface UploadedFile {
 export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [viewMode, setViewMode] = useState<'edit' | 'summary'>('edit');
   
+  // --- NEW STATE: SUBMIT MODAL ---
+  const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
+
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [activeFileId, setActiveFileId] = useState<string | null>(null);
   const [viewerWidth, setViewerWidth] = useState(600); 
@@ -80,7 +87,11 @@ export default function App() {
   const [pdfDocument, setPdfDocument] = useState<string>('');
   const [activeSource, setActiveSource] = useState<{pageNumber: number, boundingBox: [number, number, number, number], textSnippet: string} | null>(null);
   
-  // Initialize with 5 empty fields for the "No File Selected" state
+  const DocumentViewer = dynamic(() => import('@/components/DocumentViewer'), { 
+    ssr: false 
+  });
+
+  // Initialize with 0 empty fields for the "No File Selected" state
   const [fields, setFields] = useState<InputField[]>(() => 
     Array.from({ length: 0 }).map((_, i) => ({
       id: `init-${i}`, 
@@ -93,12 +104,8 @@ export default function App() {
   );
 
   // --- HELPER: SYNC STATE ---
-  // This ensures that whenever we change the UI, we also save it to the "Database" (uploadedFiles)
   const updateActiveFileState = (newFields: InputField[]) => {
-    // 1. Update the immediate UI
     setFields(newFields);
-
-    // 2. Persist to the file storage if a file is selected
     if (activeFileId) {
       setUploadedFiles(prev => prev.map(file => 
         file.id === activeFileId 
@@ -114,7 +121,6 @@ export default function App() {
     }
   }, [pdfDocument]);
 
-  // --- HANDLER: FIELD CHANGES ---
   const handleFieldChange = (id: string, value: string) => {
     const newFields = fields.map(f => f.id === id ? { ...f, value } : f);
     updateActiveFileState(newFields);
@@ -129,7 +135,7 @@ export default function App() {
     const type = FIELD_TYPES.find(t => t.id === typeId);
     if (type) {
       const newField: InputField = {
-        id: `new-${Date.now()}`, // Unique ID is crucial
+        id: `new-${Date.now()}`,
         type: type.id,
         label: type.label,
         value: '',
@@ -141,27 +147,35 @@ export default function App() {
     }
   };
 
-  // --- LOGIC: UPLOAD & ANALYZE ---
-  const handleDocumentUpload = async (file: File) => {
+  const handleDocumentUpload = async (file: File, customId?: string) => {
     try {
       setIsLoading(true);
-      const [specs, fileId] = await analyzeDocument(file);
+      const [specs, _] = await analyzeDocument(file);
+      
       if (specs) {
+        const fileId = customId || Date.now().toString();
+
         const newFile: UploadedFile = { 
-            id: Date.now().toString(), 
+            id: fileId, 
             name: file.name, 
             specs: specs,
             fileBlob: file 
         };
 
-        setUploadedFiles(prev => [...prev, newFile]);
+        setUploadedFiles(prev => {
+            const exists = prev.some(f => f.id === fileId);
+            if (exists) {
+                return prev.map(f => f.id === fileId ? newFile : f);
+            }
+            return [...prev, newFile];
+        });
+
         setActiveFileId(newFile.id);
-        
-        // Update UI View
         setFields(specs);
         setPdfDocument(URL.createObjectURL(file));
         setIsDocumentProcessed(true);
         setActiveSource(null);
+        setViewMode('edit');
       }
     } catch (error) {
       console.error(error);
@@ -171,18 +185,31 @@ export default function App() {
     }
   };
 
-  // --- LOGIC: SWITCHING FILES ---
-  const handleSelectFile = (id: string) => {
-    const file = uploadedFiles.find(f => f.id === id);
-    if (file) {
+  const handleSelectFile = async (id: string) => {
+    const existingFile = uploadedFiles.find(f => f.id === id);
+    
+    if (existingFile) {
         setActiveFileId(id);
-        
-        // Load the SAVED fields (which now include your edits)
-        setFields(file.specs); 
-        
-        setPdfDocument(URL.createObjectURL(file.fileBlob));
+        setFields(existingFile.specs); 
+        setPdfDocument(URL.createObjectURL(existingFile.fileBlob));
         setIsDocumentProcessed(true);
         setActiveSource(null);
+        setViewMode('edit'); 
+    } else {
+        const demoFile = DEMO_FILES.find(f => f.id === id);
+        if (demoFile) {
+            try {
+                setIsLoading(true);
+                const response = await fetch(demoFile.path);
+                const blob = await response.blob();
+                const file = new File([blob], demoFile.name, { type: 'application/pdf' });
+                await handleDocumentUpload(file, id);
+            } catch (error) {
+                console.error("Error loading demo file:", error);
+                alert("Could not load the selected demo document.");
+                setIsLoading(false);
+            }
+        }
     }
   };
 
@@ -220,6 +247,13 @@ export default function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       {isLoading && <LoadingSpinner />}
+
+      {/* --- ADD SUBMIT MODAL HERE --- */}
+      <SubmitModal 
+        open={isSubmitModalOpen} 
+        onClose={() => setIsSubmitModalOpen(false)} 
+        fields={fields} 
+      />
       
       <Box sx={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden' }}>
         <LayoutHeader />
@@ -234,83 +268,96 @@ export default function App() {
             overflow: 'hidden'
           }}>
             <Sidebar 
-              files={uploadedFiles} 
+              files={DEMO_FILES} 
               currentFileId={activeFileId} 
               onSelectFile={handleSelectFile}
             />
           </Box>
 
           <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: MIN_MAIN_WIDTH, bgcolor: colors.background }}>
-            <Box sx={{ p: 1, display: 'flex', alignItems: 'center', borderBottom: `1px solid ${colors.border}` }}>
-              <IconButton onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
-                {isSidebarOpen ? <ChevronLeftIcon /> : <MenuIcon />}
-              </IconButton>
-              <Typography variant="body2" sx={{ ml: 1, fontWeight: 500, color: colors.textSecondary }}>
-                {isSidebarOpen ? 'Minimize' : 'Expand Sidebar'}
-              </Typography>
-            </Box>
-
-            <Box sx={{ 
-              flex: 1, 
-              overflowY: 'auto', 
-              p: 3,
-              msOverflowStyle: 'none', 
-              scrollbarWidth: 'none', 
-              '&::-webkit-scrollbar': { display: 'none' } 
-            }}>
-              <Paper sx={{ p: 3, mb: 3, bgcolor: colors.surface, border: `1px dashed ${colors.border}`, textAlign: 'center' }}>
-                <Typography variant="h6" sx={{ mb: 1 }}>Upload Specification</Typography>
-                <DocumentUpload onUpload={handleDocumentUpload} isUploaded={isDocumentProcessed} />
-              </Paper>
-
-              <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 'bold', color: colors.primary }}>
-                {activeFileId ? uploadedFiles.find(f => f.id === activeFileId)?.name : 'Parameters'} ({fields.length} items)
-              </Typography>
-
-              {/* KEY FIX: Adding a key here forces React to destroy and recreate the list 
-                 when switching files. This clears any lingering DOM state in the inputs. 
-              */}
-              <Box key={activeFileId || 'empty'}>
-                <InputFieldsList
-                  fields={fields}
-                  onFieldChange={handleFieldChange} // Updated handler
-                  onRemoveField={handleRemoveField} // Updated handler
-                  onAddField={handleAddField}       // Updated handler
-                  availableFieldTypes={FIELD_TYPES}
-                  onShowSource={handleSourceBtnPress}
+            
+            {viewMode === 'summary' ? (
+                <SummaryView 
+                  fields={fields} 
+                  onBack={() => setViewMode('edit')} 
                 />
-              </Box>
-            </Box>
+            ) : (
+                <>
+                    <Box sx={{ p: 1, display: 'flex', alignItems: 'center', borderBottom: `1px solid ${colors.border}` }}>
+                      <IconButton onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+                        {isSidebarOpen ? <ChevronLeftIcon /> : <MenuIcon />}
+                      </IconButton>
+                      <Typography variant="body2" sx={{ ml: 1, fontWeight: 500, color: colors.textSecondary }}>
+                        {isSidebarOpen ? 'Minimize' : 'Expand Sidebar'}
+                      </Typography>
+                    </Box>
 
-            <Box sx={{ 
-              p: 2, 
-              borderTop: `1px solid ${colors.border}`, 
-              bgcolor: colors.surface, 
-              display: 'flex', 
-              justifyContent: 'center', 
-              gap: 2 
-            }}>
-              <Button 
-                variant="contained" 
-                sx={{ 
-                  bgcolor: '#fff', 
-                  color: colors.darkTeal, 
-                  px: 3,
-                  '&:hover': { bgcolor: '#f5f5f5' } 
-                }}
-              >
-                View Summary
-              </Button>
-              <Button 
-                variant="contained" 
-                sx={{ 
-                  px: 3,
-                  '&:hover': { transform: 'translateY(-1px)', boxShadow: 4 }
-                }}
-              >
-                Submit Validation
-              </Button>
-            </Box>
+                    <Box sx={{ 
+                      flex: 1, 
+                      overflowY: 'auto', 
+                      p: 3,
+                      msOverflowStyle: 'none', 
+                      scrollbarWidth: 'none', 
+                      '&::-webkit-scrollbar': { display: 'none' } 
+                    }}>
+                      <Paper sx={{ p: 3, mb: 3, bgcolor: colors.surface, border: `1px dashed ${colors.border}`, textAlign: 'center' }}>
+                        <Typography variant="h6" sx={{ mb: 1 }}>Upload Specification</Typography>
+                        <DocumentUpload onUpload={(f) => handleDocumentUpload(f)} isUploaded={isDocumentProcessed} />
+                      </Paper>
+
+                      <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 'bold', color: colors.primary }}>
+                        {activeFileId ? uploadedFiles.find(f => f.id === activeFileId)?.name : 'Parameters'} ({fields.length} items)
+                      </Typography>
+
+                      <Box key={activeFileId || 'empty'}>
+                        <InputFieldsList
+                          fields={fields}
+                          onFieldChange={handleFieldChange}
+                          onRemoveField={handleRemoveField}
+                          onAddField={handleAddField}
+                          availableFieldTypes={FIELD_TYPES}
+                          onShowSource={handleSourceBtnPress}
+                        />
+                      </Box>
+                    </Box>
+
+                    {/* Bottom Action Bar */}
+                    <Box sx={{ 
+                      p: 2, 
+                      borderTop: `1px solid ${colors.border}`, 
+                      bgcolor: colors.surface, 
+                      display: 'flex', 
+                      justifyContent: 'center', 
+                      gap: 2 
+                    }}>
+                      <Button 
+                        variant="contained" 
+                        onClick={() => setViewMode('summary')}
+                        disabled={fields.length === 0}
+                        sx={{ 
+                          bgcolor: '#fff', 
+                          color: colors.darkTeal, 
+                          px: 3,
+                          '&:hover': { bgcolor: '#f5f5f5' } 
+                        }}
+                      >
+                        View Summary
+                      </Button>
+                      <Button 
+                        variant="contained" 
+                        // --- UPDATED CLICK HANDLER ---
+                        onClick={() => setIsSubmitModalOpen(true)}
+                        disabled={fields.length === 0}
+                        sx={{ 
+                          px: 3,
+                          '&:hover': { transform: 'translateY(-1px)', boxShadow: 4 }
+                        }}
+                      >
+                        Submit Validation
+                      </Button>
+                    </Box>
+                </>
+            )}
           </Box>
 
           <Box
