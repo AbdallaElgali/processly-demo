@@ -1,93 +1,128 @@
 'use client';
 
 import { useState } from 'react';
-import { Box, Button, Menu, MenuItem, Typography, Divider } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import { InputField, FieldType } from '@/types';
+import { 
+  Box, 
+  Typography, 
+  Accordion, 
+  AccordionSummary, 
+  AccordionDetails,
+  Chip
+} from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { InputField } from '@/types';
 import { InputFieldItem } from './input-field-item';
+import { SCHEMA_GROUPS } from '@/types';
+import { colors } from '@/theme/colors';
 
+// FIX: Cleaned up the props to match exactly what is being passed from App.tsx
 interface InputFieldsListProps {
   fields: InputField[];
-  availableFieldTypes: FieldType[];
   onFieldChange: (id: string, value: string) => void;
   onRemoveField: (id: string) => void;
-  onAddField: (fieldTypeId: string) => void;
   onShowSource: (source: any) => void;
+  onSwitchSpecification: (fieldId: string, specId: string) => void; // <-- NEW
 }
 
 export const InputFieldsList = ({
   fields,
-  availableFieldTypes,
   onFieldChange,
   onRemoveField,
-  onAddField,
-  onShowSource
+  onShowSource,
+  onSwitchSpecification // <-- NEW
 }: InputFieldsListProps) => {
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const open = Boolean(anchorEl);
+  
+  const [expanded, setExpanded] = useState<string | false>(SCHEMA_GROUPS[0].group);
 
-  const handleMenuClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
-
-  const handleSelectField = (typeId: string) => {
-    onAddField(typeId);
-    handleMenuClose();
+  const handleChange = (panel: string) => (event: React.SyntheticEvent, isExpanded: boolean) => {
+    setExpanded(isExpanded ? panel : false);
   };
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h6" fontWeight="bold" color="text.primary">
-          Parameters
-        </Typography>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+      {SCHEMA_GROUPS.map((group) => {
+        const groupFields = fields.filter(f => 
+          group.fields.some(schemaField => schemaField.id === f.type)
+        );
+
+        if (groupFields.length === 0) return null;
+
+        // FIX: Updated logic to check if the *active specification* has a value
+        const filledCount = groupFields.filter(f => {
+          const activeSpec = f.specifications.find(s => s.id === f.selectedSpecId) || f.specifications[0];
+          return activeSpec && activeSpec.value && activeSpec.value !== '';
+        }).length;
         
-        <Box>
-          <Button
-            variant="outlined"
-            startIcon={<AddIcon />}
-            onClick={handleMenuClick}
-          >
-            Add Field
-          </Button>
-          <Menu
-            anchorEl={anchorEl}
-            open={open}
-            onClose={handleMenuClose}
-            PaperProps={{
-              style: { maxHeight: 300, width: 200 },
+        const totalCount = groupFields.length;
+
+        return (
+          <Accordion 
+            key={group.group}
+            expanded={expanded === group.group}
+            onChange={handleChange(group.group)}
+            disableGutters
+            elevation={0}
+            sx={{
+              border: `1px solid ${colors.border}`,
+              borderRadius: '8px !important',
+              overflow: 'hidden',
+              '&:before': { display: 'none' }, 
+              mb: 1
             }}
           >
-            {availableFieldTypes.map((type) => (
-              <MenuItem key={type.id} onClick={() => handleSelectField(type.id)}>
-                {type.label}
-              </MenuItem>
-            ))}
-          </Menu>
-        </Box>
-      </Box>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon sx={{ color: colors.primary }} />}
+              sx={{ 
+                bgcolor: colors.surface,
+                '&:hover': { bgcolor: colors.surfaceHighlight },
+                px: 2
+              }}
+            >
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', pr: 2 }}>
+                <Typography 
+                  variant="subtitle2" 
+                  sx={{ 
+                    fontWeight: 700, 
+                    color: colors.primary,
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5
+                  }}
+                >
+                  {group.group}
+                </Typography>
+                
+                <Chip 
+                  label={`${filledCount} / ${totalCount} Filled`}
+                  size="small"
+                  variant="outlined"
+                  sx={{ 
+                    height: 20, 
+                    fontSize: '0.65rem', 
+                    fontWeight: 600,
+                    borderColor: filledCount === totalCount ? colors.success : colors.border,
+                    color: filledCount === totalCount ? colors.success : colors.textSecondary
+                  }} 
+                />
+              </Box>
+            </AccordionSummary>
 
-      <Box>
-        {fields.length === 0 ? (
-          <Box sx={{ py: 8, textAlign: 'center', bgcolor: 'background.paper', borderRadius: 2 }}>
-            <Typography color="text.secondary">No fields added yet.</Typography>
-          </Box>
-        ) : (
-          fields.map((field) => (
-            <InputFieldItem
-              key={field.id}
-              field={field}
-              onChange={onFieldChange}
-              onRemove={onRemoveField}
-              onShowSource={onShowSource}
-            />
-          ))
-        )}
-      </Box>
+            <AccordionDetails sx={{ p: 2, bgcolor: colors.background }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                {groupFields.map((field) => (
+                  <InputFieldItem
+                    key={field.id}
+                    field={field}
+                    onChange={onFieldChange}
+                    onRemove={onRemoveField}
+                    onShowSource={onShowSource}
+                    onSwitch={onSwitchSpecification} // <-- PASSED DOWN!
+                  />
+                ))}
+              </Box>
+            </AccordionDetails>
+          </Accordion>
+        );
+      })}
     </Box>
   );
 };

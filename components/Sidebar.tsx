@@ -1,6 +1,7 @@
 import { Box, Typography, List, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import { colors } from '@/theme/colors';
+import { useEffect, useState } from 'react';
 
 interface SidebarProps {
   files: Array<{ name: string; id: string }>;
@@ -9,6 +10,22 @@ interface SidebarProps {
 }
 
 export const Sidebar = ({ files, currentFileId, onSelectFile }: SidebarProps) => {
+  const [fileName, setFileName] = useState<string>('');
+
+  useEffect(() => {
+    if (currentFileId) {
+      const currentFile = files.find(f => f.id === currentFileId);
+      if (currentFile) {
+        if (currentFile.name.length > 30) {
+          setFileName(currentFile.name.slice(0, 15) + '...' + currentFile.name.slice(-10));
+        } else {
+          setFileName(currentFile?.name || '');
+        }
+      }
+    } else {
+      setFileName('');
+    }
+  }, [currentFileId, files]);
   return (
     <Box sx={{ 
       height: '100%', 
@@ -46,7 +63,7 @@ export const Sidebar = ({ files, currentFileId, onSelectFile }: SidebarProps) =>
                 <InsertDriveFileIcon fontSize="small" />
               </ListItemIcon>
               <ListItemText 
-                primary={file.name} 
+                primary={fileName} 
                 primaryTypographyProps={{ 
                   variant: 'body2', 
                   color: isActive ? 'white' : colors.textSecondary,

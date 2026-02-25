@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Box, 
   ThemeProvider, 
@@ -12,209 +12,58 @@ import {
 } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import MenuIcon from '@mui/icons-material/Menu';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'; // Added for a nice visual touch on the Analyze button
+import { v4 as uuidv4 } from 'uuid';
 
+import { useResizer } from '@/hooks/Resizer';
+import { useParameterManager } from '@/hooks/ParameterManager';
+import { useDocumentManager } from '@/hooks/DocumentManager';
 import { theme } from '@/theme/theme';
 import { colors } from '@/theme/colors';
 import { DocumentUpload } from '@/components/document-upload';
 import { InputFieldsList } from '@/components/input-fields-list';
 import { LayoutHeader } from '@/components/LayoutHeader';
 import { Sidebar } from '@/components/Sidebar';
-import { DocumentViewer } from '@/components/DocumentViewer';
-import { InputField, FieldType } from '@/types';
-import { analyzeDocument } from '@/api/analyze-document';
+import { DocumentRouter } from '@/components/DocumentViewer/DocumentRouter';
 import LoadingSpinner from '@/components/Loading';
+import { analyzeDocument } from '@/api/analyze-document';
 
-export const FIELD_TYPES: FieldType[] = [
-  // --- Capacity & Energy ---
-  { id: "C_NOMINAL_AH_DB", label: "Nominal Capacity", unit: "Ah" },
-  { id: "E_NOMINAL_WH_DB", label: "Nominal Energy", unit: "Wh" },
-
-  // --- Voltages ---
-  { id: "U_MAX_DYN_DB", label: "Max Dynamic Voltage (Operating)", unit: "V" },
-  { id: "U_MIN_DYN_DB", label: "Min Dynamic Voltage (Operating)", unit: "V" },
-  { id: "U_MAX_PULSE_DB", label: "Max Pulse Voltage", unit: "V" },
-  { id: "U_MIN_PULSE_DB", label: "Min Pulse Voltage", unit: "V" },
-  { id: "U_MAX_SAFETY_DB", label: "Max Safety Voltage", unit: "V" },
-  { id: "U_MIN_SAFETY_DB", label: "Min Safety Voltage", unit: "V" },
-
-  // --- Temperatures ---
-  { id: "T_MAX_DB", label: "Max Operating Temperature", unit: "°C" },
-  { id: "T_MIN_DB", label: "Min Operating Temperature", unit: "°C" },
-  { id: "T_MAX_TERMINAL_DB", label: "Max Terminal Temperature", unit: "°C" },
-  { id: "T_MIN_TERMINAL_DB", label: "Min Terminal Temperature", unit: "°C" },
-  { id: "T_MAX_SAFETY_DB", label: "Max Safety Temperature", unit: "°C" },
-  { id: "T_MIN_SAFETY_DB", label: "Min Safety Temperature", unit: "°C" },
-  { id: "T_MAX_TERMINAL_SAFETY_DB", label: "Max Terminal Safety Temp", unit: "°C" },
-  { id: "T_MIN_TERMINAL_SAFETY_DB", label: "Min Terminal Safety Temp", unit: "°C" },
-
-  // --- Currents ---
-  { id: "I_MAX_CHA_DB", label: "Max Continuous Charge Current", unit: "A" },
-  { id: "I_MAX_DCH_DB", label: "Max Continuous Discharge Current", unit: "A" },
-  { id: "I_MAX_CHA_SAFETY_DB", label: "Max Safety Charge Current", unit: "A" },
-  { id: "I_MAX_DCH_SAFETY_DB", label: "Max Safety Discharge Current", unit: "A" },
-  { id: "I_MAX_CHA_PULSE_DB", label: "Max Pulse Charge Current", unit: "A" },
-  { id: "I_MAX_DCH_PULSE_DB", label: "Max Pulse Discharge Current", unit: "A" },
-];
-
+// --- CONSTANTS & HELPERS ---
 const SIDEBAR_WIDTH = 260;
 const MIN_VIEWER_WIDTH = 300;
 const MIN_MAIN_WIDTH = 400;
 
-interface UploadedFile {
-  id: string;
-  name: string;
-  specs: InputField[];
-  fileBlob: File; 
-}
-
+// --- MAIN COMPONENT ---
 export default function App() {
-  const [isLoading, setIsLoading] = useState(false);
+  const [projectId, setProjectId] = useState(''); 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  // Initialize Sub-Systems
+  const { viewerWidth, setViewerWidth, startResizing } = useResizer(isSidebarOpen);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  // 1. Global Parameter Manager (Handles the project's data schema)
+  const { 
+    fields, 
+    handleFieldChange, 
+    handleRemoveField,
+    handleSwitchSpecification,
+    handlePopulateExtractedData
+  } = useParameterManager();
   
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
-  const [activeFileId, setActiveFileId] = useState<string | null>(null);
-  const [viewerWidth, setViewerWidth] = useState(600); 
-  const isResizing = useRef(false);
-
-  const [isDocumentProcessed, setIsDocumentProcessed] = useState(false);
-  const [pdfDocument, setPdfDocument] = useState<string>('');
-  const [activeSource, setActiveSource] = useState<{pageNumber: number, boundingBox: [number, number, number, number], textSnippet: string} | null>(null);
-  
-  // Initialize with 5 empty fields for the "No File Selected" state
-  const [fields, setFields] = useState<InputField[]>(() => 
-    Array.from({ length: 0 }).map((_, i) => ({
-      id: `init-${i}`, 
-      type: FIELD_TYPES[i % FIELD_TYPES.length].id, 
-      label: FIELD_TYPES[i % FIELD_TYPES.length].label, 
-      value: '', 
-      confidence: null, 
-      source: null
-    }))
-  );
-
-  // --- HELPER: SYNC STATE ---
-  // This ensures that whenever we change the UI, we also save it to the "Database" (uploadedFiles)
-  const updateActiveFileState = (newFields: InputField[]) => {
-    // 1. Update the immediate UI
-    setFields(newFields);
-
-    // 2. Persist to the file storage if a file is selected
-    if (activeFileId) {
-      setUploadedFiles(prev => prev.map(file => 
-        file.id === activeFileId 
-          ? { ...file, specs: newFields } 
-          : file
-      ));
-    }
-  };
-
-  const handleSourceBtnPress = useCallback((source: {pageNumber: number, boundingBox: [number, number, number, number], textSnippet: string}) => {
-    if (source && pdfDocument) {
-      setActiveSource({ ...source });
-    }
-  }, [pdfDocument]);
-
-  // --- HANDLER: FIELD CHANGES ---
-  const handleFieldChange = (id: string, value: string) => {
-    const newFields = fields.map(f => f.id === id ? { ...f, value } : f);
-    updateActiveFileState(newFields);
-  };
-
-  const handleRemoveField = (id: string) => {
-    const newFields = fields.filter(f => f.id !== id);
-    updateActiveFileState(newFields);
-  };
-
-  const handleAddField = (typeId: string) => {
-    const type = FIELD_TYPES.find(t => t.id === typeId);
-    if (type) {
-      const newField: InputField = {
-        id: `new-${Date.now()}`, // Unique ID is crucial
-        type: type.id,
-        label: type.label,
-        value: '',
-        confidence: null,
-        source: null
-      };
-      const newFields = [...fields, newField];
-      updateActiveFileState(newFields);
-    }
-  };
-
-  // --- LOGIC: UPLOAD & ANALYZE ---
-  const handleDocumentUpload = async (file: File) => {
-    try {
-      setIsLoading(true);
-      const [specs, fileId] = await analyzeDocument(file);
-      if (specs) {
-        const newFile: UploadedFile = { 
-            id: Date.now().toString(), 
-            name: file.name, 
-            specs: specs,
-            fileBlob: file 
-        };
-
-        setUploadedFiles(prev => [...prev, newFile]);
-        setActiveFileId(newFile.id);
-        
-        // Update UI View
-        setFields(specs);
-        setPdfDocument(URL.createObjectURL(file));
-        setIsDocumentProcessed(true);
-        setActiveSource(null);
-      }
-    } catch (error) {
-      console.error(error);
-      alert('Analysis failed.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // --- LOGIC: SWITCHING FILES ---
-  const handleSelectFile = (id: string) => {
-    const file = uploadedFiles.find(f => f.id === id);
-    if (file) {
-        setActiveFileId(id);
-        
-        // Load the SAVED fields (which now include your edits)
-        setFields(file.specs); 
-        
-        setPdfDocument(URL.createObjectURL(file.fileBlob));
-        setIsDocumentProcessed(true);
-        setActiveSource(null);
-    }
-  };
-
-  // --- RESIZING LOGIC ---
-  const startResizing = useCallback(() => {
-    isResizing.current = true;
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-  }, []);
-
-  const stopResizing = useCallback(() => {
-    isResizing.current = false;
-    document.body.style.cursor = 'default';
-    document.body.style.userSelect = 'auto';
-  }, []);
-
-  const resize = useCallback((e: MouseEvent) => {
-    if (!isResizing.current) return;
-    const newWidth = window.innerWidth - e.clientX;
-    if (newWidth > MIN_VIEWER_WIDTH && (window.innerWidth - newWidth - (isSidebarOpen ? SIDEBAR_WIDTH : 0)) > MIN_MAIN_WIDTH) {
-      setViewerWidth(newWidth);
-    }
-  }, [isSidebarOpen]);
+  // 2. Document Manager (Handles uploads, active tabs, and highlights)
+  const { 
+    uploadedFiles, 
+    activeFileId, 
+    activeDoc, 
+    activeSource, 
+    isLoading, 
+    handleDocumentUpload, 
+    handleSelectFile, 
+    handleJumpToSource 
+  } = useDocumentManager(projectId);
 
   useEffect(() => {
-    window.addEventListener('mousemove', resize);
-    window.addEventListener('mouseup', stopResizing);
-    return () => {
-      window.removeEventListener('mousemove', resize);
-      window.removeEventListener('mouseup', stopResizing);
-    };
-  }, [resize, stopResizing]);
+    setProjectId(uuidv4());
+  }, []);
 
   return (
     <ThemeProvider theme={theme}>
@@ -226,6 +75,7 @@ export default function App() {
 
         <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
           
+          {/* SIDEBAR */}
           <Box sx={{ 
             width: isSidebarOpen ? SIDEBAR_WIDTH : 0,
             transition: 'width 0.3s ease',
@@ -240,6 +90,7 @@ export default function App() {
             />
           </Box>
 
+          {/* MAIN PARAMETER AREA */}
           <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: MIN_MAIN_WIDTH, bgcolor: colors.background }}>
             <Box sx={{ p: 1, display: 'flex', alignItems: 'center', borderBottom: `1px solid ${colors.border}` }}>
               <IconButton onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
@@ -251,90 +102,113 @@ export default function App() {
             </Box>
 
             <Box sx={{ 
-              flex: 1, 
-              overflowY: 'auto', 
-              p: 3,
-              msOverflowStyle: 'none', 
-              scrollbarWidth: 'none', 
+              flex: 1, overflowY: 'auto', p: 3, msOverflowStyle: 'none', scrollbarWidth: 'none', 
               '&::-webkit-scrollbar': { display: 'none' } 
             }}>
+              
+              {/* UPLOAD & ANALYZE SECTION */}
               <Paper sx={{ p: 3, mb: 3, bgcolor: colors.surface, border: `1px dashed ${colors.border}`, textAlign: 'center' }}>
-                <Typography variant="h6" sx={{ mb: 1 }}>Upload Specification</Typography>
-                <DocumentUpload onUpload={handleDocumentUpload} isUploaded={isDocumentProcessed} />
+                <Typography variant="h6" sx={{ mb: 0.5 }}>Upload Specification</Typography>
+                
+                {/* NEW: Project ID Hint */}
+                <Typography variant="caption" sx={{ display: 'block', mb: 3, color: 'text.secondary', fontFamily: 'monospace' }}>
+                  Project ID: {projectId || 'Initializing...'}
+                </Typography>
+
+                <DocumentUpload onUpload={handleDocumentUpload} isUploaded={!!activeFileId} />
+                
+                {/* NEW: Analyze Button */}
+                <Button 
+                  variant="contained" 
+                  // UPDATE: Disable the button if there are no files, OR if it's currently analyzing
+                  disabled={uploadedFiles.length === 0 || isAnalyzing}
+                  startIcon={<AutoAwesomeIcon />}
+                  sx={{ 
+                    mt: 3, 
+                    px: 4, 
+                    py: 1,
+                    bgcolor: colors.primary,
+                    '&:hover': { bgcolor: colors.secondary },
+                    '&:disabled': { bgcolor: 'action.disabledBackground' }
+                  }}
+                  onClick={async () => {
+                    try {
+                      // 1. Turn on the loading overlay
+                      setIsAnalyzing(true);
+                      console.log('Starting analysis for Project ID:', projectId);
+                      
+                      // 2. Call your backend API
+                      const extractedData = await analyzeDocument(projectId);
+                      
+                      // 3. Push the AI data into your UI state
+                      handlePopulateExtractedData(extractedData);
+                      
+                      console.log('Analysis complete!');
+                    } catch (error) {
+                      console.error('Analysis failed:', error);
+                      alert('Failed to analyze the document. Please try again.');
+                    } finally {
+                      // 4. Turn off the loading overlay regardless of success or failure
+                      setIsAnalyzing(false);
+                    }
+                  }}
+                >
+                  {/* UPDATE: Give visual feedback on the button text */}
+                  {isAnalyzing ? 'Analyzing...' : 'Analyze'}
+                </Button>
               </Paper>
 
               <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 'bold', color: colors.primary }}>
-                {activeFileId ? uploadedFiles.find(f => f.id === activeFileId)?.name : 'Parameters'} ({fields.length} items)
+                Project Parameters ({fields.length} items)
               </Typography>
 
-              {/* KEY FIX: Adding a key here forces React to destroy and recreate the list 
-                 when switching files. This clears any lingering DOM state in the inputs. 
-              */}
-              <Box key={activeFileId || 'empty'}>
+              {/* The Input fields are now globally persistent across file changes */}
+              <Box>
                 <InputFieldsList
                   fields={fields}
-                  onFieldChange={handleFieldChange} // Updated handler
-                  onRemoveField={handleRemoveField} // Updated handler
-                  onAddField={handleAddField}       // Updated handler
-                  availableFieldTypes={FIELD_TYPES}
-                  onShowSource={handleSourceBtnPress}
+                  onFieldChange={handleFieldChange}
+                  onRemoveField={handleRemoveField}
+                  onShowSource={handleJumpToSource}
+                  onSwitchSpecification={handleSwitchSpecification}
                 />
               </Box>
             </Box>
 
+            {/* ACTION BUTTONS */}
             <Box sx={{ 
-              p: 2, 
-              borderTop: `1px solid ${colors.border}`, 
-              bgcolor: colors.surface, 
-              display: 'flex', 
-              justifyContent: 'center', 
-              gap: 2 
+              p: 2, borderTop: `1px solid ${colors.border}`, bgcolor: colors.surface, 
+              display: 'flex', justifyContent: 'center', gap: 2 
             }}>
-              <Button 
-                variant="contained" 
-                sx={{ 
-                  bgcolor: '#fff', 
-                  color: colors.darkTeal, 
-                  px: 3,
-                  '&:hover': { bgcolor: '#f5f5f5' } 
-                }}
-              >
+              <Button variant="contained" sx={{ bgcolor: '#fff', color: colors.darkTeal, px: 3, '&:hover': { bgcolor: '#f5f5f5' } }}>
                 View Summary
               </Button>
-              <Button 
-                variant="contained" 
-                sx={{ 
-                  px: 3,
-                  '&:hover': { transform: 'translateY(-1px)', boxShadow: 4 }
-                }}
-              >
-                Submit Validation
+              <Button variant="contained" sx={{ px: 3, '&:hover': { transform: 'translateY(-1px)', boxShadow: 4 } }}>
+                Extract Parameters
               </Button>
             </Box>
           </Box>
 
+          {/* RESIZE HANDLE */}
           <Box
             onMouseDown={startResizing}
             onDoubleClick={() => setViewerWidth(window.innerWidth / 2)}
             sx={{
-              width: '8px', 
-              cursor: 'col-resize',
-              bgcolor: 'transparent',
-              position: 'relative',
+              width: '8px', cursor: 'col-resize', bgcolor: 'transparent', position: 'relative', zIndex: 10,
               '&::after': {
-                content: '""',
-                position: 'absolute',
-                left: '3px', top: 0, bottom: 0, width: '2px',
-                bgcolor: 'transparent',
-                transition: 'background-color 0.2s',
+                content: '""', position: 'absolute', left: '3px', top: 0, bottom: 0, width: '2px',
+                bgcolor: 'transparent', transition: 'background-color 0.2s',
               },
-              '&:hover::after': { bgcolor: colors.primary },
-              zIndex: 10
+              '&:hover::after': { bgcolor: colors.primary }
             }}
           />
 
+          {/* DOCUMENT VIEWER */}
           <Box sx={{ width: viewerWidth, display: 'flex', flexDirection: 'column', borderLeft: `1px solid ${colors.border}`, bgcolor: '#e4e4e7', minWidth: MIN_VIEWER_WIDTH }}>
-            <DocumentViewer pdfDocument={pdfDocument} activeHighlight={activeSource}/>
+            <DocumentRouter 
+              fileUrl={activeDoc?.fileUrl || null} 
+              fileType={activeDoc?.fileType || null} 
+              activeHighlight={activeSource}
+            />
           </Box>
         </Box>
       </Box>
