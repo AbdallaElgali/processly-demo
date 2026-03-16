@@ -1,57 +1,70 @@
-import {InputField } from "@/types";
+import { InputField, Specification } from "@/types";
+import { v4 as uuidv4 } from 'uuid'; // Important for generating unique IDs for nested specs
 
 const API_URL = process.env.API_URL || 'http://localhost:8000';
 
-
-
-export const analyzeDocument = async(file: File): Promise<any> => {
-  const formData = new FormData();
-  formData.append('file', file);
-
-  const response = await fetch(API_URL + '/process-document', {
+export const analyzeDocument = async (projectId: string): Promise<InputField[]> => {
+  const response = await fetch(`${API_URL}/specs/extract-specs/?project_id=${projectId}`, {
     method: 'POST',
-    body: formData,
+    headers: {
+      'Accept': 'application/json',
+    }
   });
 
   if (!response.ok) {
-    throw new Error('Document analysis failed');
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Document analysis failed');
   }
 
-  console.log('API Response Status:', response.status);
   const data = await response.json();
+  const specs = data.specs; 
   
-  const specs = data.specifications[0];
   console.log('Extracted Specifications:', specs);
 
-  const fieldIDs = Object.keys(specs);
+  const extractedFields: InputField[] = [];
 
-  const extractedFields: InputField[] = fieldIDs.map((fieldId: string) => {
-        const item = specs[fieldId];
-        
-        const field: InputField = {
-            id: fieldId, 
-            
-            label: fieldId, 
-            type: 'type',
-            
-            confidence: item.confidence * 100,
+  // Iterate over the parent keys (U_MIN, U_MAX, etc.)
+  Object.keys(specs).forEach((fieldId: string) => {
+    const metricsArray = specs[fieldId];
+    
+    // This will hold all the extracted values for this specific parameter
+    const mappedSpecifications: Specification[] = [];
 
-            source: {pageNumber: item.verification_result?.page_index + 1, // pdf Pages are 1-indexed
-                    textSnippet: item.verification_result?.matched_text, 
-                    boundingBox: item.verification_result?.bbox,
-                    reason: item.verification_result?.reason}, 
+    if (Array.isArray(metricsArray)) {
+      // Loop through EVERY value the AI found for this parameter
+      metricsArray.forEach((item) => {
+        mappedSpecifications.push({
+          id: uuidv4(), // Give each extracted value a unique ID for React state management
+          value: item.value !== null && item.value !== undefined ? String(item.value) : '',
+          unit: item.unit || item.expected_unit || '',
+          confidence: item.confidence !== null ? item.confidence * 100 : null,
+          
+          source: {
+            documentId: item.source?.documentId || null,
+            pageNumber: item.source?.pageNumber || 0, 
+            textSnippet: item.source?.reason || null, 
+            boundingBox: item.source?.boundingBox || { x: 0, y: 0, width: 0, height: 0 }, 
+            reason: item.source?.reason || item.calculation_logic || '',
+            tableName: item.source?.tableName || null,
+            cellCoordinates: item.source?.cellCoordinates || null
+          } , 
 
-            value: item.value,
-            calculated: item.is_calculated, 
-            source_confidence: item.source_confidence * 100,
-            rule_passed: item.rule_passed,
-            rule_violations: item.rule_violations,
-            requires_review: item.requires_review,
-        };
-        
-        return field;
+          calculated: item.is_calculated || false, 
+          rule_passed: !item.rule_violations || item.rule_violations.length === 0,
+          rule_violations: item.rule_violations || [],
+          requires_review: item.requires_review || false,
         });
+      });
+    }
 
-  return [extractedFields, data.file_id];
-}
+    // Push the parent InputField containing the array of specifications
+    extractedFields.push({
+      id: fieldId,
+      type: fieldId,
+      label: fieldId, // You can map this to a human-readable label later if needed
+      specifications: mappedSpecifications,
+    });
+  });
 
+  return extractedFields;
+};
