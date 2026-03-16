@@ -128,9 +128,6 @@ export const InputFieldItem = ({ field, onChange, onRemove, onShowSource, onSwit
           </Box>
         </Box>
 
-        <IconButton onClick={() => onRemove(field.id)} size="small" sx={{ color: colors.textSecondary, mt: 0.5 }}>
-          <DeleteIcon />
-        </IconButton>
       </CardContent>
     </Card>
   );

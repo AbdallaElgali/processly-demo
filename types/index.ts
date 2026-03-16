@@ -12,10 +12,17 @@ export interface Specification {
   unit: string | null;
 
   source: {
-            pageNumber: number | null;
+            documentId: string | null;
             textSnippet: string | null;
-            boundingBox: { x: number; y: number; width: number; height: number } | null;
             reason: string | null;
+
+            // PDf
+            pageNumber: number | null;
+            boundingBox: { x: number; y: number; width: number; height: number } | null;
+
+            // excel
+            tableName: string | null;
+            cellCoordinates: { row: number; column: number} | null;
           } | null;
 
   calculated?: boolean;
@@ -81,3 +88,17 @@ export const SCHEMA_GROUPS = [
     ]
   }
 ];
+
+
+export interface PDFSource {
+  documentId: string;
+  boundingBox: { x: number; y: number; width: number; height: number };
+  pageNumber: number;
+  textSnippet: string;
+}
+
+export interface ExcelSource {
+  documentId: string;  // represents the fileId 
+  tableName: string;
+  cellCoordinates: { row: number; column: number };
+}

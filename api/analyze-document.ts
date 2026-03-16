@@ -39,12 +39,15 @@ export const analyzeDocument = async (projectId: string): Promise<InputField[]> 
           unit: item.unit || item.expected_unit || '',
           confidence: item.confidence !== null ? item.confidence * 100 : null,
           
-          source: item.reference ? {
-            pageNumber: 1, 
-            textSnippet: item.reference, 
-            boundingBox: { x: 0, y: 0, width: 0, height: 0 }, 
-            reason: item.extraction_logic || item.calculation_logic || ''
-          } : null, 
+          source: {
+            documentId: item.source?.documentId || null,
+            pageNumber: item.source?.pageNumber || 0, 
+            textSnippet: item.source?.reason || null, 
+            boundingBox: item.source?.boundingBox || { x: 0, y: 0, width: 0, height: 0 }, 
+            reason: item.source?.reason || item.calculation_logic || '',
+            tableName: item.source?.tableName || null,
+            cellCoordinates: item.source?.cellCoordinates || null
+          } , 
 
           calculated: item.is_calculated || false, 
           rule_passed: !item.rule_violations || item.rule_violations.length === 0,

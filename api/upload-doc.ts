@@ -20,7 +20,7 @@ export const uploadDocument = async(file: File, project_id: string): Promise<any
 
   console.log('API Response status code: ', response.status);
   if (response.ok){
-    return true;
+    return {project_id: data.project_id, document_id: data.document_id};
   } else {
     throw new Error(data.message || 'Failed to upload document');
   }
