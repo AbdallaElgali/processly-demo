@@ -95,6 +95,7 @@ export const useDocumentManager = (projectId: string | null) => {
   const handleJumpToSource = useCallback((source: any) => {
     setActiveFileId(source.documentId);
     setActiveSource(source);
+    console.log('Active Source: ', source)
   }, []);
 
   return { 
