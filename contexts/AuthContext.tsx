@@ -3,8 +3,18 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 
+const API_URL = 'http://localhost:8000/auth';
+
+// 1. Matched the interface to the backend (changed user_id to id)
+interface User {
+  id: string; 
+  username: string;
+  department: string;
+}
+
+// 2. Fixed the user type from 'string | null' to 'User | null'
 interface AuthContextType {
-  user: string | null;
+  user: User | null;
   login: (username: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
@@ -13,32 +23,59 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    // Check for existing session on mount
-    const storedUser = localStorage.getItem('bda_user');
-    if (storedUser) {
-      setUser(storedUser);
+    // 3. Properly parse the JSON string from localStorage back into a User object
+    const storedUserData = localStorage.getItem('bda_user');
+    if (storedUserData) {
+      try {
+        const parsedUser: User = JSON.parse(storedUserData);
+        setUser(parsedUser);
+      } catch (e) {
+        // If the data is corrupted, clear it out
+        console.error("Failed to parse stored user", e);
+        localStorage.removeItem('bda_user');
+      }
     }
     setIsLoading(false);
   }, []);
 
   const login = async (username: string) => {
-    // MOCK BACKEND CHECK: Replace with actual API call
-    return new Promise<void>((resolve, reject) => {
-      setTimeout(() => {
-        if (username.trim().length > 0) {
-          setUser(username);
-          localStorage.setItem('bda_user', username);
-          resolve();
-        } else {
-          reject(new Error("Username cannot be empty"));
-        }
-      }, 500); // simulate network delay
-    });
+    try {
+      const response = await fetch(`${API_URL}/user?username=${encodeURIComponent(username)}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        // 4. Map the backend response directly to the frontend User interface
+        const currentUser: User = { 
+          id: data.id, 
+          username: data.username, 
+          department: data.department 
+        };
+        
+        setUser(currentUser);
+        // 5. Store the stringified object so we have the ID and department on reload
+        localStorage.setItem('bda_user', JSON.stringify(currentUser));
+        
+        return; // Interface expects Promise<void>
+      } 
+      
+      // Handle the 404 Not Found we set up in FastAPI
+      if (response.status === 404) {
+        throw new Error("User does not exist. Please register first.");
+      }
+      
+      // Catch-all for 500s or other errors
+      throw new Error(`Login failed: ${response.status} ${response.statusText}`);
+
+    } catch (err) {
+      // Re-throw so the login UI component can display the error message
+      throw new Error(err instanceof Error ? err.message : String(err));
+    }
   };
 
   const logout = () => {

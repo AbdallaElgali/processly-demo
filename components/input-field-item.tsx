@@ -1,28 +1,27 @@
 'use client';
 
+import React, { useState } from 'react';
 import { 
   Box, 
   TextField, 
   IconButton, 
   Tooltip, 
-  LinearProgress, 
   Typography,
-  Card,
-  CardContent,
-  Button,
-  Chip // Added Chip
+  Chip,
+  Collapse,
+  Badge
 } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
-import InfoIcon from '@mui/icons-material/Info';
-import { InputField } from '@/types';
+import FindInPageIcon from '@mui/icons-material/FindInPage';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import { InputField, SCHEMA_GROUPS } from '@/types'; // Import SCHEMA_GROUPS
 import { colors } from '@/theme/colors';
 
 interface InputFieldItemProps {
   field: InputField;
-  onChange: (id: string, value: string) => void;
+  onChange: (id: string, value: string, unit: string) => void; 
   onRemove: (id: string) => void;
   onShowSource: (source: any) => void;
-  onSwitch: (fieldId: string, specId: string) => void; // NEW PROP
+  onSwitch: (fieldId: string, specId: string) => void;
 }
 
 const getConfidenceColor = (confidence: number | null) => {
@@ -33,102 +32,165 @@ const getConfidenceColor = (confidence: number | null) => {
 };
 
 export const InputFieldItem = ({ field, onChange, onRemove, onShowSource, onSwitch }: InputFieldItemProps) => {
-  // 1. Identify the active specification and the alternative suggestions
+  const [showAiTools, setShowAiTools] = useState(false);
+
   const activeSpec = field.specifications.find(s => s.id === field.selectedSpecId) || field.specifications[0];
   const suggestions = field.specifications.filter(s => s.id !== activeSpec?.id);
 
-  // 2. Safely extract display values (handles empty/manual states)
   const displayValue = activeSpec ? activeSpec.value : '';
+  
+  // THE FIX: Find the default unit from SCHEMA_GROUPS using the field.type
+  const defaultUnit = SCHEMA_GROUPS.flatMap(g => g.fields).find(f => f.id === field.type)?.unit || '';
+
+  // Use the active spec's unit if it exists (even if empty string), otherwise use the default schema unit
+  const displayUnit = activeSpec?.unit ?? defaultUnit; 
+  
   const displayConfidence = activeSpec ? activeSpec.confidence : null;
   const displaySource = activeSpec ? activeSpec.source : null;
-  const confidenceColor = getConfidenceColor(displayConfidence);
+
+  const hasAiData = displayConfidence !== null || suggestions.length > 0;
 
   return (
-    <Card variant="outlined" sx={{ mb: 2, position: 'relative', overflow: 'visible' }}>
-      <Box
-        sx={{
-          position: 'absolute', left: 0, top: 0, bottom: 0, width: 4,
-          bgcolor: confidenceColor,
-          borderTopLeftRadius: 4, borderBottomLeftRadius: 4,
-        }}
-      />
+    <Box sx={{ py: 1.5, borderBottom: `1px solid ${colors.border}40`, '&:last-child': { borderBottom: 'none' } }}>
       
-      <CardContent sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', p: 2, '&:last-child': { pb: 2 } }}>
-        <Box sx={{ flexGrow: 1, display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 2fr' }, gap: 2 }}>
+      {/* PRIMARY HUMAN INPUT ROW */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        
+        {/* Label */}
+        <Box sx={{ flex: '0 0 30%', minWidth: 0 }}>
+          <Typography variant="body2" fontWeight={500} color="text.primary" noWrap title={field.label}>
+            {field.label}
+          </Typography>
+        </Box>
+
+        {/* Input Fields (Value + Unit) */}
+        <Box sx={{ flex: '1 1 auto', display: 'flex', gap: 1 }}>
+          <TextField
+            fullWidth
+            size="small"
+            value={displayValue}
+            onChange={(e) => onChange(field.id, e.target.value, displayUnit)}
+            placeholder="Enter value..."
+            variant="outlined"
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                bgcolor: 'background.paper',
+                borderRadius: 1.5,
+              }
+            }}
+          />
+          <TextField
+            size="small"
+            value={displayUnit}
+            onChange={(e) => onChange(field.id, displayValue, e.target.value)}
+            placeholder="Unit"
+            variant="outlined"
+            sx={{
+              width: 90, 
+              flexShrink: 0,
+              '& .MuiOutlinedInput-root': {
+                bgcolor: 'background.paper',
+                borderRadius: 1.5,
+              }
+            }}
+          />
+        </Box>
+
+        {/* Action Tools */}
+        <Box sx={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          {displaySource && (
+            <Tooltip title="Locate in Document" arrow>
+              <IconButton 
+                size="small" 
+                onClick={() => onShowSource(displaySource)}
+                sx={{ color: colors.textSecondary, '&:hover': { color: colors.primary, bgcolor: `${colors.primary}15` } }}
+              >
+                <FindInPageIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+
+          {hasAiData && (
+            <Tooltip title="AI Assistant & Alternatives" arrow>
+              <IconButton 
+                size="small" 
+                onClick={() => setShowAiTools(!showAiTools)}
+                sx={{ 
+                  color: showAiTools ? colors.primary : colors.textSecondary, 
+                  bgcolor: showAiTools ? `${colors.primary}15` : 'transparent'
+                }}
+              >
+                <Badge color="primary" variant="dot" invisible={suggestions.length === 0 || showAiTools}>
+                  <AutoAwesomeIcon fontSize="small" />
+                </Badge>
+              </IconButton>
+            </Tooltip>
+          )}
+        </Box>
+      </Box>
+
+      {/* SECONDARY AI ASSISTANT PANEL */}
+      <Collapse in={showAiTools} unmountOnExit>
+        <Box sx={{ 
+          mt: 1, 
+          ml: '30%', 
+          p: 1.5, 
+          bgcolor: `${colors.primary}08`, 
+          borderRadius: 1.5,
+          border: `1px solid ${colors.primary}20`
+        }}>
           
-          <Box sx={{ mt: 1 }}>
-            <Typography variant="body1" fontWeight={600} color="text.primary">
-              {field.label}
-            </Typography>
-          </Box>
+          {displayConfidence !== null && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: suggestions.length > 0 ? 1.5 : 0 }}>
+              <Typography variant="caption" color="text.secondary" fontWeight={500}>
+                Current Value Confidence:
+              </Typography>
+              <Chip 
+                size="small" 
+                label={`${Math.round(displayConfidence)}%`} 
+                sx={{ 
+                  height: 20, 
+                  fontSize: '0.7rem',
+                  fontWeight: 600,
+                  bgcolor: getConfidenceColor(displayConfidence),
+                  color: '#fff'
+                }} 
+              />
+            </Box>
+          )}
 
-          <Box sx={{ position: 'relative' }}>
-            {/* ACTIVE VALUE INPUT */}
-            <TextField
-              fullWidth
-              size="small"
-              value={displayValue}
-              onChange={(e) => onChange(field.id, e.target.value)}
-              placeholder="Value not found"
-              variant="outlined"
-            />
-            
-            {/* ACTIVE CONFIDENCE & METADATA */}
-            {displayConfidence !== null && (
-              <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <LinearProgress 
-                    variant="determinate" 
-                    value={displayConfidence} 
-                    sx={{ 
-                      flexGrow: 1, height: 6, borderRadius: 3, bgcolor: `${confidenceColor}20`,
-                      '& .MuiLinearProgress-bar': { bgcolor: confidenceColor }
-                    }} 
-                  />
-                  <Typography variant="caption" sx={{ color: confidenceColor, fontWeight: 'bold', minWidth: 35 }}>
-                    {Math.round(displayConfidence)}%
-                  </Typography>
-                </Box>
-                
-                {displaySource && (
-                  <Tooltip title={`Source: ${displaySource.textSnippet || 'N/A'}`}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, cursor: 'help' }}>
-                      <InfoIcon sx={{ fontSize: 16, color: colors.textSecondary }} />
-                      <Button variant="text" size="small" onClick={() => onShowSource(displaySource)}>
-                        Source
-                      </Button>
-                    </Box>
-                  </Tooltip>
-                )}
-              </Box>
-            )}
-
-            {/* NEW: ALTERNATIVE SUGGESTIONS CHIPS */}
-            {suggestions.length > 0 && (
-              <Box sx={{ mt: 1.5, display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
-                <Typography variant="caption" color="text.secondary">
-                  Alternatives:
-                </Typography>
+          {suggestions.length > 0 && (
+            <Box>
+              <Typography variant="caption" color="text.secondary" fontWeight={500} sx={{ display: 'block', mb: 1 }}>
+                AI Suggested Alternatives:
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                 {suggestions.map(spec => (
                   <Chip
                     key={spec.id}
                     size="small"
                     variant="outlined"
-                    label={`${spec.value} ${spec.unit || ''} (${Math.round(spec.confidence || 0)}%)`}
-                    onClick={() => onSwitch(field.id, spec.id)}
+                    label={`${spec.value} ${spec.unit || ''}`}
+                    onClick={() => {
+                      onSwitch(field.id, spec.id);
+                      setShowAiTools(false);
+                    }}
                     sx={{ 
+                      fontSize: '0.75rem',
                       borderColor: getConfidenceColor(spec.confidence), 
-                      color: 'text.secondary',
-                      '&:hover': { bgcolor: `${getConfidenceColor(spec.confidence)}15` }
+                      color: 'text.primary',
+                      bgcolor: 'background.paper',
+                      '&:hover': { bgcolor: `${getConfidenceColor(spec.confidence)}15`, cursor: 'pointer' }
                     }}
                   />
                 ))}
               </Box>
-            )}
-          </Box>
-        </Box>
+            </Box>
+          )}
 
-      </CardContent>
-    </Card>
+        </Box>
+      </Collapse>
+
+    </Box>
   );
 };

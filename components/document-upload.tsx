@@ -1,14 +1,14 @@
 'use client';
 
 import React, { useRef, DragEvent } from 'react';
-import { Box, Typography, Button, Paper, CircularProgress } from '@mui/material';
+import { Box, Typography, Paper, CircularProgress } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { colors } from '@/theme/colors';
 
 interface DocumentUploadProps {
-  onUpload: (file: File) => void;
+  onUpload: (files: File[]) => void; 
   isUploaded: boolean;
   isLoading?: boolean;
 }
@@ -16,21 +16,23 @@ interface DocumentUploadProps {
 export const DocumentUpload = ({ 
   onUpload, 
   isUploaded, 
-  isLoading = false // Extracted from props with a default value
+  isLoading = false 
 }: DocumentUploadProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleClick = () => {
-    if (isLoading) return; // Prevent clicks while loading
+    if (isLoading) return; 
     fileInputRef.current?.click();
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (isLoading) return; // Extra safeguard
-    const file = e.target.files?.[0];
-    if (file) {
-      onUpload(file);
+    if (isLoading) return; 
+    
+    if (e.target.files && e.target.files.length > 0) {
+      const filesArray = Array.from(e.target.files);
+      onUpload(filesArray);
     }
+    
     if (e.target) {
       e.target.value = ''; 
     }
@@ -45,11 +47,11 @@ export const DocumentUpload = ({
     e.preventDefault();
     e.stopPropagation();
     
-    if (isLoading) return; // Prevent dropping files while loading
+    if (isLoading) return; 
     
-    const file = e.dataTransfer.files?.[0];
-    if (file) {
-      onUpload(file);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const filesArray = Array.from(e.dataTransfer.files);
+      onUpload(filesArray);
     }
   };
 
@@ -58,10 +60,11 @@ export const DocumentUpload = ({
       <input
         type="file"
         hidden
+        multiple 
         ref={fileInputRef}
         onChange={handleFileChange}
         accept=".pdf,.doc,.docx,.jpg,.png,.xlsx,.xlsm"
-        disabled={isLoading} // Disable the native input
+        disabled={isLoading} 
       />
       
       <Paper
@@ -70,61 +73,47 @@ export const DocumentUpload = ({
         onDrop={handleDrop}
         variant="outlined"
         sx={{
-          p: 4,
-          textAlign: 'center',
+          p: 1.5, // Reduced padding
+          display: 'flex', // Switched to horizontal layout
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 2,
           cursor: isLoading ? 'default' : 'pointer',
-          pointerEvents: isLoading ? 'none' : 'auto', // Disables hover effects while loading
+          pointerEvents: isLoading ? 'none' : 'auto', 
           borderStyle: 'dashed',
           borderWidth: 2,
           borderColor: isLoading ? alpha(colors.primary, 0.5) : isUploaded ? colors.secondary : colors.border,
           backgroundColor: isLoading ? alpha(colors.primary, 0.02) : isUploaded ? alpha(colors.secondary, 0.06) : colors.surface, 
-          transition: 'all 0.3s ease-in-out',
-          // Add a subtle pulse animation when loading
-          animation: isLoading ? 'pulse 1.5s infinite ease-in-out' : 'none',
-          '@keyframes pulse': {
-            '0%': { opacity: 0.7 },
-            '50%': { opacity: 1 },
-            '100%': { opacity: 0.7 },
-          },
+          transition: 'all 0.2s ease-in-out',
           '&:hover': {
             borderColor: isUploaded ? colors.secondary : colors.primary,
             backgroundColor: isUploaded ? alpha(colors.secondary, 0.12) : alpha(colors.primary, 0.04),
           },
         }}
       >
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-          {/* Dynamically render the icon based on loading/uploaded state */}
-          {isLoading ? (
-            <CircularProgress size={36} thickness={4} sx={{ color: colors.primary }} />
-          ) : isUploaded ? (
-            <CheckCircleIcon sx={{ fontSize: 36, color: colors.secondary }} />
-          ) : (
-            <CloudUploadIcon sx={{ fontSize: 36, color: colors.primary }} />
-          )}
-          
-          <Box>
-            <Typography variant="h6" color="text.primary" gutterBottom>
-              {isLoading 
-                ? 'Uploading...' 
-                : isUploaded 
-                  ? 'Document Uploaded Successfully' 
-                  : 'Upload Document'}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {isLoading
-                ? 'Please wait while we process your file.'
-                : isUploaded 
-                  ? 'Click to replace with a different file' 
-                  : 'Drag and drop or click to select a file'}
-            </Typography>
-          </Box>
-
-          {/* Hide the button completely when loading or uploaded */}
-          {!isUploaded && !isLoading && (
-            <Button variant="contained" color="primary" sx={{ mt: 1 }}>
-              Select File
-            </Button>
-          )}
+        {isLoading ? (
+          <CircularProgress size={24} thickness={4} sx={{ color: colors.primary }} />
+        ) : isUploaded ? (
+          <CheckCircleIcon sx={{ fontSize: 28, color: colors.secondary }} />
+        ) : (
+          <CloudUploadIcon sx={{ fontSize: 28, color: colors.primary }} />
+        )}
+        
+        <Box sx={{ textAlign: 'left' }}>
+          <Typography variant="body2" fontWeight={600} color="text.primary">
+            {isLoading 
+              ? 'Uploading...' 
+              : isUploaded 
+                ? 'Documents Uploaded' 
+                : 'Click or drag documents to upload'}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: -0.25 }}>
+            {isLoading
+              ? 'Processing files'
+              : isUploaded 
+                ? 'Click to replace' 
+                : 'Supports PDF, DOCX, XLSX, JPG, PNG'}
+          </Typography>
         </Box>
       </Paper>
     </>

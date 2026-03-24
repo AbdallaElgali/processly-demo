@@ -4,12 +4,11 @@ import { Box, Typography } from '@mui/material';
 import { colors } from '@/theme/colors';
 import { PdfViewer } from './PdfViewer';
 import { ExcelViewer } from './ExcelViewer';
-import { PDFSource, ExcelSource } from '@/types';
 
 interface DocumentRouterProps {
   fileUrl: string | null;
   fileType: string | null; 
-  activeHighlight: any; // Relaxed type so we don't block render
+  activeHighlight: any; 
 }
 
 export const DocumentRouter = ({ fileUrl, fileType, activeHighlight }: DocumentRouterProps) => {
@@ -23,14 +22,26 @@ export const DocumentRouter = ({ fileUrl, fileType, activeHighlight }: DocumentR
 
   const typeString = fileType.toLowerCase();
 
-  // Route: PDF
+  // THE FIX: Adding a unique 'key' based on fileUrl forces React to 
+  // hard-reset the component, killing any ghost PDF workers from the previous file.
   if (typeString.includes('pdf')) {
-    return <PdfViewer pdfDocument={fileUrl} activeHighlight={activeHighlight} />;
+    return (
+      <PdfViewer 
+        key={fileUrl} // <--- THIS PREVENTS THE sendWithPromise ERROR
+        pdfDocument={fileUrl} 
+        activeHighlight={activeHighlight} 
+      />
+    );
   }
 
-  // Route: Excel
   if (typeString.includes('spreadsheet') || typeString.includes('excel') || typeString.includes('csv') || typeString.includes('sheet')) {
-    return <ExcelViewer excelDocument={fileUrl} activeHighlight={activeHighlight} />;
+    return (
+      <ExcelViewer 
+        key={fileUrl} // Same logic for Excel to prevent state bleed
+        excelDocument={fileUrl} 
+        activeHighlight={activeHighlight} 
+      />
+    );
   }
 
   return (

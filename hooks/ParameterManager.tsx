@@ -17,60 +17,102 @@ const generateDefaultFields = (): InputField[] => {
 export const useParameterManager = () => {
   const [fields, setFields] = useState<InputField[]>(generateDefaultFields());
 
-  // Handle manual typing in the input field
   const handleFieldChange = useCallback((fieldId: string, value: string) => {
     setFields(prev => prev.map(field => {
       if (field.id === fieldId) {
         const activeId = field.selectedSpecId;
         
         if (activeId) {
-          // Update the value of the currently selected specification
           const updatedSpecs = field.specifications.map(s => 
             s.id === activeId ? { ...s, value } : s
           );
           return { ...field, specifications: updatedSpecs };
         } else {
-          // If no specs exist yet, create a manual one on the fly
           const newSpecId = uuidv4();
-          const newSpec = { 
-            id: newSpecId, value, confidence: null, unit: null, source: null 
-          };
-          return { 
-            ...field, 
-            specifications: [newSpec], 
-            selectedSpecId: newSpecId 
-          };
+          const newSpec = { id: newSpecId, value, confidence: null, unit: null, source: null };
+          return { ...field, specifications: [newSpec], selectedSpecId: newSpecId };
         }
       }
       return field;
     }));
   }, []);
 
+    // Add this to your useParameterManager hook
+  const hydrateFieldsFromDB = useCallback((dbParameters: any[]) => {
+    setFields(prevFields => {
+      return prevFields.map(uiField => {
+        // Find matching parameter from DB
+        const dbParam = dbParameters.find(p => p.parameter_key === uiField.id);
+        
+        if (dbParam) {
+          // Create a specification object from the DB record
+          const dbSpec = {
+            id: dbParam.selected_candidate_id || uuidv4(),
+            value: dbParam.final_value?.toString() || '',
+            unit: dbParam.final_unit || '',
+            confidence: dbParam.confidence || null, // From the JOIN in your get_full_project_details_db
+            source: {
+              documentId: null, // You can expand your DB join to include these
+              textSnippet: dbParam.source_text_snippet || null,
+              pageNumber: dbParam.source_page_number || null,
+            }
+          };
+
+          return {
+            ...uiField,
+            specifications: [dbSpec],
+            selectedSpecId: dbSpec.id
+          };
+        }
+        return uiField;
+      });
+    });
+  }, []);
+
   const handleRemoveField = useCallback((id: string) => {
     setFields(prev => prev.filter(f => f.id !== id));
   }, []);
 
-  // NEW: Switch the active specification when a suggestion chip is clicked
   const handleSwitchSpecification = useCallback((fieldId: string, specId: string) => {
     setFields(prev => prev.map(field => 
       field.id === fieldId ? { ...field, selectedSpecId: specId } : field
     ));
   }, []);
 
-  // Set the extracted data, sorting by confidence to pick the best default
-  const handlePopulateExtractedData = useCallback((extractedData: InputField[]) => {
-    const processedData = extractedData.map(field => {
-      if (field.specifications && field.specifications.length > 0) {
-        // Sort specifications by highest confidence first
-        const sortedSpecs = [...field.specifications].sort((a, b) => 
-          (b.confidence || 0) - (a.confidence || 0)
-        );
-        // Automatically select the highest confidence item
-        return { ...field, specifications: sortedSpecs, selectedSpecId: sortedSpecs[0].id };
-      }
-      return field;
+  const resetFields = useCallback(() => {
+  setFields(generateDefaultFields());
+}, []);
+
+  // THE FIX: Merge incoming AI data into the existing UI template
+  const handlePopulateExtractedData = useCallback((extractedFields: InputField[]) => {
+    setFields(prevFields => {
+      // 1. Create a copy of the current state (all default fields + any manual typing)
+      const updatedFields = [...prevFields];
+
+      // 2. Loop through only the parameters the AI actually found
+      extractedFields.forEach(incomingField => {
+        // 3. Find the matching placeholder field in our UI
+        const fieldIndex = updatedFields.findIndex(f => f.id === incomingField.id);
+        
+        if (fieldIndex !== -1 && incomingField.specifications && incomingField.specifications.length > 0) {
+          
+          // Sort specifications by highest confidence first
+          const sortedSpecs = [...incomingField.specifications].sort((a, b) => 
+            (b.confidence || 0) - (a.confidence || 0)
+          );
+          
+          // 4. Update ONLY this specific field, injecting the AI candidates
+          updatedFields[fieldIndex] = {
+            ...updatedFields[fieldIndex],
+            specifications: sortedSpecs,
+            selectedSpecId: sortedSpecs[0].id // Auto-select the most confident one
+          };
+        }
+      });
+
+      // 5. Return the merged list (keeps all the empty fields visible!)
+      return updatedFields;
     });
-    setFields(processedData);
   }, []);
 
   return { 
@@ -78,6 +120,8 @@ export const useParameterManager = () => {
     handleFieldChange, 
     handleRemoveField, 
     handleSwitchSpecification, 
-    handlePopulateExtractedData 
+    handlePopulateExtractedData,
+    hydrateFieldsFromDB,
+    resetFields
   };
 };
