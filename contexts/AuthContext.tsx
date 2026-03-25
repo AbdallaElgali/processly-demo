@@ -28,20 +28,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    // 3. Properly parse the JSON string from localStorage back into a User object
+  const validateSession = async () => {
     const storedUserData = localStorage.getItem('bda_user');
+    
     if (storedUserData) {
       try {
         const parsedUser: User = JSON.parse(storedUserData);
-        setUser(parsedUser);
+        
+        // RE-VERIFY with the backend
+        const response = await fetch(`${API_URL}/user?username=${encodeURIComponent(parsedUser.username)}`);
+        
+        if (response.ok) {
+          const freshData = await response.json();
+          setUser({ 
+            id: freshData.id, 
+            username: freshData.username, 
+            department: freshData.department 
+          });
+        } else {
+          // If the backend says the user doesn't exist (404), clear local state
+          logout();
+        }
       } catch (e) {
-        // If the data is corrupted, clear it out
-        console.error("Failed to parse stored user", e);
-        localStorage.removeItem('bda_user');
+        console.error("Session validation failed", e);
+        logout();
       }
     }
     setIsLoading(false);
-  }, []);
+  };
+
+  validateSession();
+}, []);
 
   const login = async (username: string) => {
     try {
