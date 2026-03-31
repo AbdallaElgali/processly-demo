@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { 
   Box, 
   Typography, 
@@ -27,20 +27,30 @@ export const InputFieldsList = ({
   onShowSource,
   onSwitchSpecification
 }: InputFieldsListProps) => {
+  const groupedFields = useMemo(() => {
+    return SCHEMA_GROUPS.map((group) => {
+      const groupFields = fields.filter((f) =>
+        group.fields.some((schemaField) => schemaField.id === f.type)
+      );
+
+      const filledCount = groupFields.filter((f) => {
+        const activeSpec = f.specifications.find((s) => s.id === f.selectedSpecId) || f.specifications[0];
+        return activeSpec && activeSpec.value && activeSpec.value !== '';
+      }).length;
+
+      return {
+        group,
+        groupFields,
+        filledCount,
+      };
+    });
+  }, [fields]);
   
   return (
     <Paper elevation={0} sx={{ border: `1px solid ${colors.border}`, borderRadius: 2, overflow: 'hidden' }}>
-      {SCHEMA_GROUPS.map((group, index) => {
-        const groupFields = fields.filter(f => 
-          group.fields.some(schemaField => schemaField.id === f.type)
-        );
+      {groupedFields.map(({ group, groupFields, filledCount }, index) => {
 
         if (groupFields.length === 0) return null;
-
-        const filledCount = groupFields.filter(f => {
-          const activeSpec = f.specifications.find(s => s.id === f.selectedSpecId) || f.specifications[0];
-          return activeSpec && activeSpec.value && activeSpec.value !== '';
-        }).length;
 
         return (
           <Box key={group.group}>
@@ -82,3 +92,5 @@ export const InputFieldsList = ({
     </Paper>
   );
 };
+
+export const MemoizedInputFieldsList = React.memo(InputFieldsList);

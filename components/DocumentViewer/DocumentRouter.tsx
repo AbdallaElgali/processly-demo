@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { Box, Typography } from '@mui/material';
 import { colors } from '@/theme/colors';
 import { PdfViewer } from './PdfViewer';
@@ -50,3 +51,5 @@ export const DocumentRouter = ({ fileUrl, fileType, activeHighlight }: DocumentR
     </Box>
   );
 };
+
+export const MemoizedDocumentRouter = React.memo(DocumentRouter);

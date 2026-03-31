@@ -161,6 +161,7 @@ export const Sidebar = ({ currentFileId, onSelectFile }: SidebarProps) => {
                   
                   {/* Add Contributor Button */}
                   <IconButton 
+                    title='Add Auditor'
                     className="add-icon"
                     size="small" 
                     onClick={(e) => handleOpenContributorModal(e, project.id)}
@@ -302,3 +303,5 @@ export const Sidebar = ({ currentFileId, onSelectFile }: SidebarProps) => {
     </Box>
   );
 };
+
+export const MemoizedSidebar = React.memo(Sidebar);

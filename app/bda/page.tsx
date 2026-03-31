@@ -25,14 +25,14 @@ import { useDocumentManager } from '@/hooks/DocumentManager';
 import { theme } from '@/theme/theme';
 import { colors } from '@/theme/colors';
 import { DocumentUpload } from '@/components/document-upload';
-import { InputFieldsList } from '@/components/input-fields-list';
+import { MemoizedInputFieldsList } from '@/components/input-fields-list';
 import { LayoutHeader } from '@/components/LayoutHeader';
-import { Sidebar } from '@/components/Sidebar';
+import { MemoizedSidebar } from '@/components/Sidebar';
 import dynamic from 'next/dynamic';
 import { analyzeDocument } from '@/api/analyze-document';
 
 const DocumentRouter = dynamic(
-  () => import('@/components/DocumentViewer/DocumentRouter').then((mod) => mod.DocumentRouter),
+  () => import('@/components/DocumentViewer/DocumentRouter').then((mod) => mod.MemoizedDocumentRouter),
   { ssr: false, loading: () => <p>Loading document viewer...</p> }
 );
 
@@ -59,6 +59,8 @@ export default function BDA() {
   const [analyzeStatus, setAnalyzeStatus] = useState<string>('');
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [newProjectAlias, setNewProjectAlias] = useState('');
+  const analyzeUiTickRef = useRef<number | null>(null);
+  const pendingPartialRef = useRef<any[] | null>(null);
   
   // THE FIX: Local state to trap API errors during creation
   const [createError, setCreateError] = useState<string | null>(null);
@@ -140,6 +142,19 @@ export default function BDA() {
 
   // --- RENDER ---
 
+  const flushAnalyzePartial = () => {
+    analyzeUiTickRef.current = null;
+    if (!pendingPartialRef.current) return;
+    handlePopulateExtractedData(pendingPartialRef.current as any);
+    pendingPartialRef.current = null;
+  };
+
+  const queueAnalyzePartial = (partial: any[]) => {
+    pendingPartialRef.current = partial;
+    if (analyzeUiTickRef.current !== null) return;
+    analyzeUiTickRef.current = window.setTimeout(flushAnalyzePartial, 120);
+  };
+
   if (!hasMounted) return null;
 
   if (authLoading || projectsLoading || !user) {
@@ -201,7 +216,7 @@ export default function BDA() {
         <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
           
           <Box sx={{ width: isSidebarOpen ? SIDEBAR_WIDTH : 0, transition: 'width 0.3s ease', borderRight: isSidebarOpen ? `1px solid ${colors.border}` : 'none', bgcolor: colors.surface, overflow: 'hidden' }}>
-            <Sidebar currentFileId={activeFileId} onSelectFile={handleSelectFile} />
+            <MemoizedSidebar currentFileId={activeFileId} onSelectFile={handleSelectFile} />
           </Box>
 
           <Box sx={{ width: TOOLBAR_WIDTH, display: 'flex', flexDirection: 'column', alignItems: 'center', py: 2, gap: 2, borderRight: `1px solid ${colors.border}`, bgcolor: colors.surface }}>
@@ -217,8 +232,16 @@ export default function BDA() {
                     try {
                       const final = await analyzeDocument(activeProjectId!, (status, partial) => {
                         setAnalyzeStatus(status);
-                        handlePopulateExtractedData(partial);
+                        queueAnalyzePartial(partial);
                       });
+                      if (analyzeUiTickRef.current !== null) {
+                        clearTimeout(analyzeUiTickRef.current);
+                        analyzeUiTickRef.current = null;
+                      }
+                      if (pendingPartialRef.current) {
+                        handlePopulateExtractedData(pendingPartialRef.current as any);
+                        pendingPartialRef.current = null;
+                      }
                       handlePopulateExtractedData(final);
                     } finally { setIsAnalyzing(false); }
                   }} 
@@ -248,7 +271,7 @@ export default function BDA() {
               </Box>
             </Box>
             <Box sx={{ flex: 1, overflowY: 'auto', p: 3 }}>
-              <InputFieldsList fields={fields} onFieldChange={handleFieldChange} onRemoveField={handleRemoveField} onShowSource={handleJumpToSource} onSwitchSpecification={handleSwitchSpecification} />
+              <MemoizedInputFieldsList fields={fields} onFieldChange={handleFieldChange} onRemoveField={handleRemoveField} onShowSource={handleJumpToSource} onSwitchSpecification={handleSwitchSpecification} />
             </Box>
           </Box>
 

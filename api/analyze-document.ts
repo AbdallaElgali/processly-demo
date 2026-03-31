@@ -31,7 +31,7 @@ const mapSpecsToFields = (rawSpecs: any): InputField[] => {
       const src = item.source || item; 
 
       return {
-        id: uuidv4(),
+        id: item.id,
         value: item.value !== null && item.value !== undefined ? String(item.value) : (item.ai_value ? String(item.ai_value) : ''),
         unit: item.unit || item.expected_unit || '',
         confidence: item.confidence !== null && item.confidence !== undefined ? (item.confidence * 100) : null,

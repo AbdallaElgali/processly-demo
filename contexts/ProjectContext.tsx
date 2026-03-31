@@ -120,6 +120,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const saveParameters = useCallback(async (projectId: string, parameters: ParameterInput[]) => {
     setIsLoading(true);
     setError(null);
+    console.log("Saving parameters:", parameters);
     try {
       await apiSaveProjectParameters(projectId, parameters);
       if (currentProject?.id === projectId) {
