@@ -16,6 +16,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import SaveIcon from '@mui/icons-material/Save';
+import DownloadIcon from '@mui/icons-material/Download';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
@@ -30,6 +31,7 @@ import { LayoutHeader } from '@/components/LayoutHeader';
 import { MemoizedSidebar } from '@/components/Sidebar';
 import dynamic from 'next/dynamic';
 import { analyzeDocument } from '@/api/analyze-document';
+import { FrontendBatteryFileExport } from '@/static/battery-template';
 
 const DocumentRouter = dynamic(
   () => import('@/components/DocumentViewer/DocumentRouter').then((mod) => mod.MemoizedDocumentRouter),
@@ -61,7 +63,8 @@ export default function BDA() {
   const [newProjectAlias, setNewProjectAlias] = useState('');
   const analyzeUiTickRef = useRef<number | null>(null);
   const pendingPartialRef = useRef<any[] | null>(null);
-  
+  const [isExporting, setIsExporting] = useState(false);
+
   // THE FIX: Local state to trap API errors during creation
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -69,6 +72,39 @@ export default function BDA() {
   const { fields, handleFieldChange, handleRemoveField, handleSwitchSpecification, handlePopulateExtractedData, hydrateFieldsFromDB, resetFields } = useParameterManager();
   const { uploadedFiles, activeFileId, activeDoc, activeSource, hydrateFiles, isLoading: isDocLoading, handleDocumentUpload, handleSelectFile, handleJumpToSource, clearFiles } = useDocumentManager(activeProjectId);
 
+  const handleExport = () => {
+      if (!activeProjectId || !currentProject) return;
+      setIsExporting(true);
+      
+      try {
+        // 1. Instantiate our new frontend utility
+        const exporter = new FrontendBatteryFileExport();
+        
+        // 2. Generate the XML string and filename using the current fields state
+        const projectName = currentProject.alias_id || currentProject.title || 'Export';
+        console.log("Exporting with fields:", fields);
+        const { content, filename } = exporter.generate(fields, projectName);
+
+        // 3. Create a Blob from the XML string
+        const blob = new Blob([content], { type: 'application/xml;charset=utf-8;' });
+        const url = window.URL.createObjectURL(blob);
+        
+        // 4. Trigger the browser download
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', filename);
+        document.body.appendChild(link);
+        link.click();
+        link.parentNode?.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+      } catch (error) {
+        console.error("Export generation failed:", error);
+      } finally {
+        setIsExporting(false);
+      }
+    };
+    
   // 1. Auth Guard
   useEffect(() => {
     if (hasMounted && !authLoading && !user) router.push('/login');
@@ -252,12 +288,28 @@ export default function BDA() {
                 {isAnalyzing && <CircularProgress size={40} sx={{ position: 'absolute', top: 0, left: 0, zIndex: 1, color: colors.secondary }} />}
               </Box>
             </Tooltip>
+            
             <Tooltip title="Save" placement="right">
               <Box sx={{ position: 'relative' }}>
                 <IconButton onClick={handleSave} disabled={isSaving} color="success"><SaveIcon /></IconButton>
                 {isSaving && <CircularProgress size={40} sx={{ position: 'absolute', top: 0, left: 0, zIndex: 1 }} />}
               </Box>
             </Tooltip>
+
+            {/* ---> ADDED EXPORT BUTTON <--- */}
+            <Tooltip title="Export .battery File" placement="right">
+              <Box sx={{ position: 'relative' }}>
+                <IconButton 
+                  onClick={handleExport} 
+                  disabled={isExporting || !activeProjectId} 
+                  color="info"
+                >
+                  <DownloadIcon />
+                </IconButton>
+                {isExporting && <CircularProgress size={40} sx={{ position: 'absolute', top: 0, left: 0, zIndex: 1 }} />}
+              </Box>
+            </Tooltip>
+
             <Divider sx={{ width: '70%', my: 1 }} />
             <IconButton onClick={() => setIsSidebarOpen(!isSidebarOpen)}>{isSidebarOpen ? <ChevronLeftIcon /> : <MenuIcon />}</IconButton>
           </Box>

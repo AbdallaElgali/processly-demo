@@ -48,7 +48,7 @@ export const useParameterManager = () => {
         if (dbParam) {
           // Create a specification object from the DB record
           const dbSpec = {
-            id: dbParam.selected_candidate_id,
+            id: dbParam.id,
             value: dbParam.final_value?.toString() || '',
             unit: dbParam.final_unit || '',
             confidence: dbParam.confidence || null, // From the JOIN in your get_full_project_details_db
