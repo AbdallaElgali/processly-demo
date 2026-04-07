@@ -92,15 +92,24 @@ export const ExcelViewer = ({ excelDocument, activeHighlight }: ExcelViewerProps
   }, [activeHighlight, workbook, activeSheet]);
 
   // 3. Transform Bounds into a 2D Block
+  // 3. Transform Bounds into a 2D Block
   const highlightRange = useMemo(() => {
     if (!activeHighlight) return null;
 
     if (activeHighlight.boundingBox) {
       let x0, y0, x1, y1;
       const bbox = activeHighlight.boundingBox;
+      
       if (Array.isArray(bbox)) {
         [x0, y0, x1, y1] = bbox;
+      } else if (bbox.x !== undefined && bbox.y !== undefined) {
+        // NEW: Catches the { x, y, width, height } payload
+        x0 = bbox.x;
+        y0 = bbox.y - 1;
+        x1 = bbox.x + (bbox.width || 0);
+        y1 = bbox.y + (bbox.height || 0);
       } else {
+        // OLD: Keeps support for { x0, y0, x1, y1 } just in case
         x0 = bbox.x0; y0 = bbox.y0; x1 = bbox.x1; y1 = bbox.y1;
       }
 

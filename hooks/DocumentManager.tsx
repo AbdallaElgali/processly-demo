@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { uploadDocument } from '@/api/upload-doc';
+import { uploadDocuments } from '@/api/upload-doc'; 
 import { PDFSource, ExcelSource } from '@/types';
 
 interface UploadedFile {
@@ -10,7 +10,7 @@ interface UploadedFile {
   fileUrl: string;
 }
 
-export const useDocumentManager = (projectId: string) => {
+export const useDocumentManager = (projectId: string | null) => {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [activeFileId, setActiveFileId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -18,33 +18,70 @@ export const useDocumentManager = (projectId: string) => {
 
   const activeDoc = uploadedFiles.find(f => f.id === activeFileId) || null;
 
-  const handleDocumentUpload = async (file: File) => {
+  // CRITICAL: Functional update prevents User 1 -> User 2 data leaks
+  const clearFiles = useCallback(() => {
+    setUploadedFiles((prev) => {
+      prev.forEach(file => {
+        if (file.fileUrl.startsWith('blob:')) URL.revokeObjectURL(file.fileUrl);
+      });
+      return [];
+    });
+    setActiveFileId(null);
+    setActiveSource(null);
+  }, []);
+
+  const hydrateFiles = useCallback(async (dbDocs: any[]) => {
+    const API_BASE = 'http://localhost:8000';
     setIsLoading(true);
     try {
-      const response = await uploadDocument(file, projectId);
-      
-      if (response && response.project_id && response.document_id) {
-        let safeFileType = file.type;
-        const ext = file.name.split('.').pop()?.toLowerCase();
-        if (!safeFileType) {
-          safeFileType = ext === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-        }
+      const hydrated = await Promise.all(dbDocs.map(async (doc) => {
+        const relativePath = doc.file_url; 
+        if (!relativePath) return null;
 
-        const newFile: UploadedFile = {
-          id: response.document_id,
-          name: file.name,
-          fileType: safeFileType,
-          fileUrl: URL.createObjectURL(file),
-          fileBlob: file,
-        };
+        // Cache-busting prevents the browser from showing the previous user's file
+        const response = await fetch(`${API_BASE}${relativePath}?t=${Date.now()}`);
+        if (!response.ok) throw new Error(`Fetch failed for ${doc.name}`);
+        const blob = await response.blob();
         
-        setUploadedFiles(prev => [...prev, newFile]);
-        setActiveFileId(response.document_id);
-        setActiveSource(null); 
+        return {
+          id: doc.id,
+          name: doc.name,
+          fileType: doc.type === 'pdf' ? 'application/pdf' : 'application/vnd.ms-excel',
+          fileUrl: URL.createObjectURL(blob),
+          fileBlob: new File([blob], doc.name),
+        };
+      }));
+
+      setUploadedFiles(hydrated.filter(f => f !== null) as UploadedFile[]);
+      if (hydrated.length > 0) setActiveFileId(hydrated[0]?.id || null);
+    } catch (e) {
+      console.error("Hydration Error:", e);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const handleDocumentUpload = async (files: File[]) => {
+    if (!projectId) return;
+    setIsLoading(true);
+    try {
+      const response = await uploadDocuments(files, projectId);
+      if (response && response.successful_uploads) {
+        const newFiles: UploadedFile[] = response.successful_uploads.map((successItem: any) => {
+          const originalFile = files.find(f => f.name === successItem.filename)!;
+          return {
+            id: successItem.document_id,
+            name: originalFile.name,
+            fileType: originalFile.type || (originalFile.name.endsWith('pdf') ? 'application/pdf' : 'application/vnd.ms-excel'),
+            fileUrl: URL.createObjectURL(originalFile), 
+            fileBlob: originalFile,
+          };
+        });
+        setUploadedFiles(prev => [...prev, ...newFiles]);
+        setActiveFileId(newFiles[0].id);
       }
     } catch (error) {
-      console.error('[Upload] Error uploading document:', error);
-      alert('Failed to upload document.');
+      console.error('Upload Error:', error);
     } finally {
       setIsLoading(false);
     }
@@ -55,75 +92,14 @@ export const useDocumentManager = (projectId: string) => {
     setActiveSource(null); 
   };
 
-  const resolveSource = useCallback((source: any) => {
-    let fileId = source.documentId;
-    const file = uploadedFiles.find(f => f.id === fileId);
-    
-    if (!file) return source; 
-
-    const type = file.fileType.toLowerCase();
-
-    // Route: PDF
-    if (type.includes('pdf')) {
-      let bbox = source.boundingBox;
-      if (bbox && !Array.isArray(bbox) && 'x0' in bbox) {
-        bbox = [bbox.x0, bbox.y0, bbox.x1, bbox.y1];
-      }
-      return {
-        fileId,
-        pageNumber: source.pageNumber,
-        boundingBox: bbox,
-        textSnippet: source.textSnippet,
-        documentId: source.documentId
-      };
-    } 
-    
-    // Route: Excel
-    if (type.includes('spreadsheet') || type.includes('excel') || type.includes('csv') || type.includes('sheet')) {
-      let mappedCoords = source.cellCoordinates;
-
-      // Ensure fallback translation if backend sends grid as BoundingBox
-      if (!mappedCoords && source.boundingBox) {
-        let x0, y0;
-        if (Array.isArray(source.boundingBox)) {
-          x0 = source.boundingBox[0]; y0 = source.boundingBox[1];
-        } else {
-          x0 = source.boundingBox.x0; y0 = source.boundingBox.y0;
-        }
-        if (x0 !== undefined && y0 !== undefined) {
-          mappedCoords = { row: Math.floor(y0) + 1, column: Math.floor(x0) + 1 };
-        }
-      }
-
-      return {
-        fileId,
-        pageNumber: source.pageNumber,
-        tableName: source.tableName,
-        cellCoordinates: mappedCoords,
-        boundingBox: source.boundingBox, // CRITICAL FIX: Retain Bounding Box for Excel block highlighting
-        textSnippet: source.textSnippet || (mappedCoords ? `Cell: (${mappedCoords.row}, ${mappedCoords.column})` : 'N/A'),
-        documentId: source.documentId
-      };
-    } 
-    
-    return source; 
-  }, [uploadedFiles]);
-
   const handleJumpToSource = useCallback((source: any) => {
-    if (!source || !source.documentId) return; 
-
-    const targetFile = uploadedFiles.find(f => f.id === source.documentId);
-    if (!targetFile) {
-      alert(`Cannot find the source document for this metric. (ID: ${source.documentId})`);
-      return;
-    }
-
-    setActiveFileId(source.documentId); 
-    setActiveSource(resolveSource(source));
-  }, [uploadedFiles, resolveSource]);
+    setActiveFileId(source.documentId);
+    setActiveSource(source);
+    console.log('Active Source: ', source)
+  }, []);
 
   return { 
     uploadedFiles, activeFileId, activeDoc, activeSource, 
-    isLoading, handleDocumentUpload, handleSelectFile, handleJumpToSource 
+    isLoading, handleDocumentUpload, handleSelectFile, handleJumpToSource, hydrateFiles, clearFiles 
   };
 };
