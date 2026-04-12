@@ -2,26 +2,27 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useAuth } from './AuthContext';
-import { 
-  apiCreateProject, 
-  apiGetUserProjects, 
-  apiGetProjectDetails, 
-  apiAddContributor, 
+import {
+  apiCreateProject,
+  apiGetUserProjects,
+  apiGetProjectDetails,
+  apiAddContributor,
   apiSaveProjectParameters,
   ProjectCreateInput,
-  ParameterInput
+  ParameterInput,
+  Project,
 } from '@/api/projects';
 
 // --- Interfaces ---
 interface ProjectContextType {
-  projects: any[]; 
-  currentProject: any | null; 
+  projects: Project[];
+  currentProject: Project | null;
   isLoading: boolean;
   error: string | null;
-  
+
   fetchUserProjects: () => Promise<void>;
   loadProjectDetails: (projectId: string) => Promise<void>;
-  createNewProject: (data: Omit<ProjectCreateInput, 'user_id'>) => Promise<any>;
+  createNewProject: (data: Omit<ProjectCreateInput, 'user_id'>) => Promise<Project | undefined>;
   addContributor: (projectId: string, username: string) => Promise<void>;
   saveParameters: (projectId: string, parameters: ParameterInput[]) => Promise<void>;
   clearError: () => void;
@@ -31,20 +32,11 @@ const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
 
 export function ProjectProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  
-  const [projects, setProjects] = useState<any[]>([]);
-  const [currentProject, setCurrentProject] = useState<any | null>(null);
+
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (user?.id) {
-      fetchUserProjects();
-    } else {
-      setProjects([]);
-      setCurrentProject(null);
-    }
-  }, [user?.id]);
 
   const clearError = () => setError(null);
 
@@ -55,12 +47,21 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     try {
       const data = await apiGetUserProjects(user.id);
       setProjects(data.projects || []);
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch projects');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch projects');
     } finally {
       setIsLoading(false);
     }
   }, [user?.id]);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchUserProjects();
+    } else {
+      setProjects([]);
+      setCurrentProject(null);
+    }
+  }, [user?.id, fetchUserProjects]);
 
   const loadProjectDetails = useCallback(async (projectId: string) => {
     setIsLoading(true);
@@ -68,8 +69,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     try {
       const data = await apiGetProjectDetails(projectId);
       setCurrentProject(data);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load project details');
+      console.log('CURRENT PROJECT:', data);
+
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load project details');
     } finally {
       setIsLoading(false);
     }
@@ -80,21 +83,19 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     setError(null);
     try {
-      const newProjectData = { ...data, user_id: user.id };
+      const newProjectData: ProjectCreateInput = { ...data, user_id: user.id };
       const response = await apiCreateProject(newProjectData);
-      
-      // Refresh the project list immediately
+
       await fetchUserProjects();
-      
-      // THE FIX: Automatically jump into the newly created project
-      const newProjectId = response?.project?.id || response?.id;
+
+      const newProjectId = response?.project?.id;
       if (newProjectId) {
         await loadProjectDetails(newProjectId);
       }
-      
+
       return response?.project;
-    } catch (err: any) {
-      setError(err.message || 'Failed to create project');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to create project');
       throw err;
     } finally {
       setIsLoading(false);
@@ -109,30 +110,29 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       if (currentProject?.id === projectId) {
         await loadProjectDetails(projectId);
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to add contributor');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to add contributor');
       throw err;
     } finally {
       setIsLoading(false);
     }
-  }, [currentProject, loadProjectDetails]);
+  }, [currentProject?.id, loadProjectDetails]);
 
   const saveParameters = useCallback(async (projectId: string, parameters: ParameterInput[]) => {
     setIsLoading(true);
     setError(null);
-    console.log("Saving parameters:", parameters);
     try {
       await apiSaveProjectParameters(projectId, parameters);
       if (currentProject?.id === projectId) {
         await loadProjectDetails(projectId);
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to save parameters');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to save parameters');
       throw err;
     } finally {
       setIsLoading(false);
     }
-  }, [currentProject, loadProjectDetails]);
+  }, [currentProject?.id, loadProjectDetails]);
 
   return (
     <ProjectContext.Provider value={{

@@ -25,6 +25,7 @@ import {
 } from '@mui/icons-material';
 import { colors } from '@/theme/colors';
 import { useProject } from '@/contexts/ProjectContext';
+import { ProjectDocument } from '@/api/projects';
 
 interface SidebarProps {
   currentFileId: string | null;
@@ -79,9 +80,8 @@ export const Sidebar = ({ currentFileId, onSelectFile }: SidebarProps) => {
     try {
       await addContributor(targetProjectId, contributorUsername.trim());
       setContributorModalOpen(false);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to add contributor:", error);
-      // You could map this to a toast/snackbar in the future
     }
   };
 
@@ -101,14 +101,14 @@ export const Sidebar = ({ currentFileId, onSelectFile }: SidebarProps) => {
         setExpandedProjectId(newProject.id);
         await loadProjectDetails(newProject.id);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to create project:", error);
     }
   };
 
   // Assume the API returns an array of files/documents on the detailed project object. 
   // Adjust 'files' to 'documents' if your backend schema uses a different key.
-  const activeFiles = currentProject?.files || currentProject?.documents || [];
+  const activeFiles = currentProject?.documents || [];
 
   return (
     <Box sx={{ height: '100%', width: '100%', bgcolor: colors.surface, borderRight: `1px solid ${colors.border}`, display: 'flex', flexDirection: 'column' }}>
@@ -188,7 +188,7 @@ export const Sidebar = ({ currentFileId, onSelectFile }: SidebarProps) => {
                         No documents found
                       </Typography>
                     ) : (
-                      activeFiles.map((file: any) => {
+                      (activeFiles as ProjectDocument[]).map((file) => {
                         const isActive = currentFileId === file.id;
                         const displayName = file.name?.length > 25 
                           ? `${file.name.substring(0, 15)}...${file.name.slice(-7)}` 

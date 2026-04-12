@@ -49,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // If the backend says the user doesn't exist (404), clear local state
           logout();
         }
-      } catch (e) {
+      } catch (e: unknown) {
         console.error("Session validation failed", e);
         logout();
       }
@@ -89,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Catch-all for 500s or other errors
       throw new Error(`Login failed: ${response.status} ${response.statusText}`);
 
-    } catch (err) {
+    } catch (err: unknown) {
       // Re-throw so the login UI component can display the error message
       throw new Error(err instanceof Error ? err.message : String(err));
     }

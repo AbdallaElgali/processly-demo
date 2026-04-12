@@ -13,10 +13,11 @@ import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 import FormatQuoteIcon from '@mui/icons-material/FormatQuote';
 import * as XLSX from 'xlsx';
 import { colors } from '@/theme/colors';
+import { ActiveHighlight } from '@/types';
 
 interface ExcelViewerProps {
   excelDocument: string;
-  activeHighlight?: any;
+  activeHighlight?: ActiveHighlight;
 }
 
 const getColumnLetter = (colIndex: number) => {
@@ -102,15 +103,12 @@ export const ExcelViewer = ({ excelDocument, activeHighlight }: ExcelViewerProps
       
       if (Array.isArray(bbox)) {
         [x0, y0, x1, y1] = bbox;
-      } else if (bbox.x !== undefined && bbox.y !== undefined) {
-        // NEW: Catches the { x, y, width, height } payload
+      } else {
+        // { x, y, width, height } payload
         x0 = bbox.x;
         y0 = bbox.y - 1;
         x1 = bbox.x + (bbox.width || 0);
         y1 = bbox.y + (bbox.height || 0);
-      } else {
-        // OLD: Keeps support for { x0, y0, x1, y1 } just in case
-        x0 = bbox.x0; y0 = bbox.y0; x1 = bbox.x1; y1 = bbox.y1;
       }
 
       if (x0 !== undefined && y0 !== undefined && x1 !== undefined && y1 !== undefined) {
@@ -168,7 +166,7 @@ export const ExcelViewer = ({ excelDocument, activeHighlight }: ExcelViewerProps
     const worksheet = workbook.Sheets[activeSheet];
     if (!worksheet) return { sheetData: [], colHeaders: [] };
 
-    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' }) as any[][];
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' }) as unknown[][];
     let maxCols = 0;
     jsonData.forEach(row => { if (row.length > maxCols) maxCols = row.length; });
     const headers = Array.from({ length: maxCols }, (_, i) => getColumnLetter(i));
@@ -287,7 +285,7 @@ export const ExcelViewer = ({ excelDocument, activeHighlight }: ExcelViewerProps
                     }}
                     title={String(cell)}
                   >
-                    {cell}
+                    {String(cell ?? '')}
                   </TableCell>
                 )})}
               </TableRow>
@@ -317,7 +315,7 @@ export const ExcelViewer = ({ excelDocument, activeHighlight }: ExcelViewerProps
             </Typography>
           </Box>
           <Typography variant="body2" sx={{ pl: 3.5, fontStyle: 'italic', color: 'text.secondary', borderLeft: `2px solid ${colors.border}`, ml: 0.5, py: 0.5 }}>
-            "{activeHighlight.textSnippet}"
+            &quot;{activeHighlight.textSnippet}&quot;
           </Typography>
         </Paper>
       )}

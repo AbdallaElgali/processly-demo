@@ -5,11 +5,12 @@ import { Box, Typography } from '@mui/material';
 import { colors } from '@/theme/colors';
 import { PdfViewer } from './PdfViewer';
 import { ExcelViewer } from './ExcelViewer';
+import { ActiveHighlight } from '@/types';
 
 interface DocumentRouterProps {
   fileUrl: string | null;
-  fileType: string | null; 
-  activeHighlight: any; 
+  fileType: string | null;
+  activeHighlight: ActiveHighlight;
 }
 
 export const DocumentRouter = ({ fileUrl, fileType, activeHighlight }: DocumentRouterProps) => {

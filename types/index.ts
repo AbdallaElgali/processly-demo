@@ -1,7 +1,19 @@
-export interface FieldType {
+export type BoundingBox = { x: number; y: number; width: number; height: number };
+
+export interface SchemaField {
   id: string;
   label: string;
-  unit: string | null;
+  unit: string;
+}
+
+export interface SpecificationSource {
+  documentId: string | null;
+  textSnippet: string | null;
+  reason: string | null;
+  pageNumber: number | null;
+  boundingBox: BoundingBox | null;
+  tableName: string | null;
+  cellCoordinates: { row: number; column: number } | null;
 }
 
 export interface Specification {
@@ -9,37 +21,23 @@ export interface Specification {
   value: string;
   confidence: number | null;
   unit: string | null;
-
-  source: {
-    documentId: string | null;
-    textSnippet: string | null;
-    reason: string | null;
-
-    // PDf
-    pageNumber: number | null;
-    boundingBox: { x: number; y: number; width: number; height: number } | null;
-
-    // excel
-    tableName: string | null;
-    cellCoordinates: { row: number; column: number} | null;
-  } | null;
-
-  calculated?: boolean;
-  source_confidence?: number | null;
-  rule_passed?: boolean;
-  rule_violations?: string[];
-  requires_review?: boolean;
+  source: SpecificationSource | null;
+  calculated: boolean;
+  rule_passed: boolean;
+  rule_violations: string[];
+  requires_review: boolean;
 }
 
 export interface InputField {
-  id: string; // The unique identifier for the field (e.g., 'U_MIN')
-  type: string;
+  id: string;
   label: string;
   specifications: Specification[];
-  selectedSpecId?: string; // NEW: Tracks which specification is currently active
+  selectedSpecId?: string;
+  isFlagged?: boolean;
+  flagReason?: string;
 }
 
-export const SCHEMA_GROUPS = [
+export const SCHEMA_GROUPS: { group: string; fields: SchemaField[] }[] = [
   {
     group: "Voltage Specs",
     fields: [
@@ -89,15 +87,24 @@ export const SCHEMA_GROUPS = [
   }
 ];
 
+// PDFSource and ExcelSource represent the resolved highlight target passed to viewers.
+// Fields that may be absent at runtime are explicitly nullable.
 export interface PDFSource {
   documentId: string;
-  boundingBox: { x: number; y: number; width: number; height: number };
   pageNumber: number;
-  textSnippet: string;
+  boundingBox: BoundingBox | null;
+  textSnippet: string | null;
 }
 
 export interface ExcelSource {
-  documentId: string;  // represents the fileId 
-  tableName: string;
-  cellCoordinates: { row: number; column: number };
+  documentId: string;
+  tableName: string | null;
+  cellCoordinates: { row: number; column: number } | null;
+  pageNumber: number | null;
+  boundingBox: BoundingBox | null;
+  textSnippet: string | null;
 }
+
+// ActiveHighlight is the runtime type flowing from a Specification source
+// through DocumentManager into the document viewers.
+export type ActiveHighlight = SpecificationSource | null;

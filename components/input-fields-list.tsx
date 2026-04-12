@@ -7,17 +7,18 @@ import {
   Paper,
   Divider
 } from '@mui/material';
-import { InputField } from '@/types';
+import { InputField, SpecificationSource, SCHEMA_GROUPS } from '@/types';
 import { InputFieldItem } from './input-field-item';
-import { SCHEMA_GROUPS } from '@/types';
 import { colors } from '@/theme/colors';
 
 interface InputFieldsListProps {
   fields: InputField[];
-  onFieldChange: (id: string, value: string) => void;
+  onFieldChange: (id: string, value: string, unit: string) => void;
   onRemoveField: (id: string) => void;
-  onShowSource: (source: any) => void;
+  onShowSource: (source: SpecificationSource) => void;
   onSwitchSpecification: (fieldId: string, specId: string) => void;
+  onFlag?: (id: string, isFlagged: boolean, reason?: string | null) => void;
+  readOnly?: boolean;
 }
 
 export const InputFieldsList = ({
@@ -25,12 +26,14 @@ export const InputFieldsList = ({
   onFieldChange,
   onRemoveField,
   onShowSource,
-  onSwitchSpecification
+  onSwitchSpecification,
+  onFlag,
+  readOnly = false,
 }: InputFieldsListProps) => {
   const groupedFields = useMemo(() => {
     return SCHEMA_GROUPS.map((group) => {
       const groupFields = fields.filter((f) =>
-        group.fields.some((schemaField) => schemaField.id === f.type)
+        group.fields.some((schemaField) => schemaField.id === f.id)
       );
 
       const filledCount = groupFields.filter((f) => {
@@ -83,6 +86,8 @@ export const InputFieldsList = ({
                   onRemove={onRemoveField}
                   onShowSource={onShowSource}
                   onSwitch={onSwitchSpecification}
+                  onFlag={onFlag}
+                  readOnly={readOnly}
                 />
               ))}
             </Box>
