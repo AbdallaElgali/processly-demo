@@ -130,7 +130,7 @@ export const useParameterManager = () => {
     });
   }, []);
 
-  const handleFlag = useCallback(async (fieldId: string, isFlagged: boolean, reason?: string) => {
+  const handleFlag = useCallback(async (fieldId: string, isFlagged: boolean, reason?: string | null) => {
     const field = fields.find(f => f.id === fieldId);
     const parameterId = field?.selectedSpecId; // The DB ID for this parameter candidate
 
