@@ -6,6 +6,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import EditIcon from '@mui/icons-material/Edit';
 import Link from 'next/link';
 import { colors } from '@/theme/colors';
+import { useState } from 'react';
 
 interface ProjectBarProps {
   projectName: string;
@@ -16,6 +17,7 @@ interface ProjectBarProps {
 }
 
 export const ProjectBar = ({ projectName, username, onLogout, mode = 'edit' }: ProjectBarProps) => {
+  const [reviewModeEnabled, setReviewModeEnabled] = useState(false);
   return (
     <Box sx={{
       p: 1.5,
@@ -50,7 +52,7 @@ export const ProjectBar = ({ projectName, username, onLogout, mode = 'edit' }: P
       </Box>
 
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-        {mode === 'edit' && (
+        {reviewModeEnabled && mode === 'edit' && (
           <Link href="/review" style={{ textDecoration: 'none' }}>
             <Chip
               icon={<VisibilityIcon sx={{ fontSize: '14px !important' }} />}

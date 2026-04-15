@@ -55,6 +55,7 @@ export const Sidebar = ({ currentFileId, onSelectFile }: SidebarProps) => {
   const [newProjectTitle, setNewProjectTitle] = useState('');
   const [newProjectDesc, setNewProjectDesc] = useState('');
 
+  const [addContributorEnabled, setAddContributorEnabled] = useState(false);
   // --- Handlers ---
   const handleToggleProject = async (projectId: string) => {
     if (expandedProjectId === projectId) {
@@ -141,7 +142,7 @@ export const Sidebar = ({ currentFileId, onSelectFile }: SidebarProps) => {
                   sx={{
                     borderRadius: 1, 
                     mb: 0.5,
-                    bgcolor: isExpanded ? 'rgba(255, 255, 255, 0.05)' : 'transparent',
+                    bgcolor: isLoadedProject ? 'rgba(255, 255, 255, 0.05)' : 'transparent',
                     '&:hover .add-icon': { opacity: 1 }, // Show add icon on hover
                   }}
                 >
@@ -153,14 +154,14 @@ export const Sidebar = ({ currentFileId, onSelectFile }: SidebarProps) => {
                     primary={project.alias_id || project.name || 'Untitled Project'} 
                     primaryTypographyProps={{ 
                       variant: 'body2', 
-                      color: isExpanded ? 'white' : colors.textSecondary,
-                      fontWeight: isExpanded ? 600 : 400,
+                      color: isLoadedProject ? 'white' : colors.textSecondary,
+                      fontWeight: isLoadedProject ? 600 : 400,
                       noWrap: true
                     }} 
                   />
                   
                   {/* Add Contributor Button */}
-                  <IconButton 
+                  {addContributorEnabled && (<IconButton 
                     title='Add Auditor'
                     className="add-icon"
                     size="small" 
@@ -173,7 +174,7 @@ export const Sidebar = ({ currentFileId, onSelectFile }: SidebarProps) => {
                     }}
                   >
                     <PersonAddIcon fontSize="small" sx={{ width: 16, height: 16 }} />
-                  </IconButton>
+                  </IconButton>)}
                 </ListItemButton>
 
                 {/* Nested Documents List */}

@@ -2,7 +2,7 @@
 
 import { useRef, useState, useCallback } from 'react';
 import { InputField } from '@/types';
-import { analyzeDocument } from '@/api/analyze-document';
+import { analyzeDocument, mapFieldsToSpecs } from '@/api/analyze-document'; // Import mapper
 
 export const useAnalyze = (
   activeProjectId: string | null,
@@ -26,15 +26,27 @@ export const useAnalyze = (
     analyzeUiTickRef.current = window.setTimeout(flushAnalyzePartial, 120);
   }, [flushAnalyzePartial]);
 
-  const handleAnalyze = useCallback(async () => {
+  // --- UPDATED: Accepts currentFields from your UI state ---
+  const handleAnalyze = useCallback(async (currentFields?: InputField[]) => {
     if (!activeProjectId) return;
+    if (currentFields) {
+      console.log('Current fields before mapping to specs:', currentFields);
+    }
+    // Check if we have flagged fields. If so, map them to send as `previousSpecs`
+    const hasFlaggedFields = currentFields?.some(f => f.isFlagged);
+    
+    const previousSpecs = hasFlaggedFields ? mapFieldsToSpecs(currentFields) : null;
+    
     setIsAnalyzing(true);
-    setAnalyzeStatus('AI Ready...');
+    setAnalyzeStatus(previousSpecs ? 'Starting AI Correction...' : 'AI Ready...');
+    
     try {
-      const final = await analyzeDocument(activeProjectId, (status, partial) => {
+      // Pass previousSpecs as the 2nd argument
+      const final = await analyzeDocument(activeProjectId, previousSpecs, (status, partial) => {
         setAnalyzeStatus(status);
         queueAnalyzePartial(partial);
       });
+      
       if (analyzeUiTickRef.current !== null) {
         clearTimeout(analyzeUiTickRef.current);
         analyzeUiTickRef.current = null;

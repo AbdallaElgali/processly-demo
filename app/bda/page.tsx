@@ -184,7 +184,7 @@ export default function BDA() {
 
           <ActionToolbar
             onUploadClick={() => setIsUploadModalOpen(true)}
-            onAnalyze={handleAnalyze}
+            onAnalyze={() => handleAnalyze(fields)}
             onSave={handleSave}
             onExport={handleExport}
             onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
@@ -212,6 +212,7 @@ export default function BDA() {
                 onShowSource={handleJumpToSource}
                 onSwitchSpecification={handleSwitchSpecification}
                 onFlag={handleFlag}
+                readOnly={isAnalyzing || isSaving || isExporting}
               />
             </Box>
           </Box>
