@@ -14,11 +14,12 @@ import FormatQuoteIcon from '@mui/icons-material/FormatQuote';
 import { colors } from '@/theme/colors';
 
 // --- ADDED POLYFILL FOR OLDER BROWSERS/ENVIRONMENTS ---
-if (typeof window !== 'undefined' && typeof (URL as any).parse !== 'function') {
-  (URL as any).parse = function (url: string, base?: string) {
+type URLConstructor = typeof URL & { parse?: (url: string, base?: string | URL) => URL | null };
+if (typeof window !== 'undefined' && typeof (URL as URLConstructor).parse !== 'function') {
+  (URL as URLConstructor).parse = function (url: string, base?: string | URL) {
     try {
       return new URL(url, base);
-    } catch (error) {
+    } catch {
       return null;
     }
   };
@@ -150,8 +151,8 @@ export const DocumentViewer = ({ pdfDocument, activeHighlight }: DocumentViewerP
             <FormatQuoteIcon fontSize="small" />
             <Typography variant="caption" fontWeight="bold" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>Matched Text (Page {activeHighlight.pageNumber})</Typography>
           </Box>
-          <Typography variant="body2" sx={{ pl: 3.5, fontStyle: 'italic', color: 'text.secondary', borderLeft: `2px solid ${colors.border}`, ml: 0.5, pl: 1.5, py: 0.5 }}>
-            "{activeHighlight.textSnippet}"
+          <Typography variant="body2" sx={{ pl: 1.5, fontStyle: 'italic', color: 'text.secondary', borderLeft: `2px solid ${colors.border}`, ml: 0.5, py: 0.5 }}>
+            &quot;{activeHighlight.textSnippet}&quot;
           </Typography>
         </Paper>
       )}

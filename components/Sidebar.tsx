@@ -25,6 +25,7 @@ import {
 } from '@mui/icons-material';
 import { colors } from '@/theme/colors';
 import { useProject } from '@/contexts/ProjectContext';
+import { ProjectDocument } from '@/api/projects';
 
 interface SidebarProps {
   currentFileId: string | null;
@@ -54,6 +55,7 @@ export const Sidebar = ({ currentFileId, onSelectFile }: SidebarProps) => {
   const [newProjectTitle, setNewProjectTitle] = useState('');
   const [newProjectDesc, setNewProjectDesc] = useState('');
 
+  const [addContributorEnabled, setAddContributorEnabled] = useState(false);
   // --- Handlers ---
   const handleToggleProject = async (projectId: string) => {
     if (expandedProjectId === projectId) {
@@ -79,9 +81,8 @@ export const Sidebar = ({ currentFileId, onSelectFile }: SidebarProps) => {
     try {
       await addContributor(targetProjectId, contributorUsername.trim());
       setContributorModalOpen(false);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to add contributor:", error);
-      // You could map this to a toast/snackbar in the future
     }
   };
 
@@ -101,14 +102,14 @@ export const Sidebar = ({ currentFileId, onSelectFile }: SidebarProps) => {
         setExpandedProjectId(newProject.id);
         await loadProjectDetails(newProject.id);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to create project:", error);
     }
   };
 
   // Assume the API returns an array of files/documents on the detailed project object. 
   // Adjust 'files' to 'documents' if your backend schema uses a different key.
-  const activeFiles = currentProject?.files || currentProject?.documents || [];
+  const activeFiles = currentProject?.documents || [];
 
   return (
     <Box sx={{ height: '100%', width: '100%', bgcolor: colors.surface, borderRight: `1px solid ${colors.border}`, display: 'flex', flexDirection: 'column' }}>
@@ -141,7 +142,7 @@ export const Sidebar = ({ currentFileId, onSelectFile }: SidebarProps) => {
                   sx={{
                     borderRadius: 1, 
                     mb: 0.5,
-                    bgcolor: isExpanded ? 'rgba(255, 255, 255, 0.05)' : 'transparent',
+                    bgcolor: isLoadedProject ? 'rgba(255, 255, 255, 0.05)' : 'transparent',
                     '&:hover .add-icon': { opacity: 1 }, // Show add icon on hover
                   }}
                 >
@@ -153,14 +154,14 @@ export const Sidebar = ({ currentFileId, onSelectFile }: SidebarProps) => {
                     primary={project.alias_id || project.name || 'Untitled Project'} 
                     primaryTypographyProps={{ 
                       variant: 'body2', 
-                      color: isExpanded ? 'white' : colors.textSecondary,
-                      fontWeight: isExpanded ? 600 : 400,
+                      color: isLoadedProject ? 'white' : colors.textSecondary,
+                      fontWeight: isLoadedProject ? 600 : 400,
                       noWrap: true
                     }} 
                   />
                   
                   {/* Add Contributor Button */}
-                  <IconButton 
+                  {addContributorEnabled && (<IconButton 
                     title='Add Auditor'
                     className="add-icon"
                     size="small" 
@@ -173,7 +174,7 @@ export const Sidebar = ({ currentFileId, onSelectFile }: SidebarProps) => {
                     }}
                   >
                     <PersonAddIcon fontSize="small" sx={{ width: 16, height: 16 }} />
-                  </IconButton>
+                  </IconButton>)}
                 </ListItemButton>
 
                 {/* Nested Documents List */}
@@ -188,7 +189,7 @@ export const Sidebar = ({ currentFileId, onSelectFile }: SidebarProps) => {
                         No documents found
                       </Typography>
                     ) : (
-                      activeFiles.map((file: any) => {
+                      (activeFiles as ProjectDocument[]).map((file) => {
                         const isActive = currentFileId === file.id;
                         const displayName = file.name?.length > 25 
                           ? `${file.name.substring(0, 15)}...${file.name.slice(-7)}` 
