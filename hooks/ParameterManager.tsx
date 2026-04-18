@@ -16,7 +16,9 @@ const generateDefaultFields = (): InputField[] => {
   );
 };
 
-export const useParameterManager = () => {
+export const useParameterManager = (
+  autoSaveField?: (fieldId: string, currentFields: InputField[]) => Promise<void>
+) => {
   const { user } = useAuth(); // Get current user_id for the API calls
   const [fields, setFields] = useState<InputField[]>(generateDefaultFields());
   const [isSyncing, setIsSyncing] = useState<string | null>(null); // Track which field is saving
@@ -132,34 +134,64 @@ export const useParameterManager = () => {
 
   const handleFlag = useCallback(async (fieldId: string, isFlagged: boolean, reason?: string | null) => {
     const field = fields.find(f => f.id === fieldId);
-    const parameterId = field?.selectedSpecId; // The DB ID for this parameter candidate
-    console.log(`Flagging parameter ${parameterId} as ${isFlagged} with reason: ${reason}`)
-    if (!parameterId || !user?.id) {
-      console.error("Missing parameterId or UserID for flagging");
-      return;
-    }
+    let parameterId: string | undefined = field?.selectedSpecId;
+    // Tracks an updated fields snapshot when a placeholder spec is injected
+    let fieldsForSave = fields;
 
-    // Start loading state for this specific field
     setIsSyncing(fieldId);
 
     try {
+      // Field has no DB record yet — mint a candidate UUID so the backend has a
+      // known selected_candidate_id to flag against (same pattern as handleFieldChange).
+      if (!parameterId && autoSaveField) {
+        const placeholderId = uuidv4();
+        const placeholderSpec: Specification = {
+          id: placeholderId,
+          value: '',
+          unit: '',
+          confidence: null,
+          source: null,
+          calculated: false,
+          rule_passed: true,
+          rule_violations: [],
+          requires_review: false,
+        };
+        fieldsForSave = fields.map(f =>
+          f.id === fieldId
+            ? { ...f, specifications: [placeholderSpec], selectedSpecId: placeholderId }
+            : f
+        );
+        // Save with selected_candidate_id = placeholderId so the backend can find it
+        await autoSaveField(fieldId, fieldsForSave);
+        parameterId = placeholderId;
+      }
+
+      if (!parameterId || !user?.id) {
+        console.error("Missing parameterId or UserID for flagging");
+        return;
+      }
+
       if (isFlagged) {
         await flagParameter(user.id, parameterId, reason ?? 'No reason provided');
       } else {
         await unFlagParameter(user.id, parameterId);
       }
 
-      // Optimistic Update: Only update local state if API succeeds
-      setFields(prev => prev.map(f =>
-        f.id === fieldId ? { ...f, isFlagged, flagReason: reason ?? '' } : f
-      ));
+      // Single update: apply placeholder spec (if any) + flag state together
+      setFields(prev => prev.map(f => {
+        if (f.id !== fieldId) return f;
+        // Use the placeholder version of this field if one was created
+        const base = fieldsForSave !== fields
+          ? (fieldsForSave.find(ff => ff.id === fieldId) ?? f)
+          : f;
+        return { ...base, isFlagged, flagReason: reason ?? '' };
+      }));
     } catch (error) {
       console.error("Failed to sync flag to backend:", error);
-      // Optional: Add a toast notification here
     } finally {
       setIsSyncing(null);
     }
-  }, [fields, user?.id]);
+  }, [fields, user?.id, autoSaveField]);
 
   return {
     fields,
