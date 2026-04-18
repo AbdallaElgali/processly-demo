@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   TextField,
@@ -36,7 +36,6 @@ const getConfidenceColor = (confidence: number | null) => {
   return '#ef4444';
 };
 
-// Define union type for the active panel state
 type PanelView = 'none' | 'ai' | 'snippet' | 'flag';
 
 export const InputFieldItem = ({ field, onChange, onRemove, onShowSource, onSwitch, onFlag, readOnly = false }: InputFieldItemProps) => {
@@ -58,10 +57,11 @@ export const InputFieldItem = ({ field, onChange, onRemove, onShowSource, onSwit
 
   const isFlagged = field.isFlagged ?? false;
   const flagReason = field.flagReason ?? null;
+  
   const handleSourceClick = () => {
+    console.log(displaySource)
     if (!displaySource) return;
 
-    // Trigger snippet panel if exact source metadata is missing
     if (displaySource.boundingBox === null && displaySource.pageNumber === null) {
       setActivePanel(prev => prev === 'snippet' ? 'none' : 'snippet');
     } else {
@@ -71,11 +71,12 @@ export const InputFieldItem = ({ field, onChange, onRemove, onShowSource, onSwit
 
   const handleSaveFlag = () => {
     setActivePanel('none');
-    if (onFlag) onFlag(field.id, true, flagReason);
+    if (onFlag) onFlag(field.id, true, flagReasonDraft); // FIX: Ensure we send the draft, not the old flagReason
   };
 
   const handleClearFlag = () => {
     setActivePanel('none');
+    setFlagReasonDraft('');
     if (onFlag) onFlag(field.id, false, '');
   };
 
@@ -132,22 +133,20 @@ export const InputFieldItem = ({ field, onChange, onRemove, onShowSource, onSwit
         {/* Action Tools */}
         <Box sx={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 0.5 }}>
 
-          {/* Flag Toggle Tool */}
-          {displayValue && (
-            <Tooltip title={isFlagged ? "Edit Flag" : "Flag Parameter"} arrow>
-              <IconButton
-                size="small"
-                onClick={() => setActivePanel(prev => prev === 'flag' ? 'none' : 'flag')}
-                sx={{
-                  color: isFlagged ? colors.warning : colors.textSecondary,
-                  bgcolor: activePanel === 'flag' ? `${colors.warning}15` : 'transparent',
-                  '&:hover': { color: colors.warning, bgcolor: `${colors.warning}15` }
-                }}
-              >
-                {isFlagged ? <FlagIcon fontSize="small" /> : <OutlinedFlagIcon fontSize="small" />}
-              </IconButton>
-            </Tooltip>
-          )}
+          {/* Flag Toggle Tool - REMOVED displayValue RESTRICTION */}
+          <Tooltip title={isFlagged ? "Edit Flag" : "Flag Parameter"} arrow>
+            <IconButton
+              size="small"
+              onClick={() => setActivePanel(prev => prev === 'flag' ? 'none' : 'flag')}
+              sx={{
+                color: isFlagged ? colors.warning : colors.textSecondary,
+                bgcolor: activePanel === 'flag' ? `${colors.warning}15` : 'transparent',
+                '&:hover': { color: colors.warning, bgcolor: `${colors.warning}15` }
+              }}
+            >
+              {isFlagged ? <FlagIcon fontSize="small" /> : <OutlinedFlagIcon fontSize="small" />}
+            </IconButton>
+          </Tooltip>
 
           {/* Source Locator Tool */}
           {displaySource && (
@@ -286,7 +285,7 @@ export const InputFieldItem = ({ field, onChange, onRemove, onShowSource, onSwit
                 size="small"
                 value={flagReasonDraft}
                 onChange={(e) => setFlagReasonDraft(e.target.value)}
-                placeholder="Optional reason (e.g., conflicting values in table)"
+                placeholder="Optional reason (e.g., missing from doc, check table on page 4)"
                 variant="outlined"
                 sx={{
                   mb: 1.5,
@@ -300,7 +299,7 @@ export const InputFieldItem = ({ field, onChange, onRemove, onShowSource, onSwit
                   </Button>
                 ) : (
                   <Button size="small" variant="contained" onClick={handleSaveFlag} disableElevation>
-                    {'Save Flag'}
+                    Save Flag
                   </Button>
                 )}
                 

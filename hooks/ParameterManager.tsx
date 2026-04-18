@@ -133,7 +133,7 @@ export const useParameterManager = () => {
   const handleFlag = useCallback(async (fieldId: string, isFlagged: boolean, reason?: string | null) => {
     const field = fields.find(f => f.id === fieldId);
     const parameterId = field?.selectedSpecId; // The DB ID for this parameter candidate
-
+    console.log(`Flagging parameter ${parameterId} as ${isFlagged} with reason: ${reason}`)
     if (!parameterId || !user?.id) {
       console.error("Missing parameterId or UserID for flagging");
       return;

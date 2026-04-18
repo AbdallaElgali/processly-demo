@@ -109,6 +109,7 @@ export const useDocumentManager = (projectId: string | null) => {
   };
 
   const handleJumpToSource = useCallback((source: ActiveHighlight) => {
+    console.log(source)
     if (!source) return;
     // Only switch the active file when we have an explicit documentId.
     // If documentId is null (e.g. DB-hydrated params), keep the current
