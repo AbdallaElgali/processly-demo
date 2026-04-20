@@ -1,0 +1,62 @@
+"filename", "language", "TypeScript JSX", "TypeScript", "XML", "JSON", "JSON with Comments", "JavaScript", "Markdown", "PostCSS", "Docker", "comment", "blank", "total"
+"c:\Users\scorp\Desktop\Processly\processly-demo\.claude\settings.local.json", "JSON", 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 1, 8
+"c:\Users\scorp\Desktop\Processly\processly-demo\CLAUDE.md", "Markdown", 0, 0, 0, 0, 0, 0, 43, 0, 0, 0, 19, 62
+"c:\Users\scorp\Desktop\Processly\processly-demo\Dockerfile", "Docker", 0, 0, 0, 0, 0, 0, 0, 0, 34, 2, 17, 53
+"c:\Users\scorp\Desktop\Processly\processly-demo\README.md", "Markdown", 0, 0, 0, 0, 0, 0, 23, 0, 0, 0, 14, 37
+"c:\Users\scorp\Desktop\Processly\processly-demo\api\analyze-document.ts", "TypeScript", 0, 155, 0, 0, 0, 0, 0, 0, 0, 8, 30, 193
+"c:\Users\scorp\Desktop\Processly\processly-demo\api\chat.ts", "TypeScript", 0, 15, 0, 0, 0, 0, 0, 0, 0, 0, 4, 19
+"c:\Users\scorp\Desktop\Processly\processly-demo\api\parameters.ts", "TypeScript", 0, 18, 0, 0, 0, 0, 0, 0, 0, 0, 4, 22
+"c:\Users\scorp\Desktop\Processly\processly-demo\api\projects.ts", "TypeScript", 0, 79, 0, 0, 0, 0, 0, 0, 0, 4, 15, 98
+"c:\Users\scorp\Desktop\Processly\processly-demo\api\upload-doc.ts", "TypeScript", 0, 33, 0, 0, 0, 0, 0, 0, 0, 1, 9, 43
+"c:\Users\scorp\Desktop\Processly\processly-demo\app\bda\page.tsx", "TypeScript JSX", 227, 0, 0, 0, 0, 0, 0, 0, 0, 15, 32, 274
+"c:\Users\scorp\Desktop\Processly\processly-demo\app\globals.css", "PostCSS", 0, 0, 0, 0, 0, 0, 0, 17, 0, 3, 2, 22
+"c:\Users\scorp\Desktop\Processly\processly-demo\app\layout.tsx", "TypeScript JSX", 37, 0, 0, 0, 0, 0, 0, 0, 0, 1, 4, 42
+"c:\Users\scorp\Desktop\Processly\processly-demo\app\login\page.tsx", "TypeScript JSX", 68, 0, 0, 0, 0, 0, 0, 0, 0, 1, 7, 76
+"c:\Users\scorp\Desktop\Processly\processly-demo\app\page.tsx", "TypeScript JSX", 23, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 27
+"c:\Users\scorp\Desktop\Processly\processly-demo\app\review\page.tsx", "TypeScript JSX", 200, 0, 0, 0, 0, 0, 0, 0, 0, 9, 27, 236
+"c:\Users\scorp\Desktop\Processly\processly-demo\claude-notes\bda-page-modularity.md", "Markdown", 0, 0, 0, 0, 0, 0, 124, 0, 0, 0, 44, 168
+"c:\Users\scorp\Desktop\Processly\processly-demo\claude-notes\contexts-hooks-analysis.md", "Markdown", 0, 0, 0, 0, 0, 0, 142, 0, 0, 0, 48, 190
+"c:\Users\scorp\Desktop\Processly\processly-demo\claude-notes\flagging-analysis.md", "Markdown", 0, 0, 0, 0, 0, 0, 186, 0, 0, 0, 50, 236
+"c:\Users\scorp\Desktop\Processly\processly-demo\claude-notes\session-time-tracking.md", "Markdown", 0, 0, 0, 0, 0, 0, 253, 0, 0, 0, 76, 329
+"c:\Users\scorp\Desktop\Processly\processly-demo\claude-notes\typing-analysis.md", "Markdown", 0, 0, 0, 0, 0, 0, 210, 0, 0, 0, 50, 260
+"c:\Users\scorp\Desktop\Processly\processly-demo\components\ActionToolbar.tsx", "TypeScript JSX", 91, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 101
+"c:\Users\scorp\Desktop\Processly\processly-demo\components\DocumentViewer\DocumentRouter.tsx", "TypeScript JSX", 46, 0, 0, 0, 0, 0, 0, 0, 0, 2, 8, 56
+"c:\Users\scorp\Desktop\Processly\processly-demo\components\DocumentViewer\DocumentViewer.tsx", "TypeScript JSX", 136, 0, 0, 0, 0, 0, 0, 0, 0, 3, 22, 161
+"c:\Users\scorp\Desktop\Processly\processly-demo\components\DocumentViewer\ExcelViewer.tsx", "TypeScript JSX", 273, 0, 0, 0, 0, 0, 0, 0, 0, 13, 39, 325
+"c:\Users\scorp\Desktop\Processly\processly-demo\components\DocumentViewer\PdfViewer.tsx", "TypeScript JSX", 133, 0, 0, 0, 0, 0, 0, 0, 0, 20, 21, 174
+"c:\Users\scorp\Desktop\Processly\processly-demo\components\LayoutHeader.tsx", "TypeScript JSX", 33, 0, 0, 0, 0, 0, 0, 0, 0, 1, 3, 37
+"c:\Users\scorp\Desktop\Processly\processly-demo\components\Loading.tsx", "TypeScript JSX", 43, 0, 0, 0, 0, 0, 0, 0, 0, 12, 8, 63
+"c:\Users\scorp\Desktop\Processly\processly-demo\components\NoProjectsScreen.tsx", "TypeScript JSX", 67, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 75
+"c:\Users\scorp\Desktop\Processly\processly-demo\components\ProjectBar.tsx", "TypeScript JSX", 96, 0, 0, 0, 0, 0, 0, 0, 0, 1, 9, 106
+"c:\Users\scorp\Desktop\Processly\processly-demo\components\Sidebar.tsx", "TypeScript JSX", 268, 0, 0, 0, 0, 0, 0, 0, 0, 15, 25, 308
+"c:\Users\scorp\Desktop\Processly\processly-demo\components\UploadModal.tsx", "TypeScript JSX", 39, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 43
+"c:\Users\scorp\Desktop\Processly\processly-demo\components\document-upload.tsx", "TypeScript JSX", 107, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 121
+"c:\Users\scorp\Desktop\Processly\processly-demo\components\input-field-item.tsx", "TypeScript JSX", 273, 0, 0, 0, 0, 0, 0, 0, 0, 11, 31, 315
+"c:\Users\scorp\Desktop\Processly\processly-demo\components\input-fields-list.tsx", "TypeScript JSX", 89, 0, 0, 0, 0, 0, 0, 0, 0, 2, 10, 101
+"c:\Users\scorp\Desktop\Processly\processly-demo\components\source-modal.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1
+"c:\Users\scorp\Desktop\Processly\processly-demo\contexts\AuthContext.tsx", "TypeScript JSX", 86, 0, 0, 0, 0, 0, 0, 0, 0, 9, 22, 117
+"c:\Users\scorp\Desktop\Processly\processly-demo\contexts\ProjectContext.tsx", "TypeScript JSX", 154, 0, 0, 0, 0, 0, 0, 0, 0, 3, 20, 177
+"c:\Users\scorp\Desktop\Processly\processly-demo\eslint.config.mjs", "JavaScript", 0, 0, 0, 0, 0, 14, 0, 0, 0, 2, 3, 19
+"c:\Users\scorp\Desktop\Processly\processly-demo\hooks\DocumentManager.tsx", "TypeScript JSX", 107, 0, 0, 0, 0, 0, 0, 0, 0, 6, 15, 128
+"c:\Users\scorp\Desktop\Processly\processly-demo\hooks\ParameterManager.tsx", "TypeScript JSX", 180, 0, 0, 0, 0, 0, 0, 0, 0, 6, 22, 208
+"c:\Users\scorp\Desktop\Processly\processly-demo\hooks\Resizer.tsx", "TypeScript JSX", 54, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 65
+"c:\Users\scorp\Desktop\Processly\processly-demo\hooks\url-polyfill.ts", "TypeScript", 0, 10, 0, 0, 0, 0, 0, 0, 0, 2, 3, 15
+"c:\Users\scorp\Desktop\Processly\processly-demo\hooks\useAnalyze.ts", "TypeScript", 0, 52, 0, 0, 0, 0, 0, 0, 0, 3, 10, 65
+"c:\Users\scorp\Desktop\Processly\processly-demo\lib\db.ts", "TypeScript", 0, 17, 0, 0, 0, 0, 0, 0, 0, 0, 4, 21
+"c:\Users\scorp\Desktop\Processly\processly-demo\memory\MEMORY.md", "Markdown", 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 2, 4
+"c:\Users\scorp\Desktop\Processly\processly-demo\memory\flagging-project.md", "Markdown", 0, 0, 0, 0, 0, 0, 8, 0, 0, 0, 4, 12
+"c:\Users\scorp\Desktop\Processly\processly-demo\next.config.ts", "TypeScript", 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 3, 9
+"c:\Users\scorp\Desktop\Processly\processly-demo\package-lock.json", "JSON", 0, 0, 0, 7521, 0, 0, 0, 0, 0, 0, 1, 7522
+"c:\Users\scorp\Desktop\Processly\processly-demo\package.json", "JSON", 0, 0, 0, 35, 0, 0, 0, 0, 0, 0, 1, 36
+"c:\Users\scorp\Desktop\Processly\processly-demo\postcss.config.mjs", "JavaScript", 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 2, 8
+"c:\Users\scorp\Desktop\Processly\processly-demo\public\file.svg", "XML", 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1
+"c:\Users\scorp\Desktop\Processly\processly-demo\public\globe.svg", "XML", 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1
+"c:\Users\scorp\Desktop\Processly\processly-demo\public\next.svg", "XML", 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1
+"c:\Users\scorp\Desktop\Processly\processly-demo\public\vercel.svg", "XML", 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1
+"c:\Users\scorp\Desktop\Processly\processly-demo\public\window.svg", "XML", 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1
+"c:\Users\scorp\Desktop\Processly\processly-demo\static\battery-template.ts", "TypeScript", 0, 191, 0, 0, 0, 0, 0, 0, 0, 25, 41, 257
+"c:\Users\scorp\Desktop\Processly\processly-demo\theme\colors.ts", "TypeScript", 0, 15, 0, 0, 0, 0, 0, 0, 0, 5, 4, 24
+"c:\Users\scorp\Desktop\Processly\processly-demo\theme\theme.ts", "TypeScript", 0, 30, 0, 0, 0, 0, 0, 0, 0, 0, 1, 31
+"c:\Users\scorp\Desktop\Processly\processly-demo\tsconfig.json", "JSON with Comments", 0, 0, 0, 0, 34, 0, 0, 0, 0, 0, 1, 35
+"c:\Users\scorp\Desktop\Processly\processly-demo\types\index.ts", "TypeScript", 0, 98, 0, 0, 0, 0, 0, 0, 0, 4, 9, 111
+"Total", "-", 2830, 718, 5, 7563, 34, 20, 991, 17, 34, 190, 849, 13251

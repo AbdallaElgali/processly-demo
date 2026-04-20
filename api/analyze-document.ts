@@ -32,7 +32,6 @@ const reverseFormatBoundingBox = (bbox: unknown) => {
   return b; 
 };
 
-// --- NEW REVERSE MAPPER ---
 // Converts UI fields back to backend VoltavisionSpecs schema
 export const mapFieldsToSpecs = (fields: InputField[] | undefined): Record<string, unknown> | null => {
   if (!fields) return null;
@@ -49,10 +48,11 @@ export const mapFieldsToSpecs = (fields: InputField[] | undefined): Record<strin
           ...spec.source,
           boundingBox: reverseFormatBoundingBox(spec.source.boundingBox) 
         } : null;
-
+        
+        let val : number = spec.value !== '' ? Number(spec.value) : 0.00;
         return {
           id: spec.id,
-          value: spec.value,
+          value: val,
           unit: spec.unit,
           confidence: spec.confidence !== null ? spec.confidence / 100 : null,
           source: backendSource,

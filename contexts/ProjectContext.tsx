@@ -21,10 +21,11 @@ interface ProjectContextType {
   error: string | null;
 
   fetchUserProjects: () => Promise<void>;
-  loadProjectDetails: (projectId: string) => Promise<void>;
+  loadProjectDetails: (projectId: string) => Promise<Project>;
   createNewProject: (data: Omit<ProjectCreateInput, 'user_id'>) => Promise<Project | undefined>;
   addContributor: (projectId: string, username: string) => Promise<void>;
-  saveParameters: (projectId: string, parameters: ParameterInput[]) => Promise<void>;
+  saveParameters: (projectId: string, parameters: ParameterInput[]) => Promise<Project | undefined>;
+  saveParametersSilent: (projectId: string, parameters: ParameterInput[]) => Promise<Project | undefined>;
   clearError: () => void;
 }
 
@@ -63,16 +64,16 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     }
   }, [user?.id, fetchUserProjects]);
 
-  const loadProjectDetails = useCallback(async (projectId: string) => {
+  const loadProjectDetails = useCallback(async (projectId: string): Promise<Project> => {
     setIsLoading(true);
     setError(null);
     try {
       const data = await apiGetProjectDetails(projectId);
       setCurrentProject(data);
-      console.log('CURRENT PROJECT:', data);
-
+      return data;
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load project details');
+      throw err;
     } finally {
       setIsLoading(false);
     }
@@ -118,13 +119,13 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     }
   }, [currentProject?.id, loadProjectDetails]);
 
-  const saveParameters = useCallback(async (projectId: string, parameters: ParameterInput[]) => {
+  const saveParameters = useCallback(async (projectId: string, parameters: ParameterInput[]): Promise<Project | undefined> => {
     setIsLoading(true);
     setError(null);
     try {
       await apiSaveProjectParameters(projectId, parameters);
       if (currentProject?.id === projectId) {
-        await loadProjectDetails(projectId);
+        return await loadProjectDetails(projectId);
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to save parameters');
@@ -133,6 +134,19 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     }
   }, [currentProject?.id, loadProjectDetails]);
+
+  // Silent save: does not set isLoading so the UI never flashes a loading spinner.
+  // Used for auto-save triggered by user actions (e.g. flagging an unsaved parameter).
+  const saveParametersSilent = useCallback(async (projectId: string, parameters: ParameterInput[]): Promise<Project | undefined> => {
+    try {
+      await apiSaveProjectParameters(projectId, parameters);
+      const data = await apiGetProjectDetails(projectId);
+      setCurrentProject(data);
+      return data;
+    } catch {
+      return undefined;
+    }
+  }, []);
 
   return (
     <ProjectContext.Provider value={{
@@ -145,6 +159,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       createNewProject,
       addContributor,
       saveParameters,
+      saveParametersSilent,
       clearError
     }}>
       {children}

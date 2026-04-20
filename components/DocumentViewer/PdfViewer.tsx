@@ -6,7 +6,8 @@ import { Box, Typography, CircularProgress, IconButton, Tooltip, Divider, Paper 
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
-import ZoomInMapIcon from '@mui/icons-material/ZoomInMap';
+import FullscreenIcon from '@mui/icons-material/Fullscreen';
+import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 import FormatQuoteIcon from '@mui/icons-material/FormatQuote';
 import { colors } from '@/theme/colors';
 import { ActiveHighlight } from '@/types';
@@ -26,8 +27,10 @@ export const PdfViewer = ({ pdfDocument, activeHighlight }: PdfViewerProps) => {
   const [baseWidth, setBaseWidth] = useState<number>(0);
   const [scale, setScale] = useState<number>(1.0);
   const [pageDimensions, setPageDimensions] = useState<Record<number, { w: number, h: number }>>({});
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
-  const containerRef = useRef<HTMLDivElement>(null);
+  const fullscreenRef = useRef<HTMLDivElement>(null); // outermost container — used for requestFullscreen
+  const containerRef = useRef<HTMLDivElement>(null);  // scrollable inner box — used for width measurement
   const pageRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
   // CRUCIAL MULTI-DOCUMENT FIX: Clear old state when URL changes.
@@ -40,6 +43,22 @@ export const PdfViewer = ({ pdfDocument, activeHighlight }: PdfViewerProps) => {
     pageRefs.current = {};
     if (containerRef.current) setBaseWidth(containerRef.current.clientWidth - 40);
   }, [pdfDocument]);
+
+  // Sync fullscreen state with browser API (handles Escape key exit too)
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  // Recalculate baseWidth when entering/exiting fullscreen — the container size changes
+  useEffect(() => {
+    if (containerRef.current) {
+      setBaseWidth(containerRef.current.clientWidth - 40);
+    }
+  }, [isFullscreen]);
 
   useEffect(() => {
     const targetPage = activeHighlight?.pageNumber === 0 ? 1 : activeHighlight?.pageNumber;
@@ -98,16 +117,33 @@ export const PdfViewer = ({ pdfDocument, activeHighlight }: PdfViewerProps) => {
   };
 };
 
+  const toggleFullScreen = () => {
+    if (!document.fullscreenElement) {
+      fullscreenRef.current?.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
   return (
-    <Box sx={{ height: '100%', width: '100%', bgcolor: colors.surface, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <Box ref={fullscreenRef} sx={{ height: '100%', width: '100%', bgcolor: colors.surface, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* TOOLBAR */}
       <Box sx={{ p: 1, bgcolor: colors.surface, borderBottom: `1px solid ${colors.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
         <IconButton onClick={() => setScale(p => Math.max(p - 0.2, 0.5))} size="small"><RemoveIcon /></IconButton>
         <Typography variant="body2" sx={{ minWidth: '45px', textAlign: 'center', fontWeight: 'bold' }}>{Math.round(scale * 100)}%</Typography>
         <IconButton onClick={() => setScale(p => Math.min(p + 0.2, 3.0))} size="small"><AddIcon /></IconButton>
         <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
-        <IconButton onClick={() => setScale(1.0)} size="small"><RestartAltIcon /></IconButton>
-        <IconButton onClick={() => setScale(1.0)} size="small"><ZoomInMapIcon /></IconButton>
+        <Tooltip title="Reset Zoom">
+          <IconButton onClick={() => setScale(1.0)} size="small"><RestartAltIcon /></IconButton>
+        </Tooltip>
+        <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+        <Tooltip title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}>
+          <IconButton onClick={toggleFullScreen} size="small">
+            {isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+          </IconButton>
+        </Tooltip>
       </Box>
 
       {/* PDF RENDERER */}

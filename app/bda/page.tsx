@@ -2,7 +2,7 @@
 
 import '@/hooks/url-polyfill'; // <--- THIS MUST BE LINE 1
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Box, ThemeProvider, CssBaseline, CircularProgress, Snackbar, Alert } from '@mui/material';
 
@@ -36,7 +36,7 @@ const MIN_MAIN_WIDTH = 400;
 
 export default function BDA() {
   const { user, logout, isLoading: authLoading } = useAuth();
-  const { projects, currentProject, isLoading: projectsLoading, createNewProject, saveParameters, loadProjectDetails } = useProject();
+  const { projects, currentProject, isLoading: projectsLoading, createNewProject, saveParameters, saveParametersSilent, loadProjectDetails } = useProject();
   const router = useRouter();
 
   const [hasMounted, setHasMounted] = useState(false);
@@ -52,10 +52,34 @@ export default function BDA() {
   const [isExporting, setIsExporting] = useState(false);
 
   const { viewerWidth, startResizing } = useResizer(isSidebarOpen);
+
+  // Builds the same payload as handleSave but called silently (no loading spinner)
+  // when handleFlag detects the parameter has no DB record yet.
+  // currentFields is passed in by handleFlag so we don't close over stale state.
+  // Called by handleFlag when a field has no DB record yet.
+  // currentFields already contains the placeholder spec (with its UUID) injected by
+  // handleFlag, so selected_candidate_id in the payload matches the UUID that will
+  // be sent to flag-parameter — the backend finds the record by selected_candidate_id.
+  const autoSaveForFlag = useCallback(async (_fieldId: string, currentFields: InputField[]): Promise<void> => {
+    if (!activeProjectId) return;
+    const paramsToSave = currentFields.map(f => {
+      const activeSpec = f.specifications.find(s => s.id === f.selectedSpecId) || f.specifications[0];
+      const parsedValue = activeSpec?.value ? Number(activeSpec.value) : null;
+      return {
+        parameter_key: f.id,
+        final_value: parsedValue !== null && !isNaN(parsedValue) ? parsedValue : null,
+        final_unit: activeSpec?.unit || null,
+        is_human_modified: activeSpec ? (activeSpec.confidence === null) : true,
+        selected_candidate_id: activeSpec?.id || null,
+      };
+    });
+    await saveParametersSilent(activeProjectId, paramsToSave);
+  }, [activeProjectId, saveParametersSilent]);
+
   const {
     fields, handleFieldChange, handleRemoveField, handleSwitchSpecification,
     handlePopulateExtractedData, hydrateFieldsFromDB, resetFields, handleFlag,
-  } = useParameterManager();
+  } = useParameterManager(autoSaveForFlag);
   const {
     uploadedFiles, activeFileId, activeDoc, activeSource, hydrateFiles,
     isLoading: isDocLoading, handleDocumentUpload, handleSelectFile, handleJumpToSource, clearFiles,
@@ -65,6 +89,14 @@ export default function BDA() {
     activeProjectId,
     handlePopulateExtractedData
   );
+
+  // Refresh currentProject after upload so the sidebar document list stays in sync
+  const handleDocumentUploadAndRefresh = useCallback(async (files: File[]) => {
+    await handleDocumentUpload(files);
+    if (activeProjectId) {
+      await loadProjectDetails(activeProjectId);
+    }
+  }, [handleDocumentUpload, activeProjectId, loadProjectDetails]);
 
   const handleExport = () => {
     if (!activeProjectId || !currentProject) return;
@@ -228,7 +260,7 @@ export default function BDA() {
       <UploadModal
         open={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
-        onUpload={handleDocumentUpload}
+        onUpload={handleDocumentUploadAndRefresh}
         isUploaded={!!activeFileId}
         isLoading={isDocLoading}
       />
