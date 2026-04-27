@@ -29,12 +29,13 @@ export interface Specification {
 }
 
 export interface InputField {
-  id: string;
+  id: string;       // parameter_key (e.g. "U_MIN")
+  dbId: string;     // project_parameters.id — the actual DB row UUID used for flagging
   label: string;
   specifications: Specification[];
   selectedSpecId?: string;
-  isFlagged?: boolean;
-  flagReason?: string;
+  isFlagged: boolean | null;
+  flagReason: string | null;
 }
 
 export const SCHEMA_GROUPS: { group: string; fields: SchemaField[] }[] = [

@@ -18,6 +18,9 @@ export interface ParameterInput {
   final_unit: string | null;
   is_human_modified: boolean;
   selected_candidate_id: string | null;
+  flag: boolean;
+  flag_reason: string | null;
+  flagger_id: string | null;
 }
 
 // --- Response Types (mirroring backend schemas) ---

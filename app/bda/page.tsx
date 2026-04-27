@@ -23,7 +23,6 @@ import { UploadModal } from '@/components/UploadModal';
 import { ProjectBar } from '@/components/ProjectBar';
 import dynamic from 'next/dynamic';
 import { FrontendBatteryFileExport } from '@/static/battery-template';
-import { InputField } from '@/types';
 
 const DocumentRouter = dynamic(
   () => import('@/components/DocumentViewer/DocumentRouter').then((mod) => mod.MemoizedDocumentRouter),
@@ -36,7 +35,7 @@ const MIN_MAIN_WIDTH = 400;
 
 export default function BDA() {
   const { user, logout, isLoading: authLoading } = useAuth();
-  const { projects, currentProject, isLoading: projectsLoading, createNewProject, saveParameters, saveParametersSilent, loadProjectDetails } = useProject();
+  const { projects, currentProject, isLoading: projectsLoading, createNewProject, saveParameters, loadProjectDetails } = useProject();
   const router = useRouter();
 
   const [hasMounted, setHasMounted] = useState(false);
@@ -53,33 +52,10 @@ export default function BDA() {
 
   const { viewerWidth, startResizing } = useResizer(isSidebarOpen);
 
-  // Builds the same payload as handleSave but called silently (no loading spinner)
-  // when handleFlag detects the parameter has no DB record yet.
-  // currentFields is passed in by handleFlag so we don't close over stale state.
-  // Called by handleFlag when a field has no DB record yet.
-  // currentFields already contains the placeholder spec (with its UUID) injected by
-  // handleFlag, so selected_candidate_id in the payload matches the UUID that will
-  // be sent to flag-parameter — the backend finds the record by selected_candidate_id.
-  const autoSaveForFlag = useCallback(async (_fieldId: string, currentFields: InputField[]): Promise<void> => {
-    if (!activeProjectId) return;
-    const paramsToSave = currentFields.map(f => {
-      const activeSpec = f.specifications.find(s => s.id === f.selectedSpecId) || f.specifications[0];
-      const parsedValue = activeSpec?.value ? Number(activeSpec.value) : null;
-      return {
-        parameter_key: f.id,
-        final_value: parsedValue !== null && !isNaN(parsedValue) ? parsedValue : null,
-        final_unit: activeSpec?.unit || null,
-        is_human_modified: activeSpec ? (activeSpec.confidence === null) : true,
-        selected_candidate_id: activeSpec?.id || null,
-      };
-    });
-    await saveParametersSilent(activeProjectId, paramsToSave);
-  }, [activeProjectId, saveParametersSilent]);
-
   const {
     fields, handleFieldChange, handleRemoveField, handleSwitchSpecification,
     handlePopulateExtractedData, hydrateFieldsFromDB, resetFields, handleFlag,
-  } = useParameterManager(autoSaveForFlag);
+  } = useParameterManager();
   const {
     uploadedFiles, activeFileId, activeDoc, activeSource, hydrateFiles,
     isLoading: isDocLoading, handleDocumentUpload, handleSelectFile, handleJumpToSource, clearFiles,
@@ -134,6 +110,9 @@ export default function BDA() {
           final_unit: activeSpec?.unit || null,
           is_human_modified: activeSpec ? (activeSpec.confidence === null) : true,
           selected_candidate_id: activeSpec?.id || null,
+          flag: f.isFlagged ? true : false,
+          flag_reason: f.isFlagged ? f.flagReason : null,
+          flagger_id: f.isFlagged ? user?.id || null : null,
         };
       });
       await saveParameters(activeProjectId, paramsToSave);

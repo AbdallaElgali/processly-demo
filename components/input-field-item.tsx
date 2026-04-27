@@ -293,16 +293,14 @@ export const InputFieldItem = ({ field, onChange, onRemove, onShowSource, onSwit
                 }}
               />
               <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                {isFlagged ? (
+                {isFlagged && (
                   <Button size="small" color="error" onClick={handleClearFlag}>
                     Remove Flag
                   </Button>
-                ) : (
-                  <Button size="small" variant="contained" onClick={handleSaveFlag} disableElevation>
-                    Save Flag
-                  </Button>
                 )}
-                
+                <Button size="small" variant="contained" onClick={handleSaveFlag} disableElevation>
+                  {isFlagged ? 'Update Flag' : 'Save Flag'}
+                </Button>
               </Box>
             </Box>
           )}
