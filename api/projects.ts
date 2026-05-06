@@ -1,6 +1,7 @@
 // src/api/projects.ts
+const API_URL = process.env.API_URL || 'http://localhost:8000';
 
-const API_BASE_URL = 'http://localhost:8000/projects';
+const API_BASE_URL = API_URL + '/projects';
 
 // --- Input Types ---
 
