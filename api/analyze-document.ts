@@ -42,14 +42,11 @@ export const mapFieldsToSpecs = (fields: InputField[] | undefined): Record<strin
     if (field.specifications && field.specifications.length > 0) {
       hasData = true;
       specs[field.id] = field.specifications.map(spec => {
-        
-        // THIS IS THE CRITICAL PART:
         const backendSource = spec.source ? {
           ...spec.source,
-          boundingBox: reverseFormatBoundingBox(spec.source.boundingBox) 
+          boundingBox: reverseFormatBoundingBox(spec.source.boundingBox)
         } : null;
-        
-        let val : number = spec.value !== '' ? Number(spec.value) : 0.00;
+        const val: number = spec.value !== '' ? Number(spec.value) : 0.00;
         return {
           id: spec.id,
           value: val,
@@ -60,6 +57,20 @@ export const mapFieldsToSpecs = (fields: InputField[] | undefined): Record<strin
           flag_reason: field.flagReason || ""
         };
       });
+    } else if (field.isFlagged) {
+      // Flagged fields with no extracted value still need to reach the backend
+      // so iterative extraction knows to target them. Omit `id` so Pydantic's
+      // default_factory generates a valid UUID — sending null would 422 because
+      // BatteryMetric.id is `str`, not `Optional[str]`.
+      hasData = true;
+      specs[field.id] = [{
+        value: null,
+        unit: null,
+        confidence: null,
+        source: null,
+        is_flagged: true,
+        flag_reason: field.flagReason || ""
+      }];
     }
   });
 
@@ -97,8 +108,11 @@ const mapSpecsToFields = (rawSpecs: Record<string, unknown>): InputField[] => {
 
     extractedFields.push({
       id: fieldId,
+      dbId: '',  // transient — handlePopulateExtractedData only reads specifications
       label: schemaLabelMap[fieldId] ?? fieldId,
       specifications: mappedSpecifications,
+      isFlagged: null,
+      flagReason: null,
     });
   });
 

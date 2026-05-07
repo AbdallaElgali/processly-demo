@@ -1,8 +1,9 @@
-// src/api/projects.ts
+import { config } from './config';
 
-const API_BASE_URL = 'http://localhost:8000/projects';
+const API_URL = config.api;
 
-// --- Input Types ---
+const API_BASE_URL = API_URL + '/projects';
+
 
 export interface ProjectCreateInput {
   alias_id: string;
@@ -18,6 +19,9 @@ export interface ParameterInput {
   final_unit: string | null;
   is_human_modified: boolean;
   selected_candidate_id: string | null;
+  flag: boolean;
+  flag_reason: string | null;
+  flagger_id: string | null;
 }
 
 // --- Response Types (mirroring backend schemas) ---

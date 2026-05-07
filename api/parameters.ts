@@ -1,5 +1,8 @@
+import { config } from './config';
 
-const API_BASE_URL = 'http://localhost:8000/projects';
+const API_URL = config.api;
+
+const API_BASE_URL = API_URL + '/projects';
 
 export const flagParameter = async (user_id: string, parameter_id: string, reason: string | null = null): Promise<void> => {
     console.log(`Flagging parameter ${parameter_id} for user ${user_id} with reason: ${reason}`);

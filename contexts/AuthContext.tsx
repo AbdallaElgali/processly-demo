@@ -2,8 +2,11 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import { config } from '@/api/config';
 
-const API_URL = 'http://localhost:8000/auth';
+const API_URL = config.api;
+
+const AUTH_API_URL = API_URL + '/auth';
 
 // 1. Matched the interface to the backend (changed user_id to id)
 interface User {
@@ -34,9 +37,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (storedUserData) {
       try {
         const parsedUser: User = JSON.parse(storedUserData);
-        
+        console.log("URL:", AUTH_API_URL);
         // RE-VERIFY with the backend
-        const response = await fetch(`${API_URL}/user?username=${encodeURIComponent(parsedUser.username)}`);
+        const response = await fetch(`${AUTH_API_URL}/user?username=${encodeURIComponent(parsedUser.username)}`);
         
         if (response.ok) {
           const freshData = await response.json();
@@ -62,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (username: string) => {
     try {
-      const response = await fetch(`${API_URL}/user?username=${encodeURIComponent(username)}`);
+      const response = await fetch(`${AUTH_API_URL}/user?username=${encodeURIComponent(username)}`);
       
       if (response.ok) {
         const data = await response.json();
