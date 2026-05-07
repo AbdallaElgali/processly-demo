@@ -1,4 +1,6 @@
-const API_URL = process.env.API_URL || 'http://localhost:8000';
+import { config } from './config';
+
+const API_URL = config.api;
 
 interface UploadSuccess {
   filename: string;

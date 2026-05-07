@@ -1,9 +1,9 @@
-// src/api/projects.ts
-const API_URL = process.env.API_URL || 'http://localhost:8000';
+import { config } from './config';
+
+const API_URL = config.api;
 
 const API_BASE_URL = API_URL + '/projects';
 
-// --- Input Types ---
 
 export interface ProjectCreateInput {
   alias_id: string;

@@ -2,8 +2,9 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import { config } from '@/api/config';
 
-const API_URL = process.env.API_URL || 'http://localhost:8000';
+const API_URL = config.api;
 
 const AUTH_API_URL = API_URL + '/auth';
 
@@ -36,7 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (storedUserData) {
       try {
         const parsedUser: User = JSON.parse(storedUserData);
-        
+        console.log("URL:", AUTH_API_URL);
         // RE-VERIFY with the backend
         const response = await fetch(`${AUTH_API_URL}/user?username=${encodeURIComponent(parsedUser.username)}`);
         

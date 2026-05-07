@@ -1,5 +1,6 @@
+import { config } from './config';
 
-const API_URL = process.env.API_URL || 'http://localhost:8000';
+const API_URL = config.api;
 
 const API_BASE_URL = API_URL + '/projects';
 
