@@ -6,6 +6,7 @@ import { analyzeDocument, mapFieldsToSpecs } from '@/api/analyze-document'; // I
 
 export const useAnalyze = (
   activeProjectId: string | null,
+  user: { id: string } | null, // <-- ADDED: Accept user object
   handlePopulateExtractedData: (fields: InputField[]) => void
 ) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -28,7 +29,8 @@ export const useAnalyze = (
 
   // --- UPDATED: Accepts currentFields from your UI state ---
   const handleAnalyze = useCallback(async (currentFields?: InputField[]) => {
-    if (!activeProjectId) return;
+    if (!activeProjectId || !user) return; // <-- ADDED: Ensure user exists before proceeding
+    
     if (currentFields) {
       console.log('Current fields before mapping to specs:', currentFields);
     }
@@ -41,8 +43,8 @@ export const useAnalyze = (
     setAnalyzeStatus(previousSpecs ? 'Starting AI Correction...' : 'AI Ready...');
     
     try {
-      // Pass previousSpecs as the 2nd argument
-      const final = await analyzeDocument(activeProjectId, previousSpecs, (status, partial) => {
+      // <-- UPDATED: Pass user as the 2nd argument
+      const final = await analyzeDocument(activeProjectId, user, previousSpecs, (status, partial) => {
         setAnalyzeStatus(status);
         queueAnalyzePartial(partial);
       });
@@ -59,7 +61,7 @@ export const useAnalyze = (
     } finally {
       setIsAnalyzing(false);
     }
-  }, [activeProjectId, handlePopulateExtractedData, queueAnalyzePartial]);
+  }, [activeProjectId, user, handlePopulateExtractedData, queueAnalyzePartial]); // <-- ADDED: user to dependency array
 
   return { isAnalyzing, analyzeStatus, handleAnalyze };
 };

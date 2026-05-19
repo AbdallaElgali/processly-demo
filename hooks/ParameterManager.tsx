@@ -24,6 +24,7 @@ export const useParameterManager = () => {
         label,
         isFlagged: dbParam.human_flagged,
         flagReason: dbParam.flag_reason ?? '',
+        reviewAction: dbParam.review_action || 'PENDING',
       };
 
       if (dbParam.final_value !== null) {
@@ -66,6 +67,7 @@ export const useParameterManager = () => {
       if (activeId) {
         return {
           ...field,
+          reviewAction: 'MODIFIED',
           specifications: field.specifications.map(s =>
             s.id === activeId ? { ...s, value, unit } : s
           ),
@@ -83,7 +85,7 @@ export const useParameterManager = () => {
         rule_violations: [],
         requires_review: false,
       };
-      return { ...field, specifications: [newSpec], selectedSpecId: newSpecId };
+      return { ...field, reviewAction: 'MODIFIED', specifications: [newSpec], selectedSpecId: newSpecId };
     }));
   }, []);
 

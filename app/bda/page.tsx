@@ -35,7 +35,7 @@ const MIN_MAIN_WIDTH = 400;
 
 export default function BDA() {
   const { user, logout, isLoading: authLoading } = useAuth();
-  const { projects, currentProject, isLoading: projectsLoading, createNewProject, saveParameters, loadProjectDetails } = useProject();
+  const { projects, currentProject, isLoading: projectsLoading, createNewProject, saveParameters, loadProjectDetails, approveDocument } = useProject();
   const router = useRouter();
 
   const [hasMounted, setHasMounted] = useState(false);
@@ -50,6 +50,9 @@ export default function BDA() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
+  const [isApproving, setIsApproving] = useState(false);
+  const [approveSuccess, setApproveSuccess] = useState(false);
+
   const { viewerWidth, startResizing } = useResizer(isSidebarOpen);
 
   const {
@@ -61,8 +64,10 @@ export default function BDA() {
     isLoading: isDocLoading, handleDocumentUpload, handleSelectFile, handleJumpToSource, clearFiles,
   } = useDocumentManager(activeProjectId);
 
+  const user_id = user?.id || ""; // Extract user ID for useAnalyze
   const { isAnalyzing, analyzeStatus, handleAnalyze } = useAnalyze(
     activeProjectId,
+    {id: user_id},
     handlePopulateExtractedData
   );
 
@@ -113,6 +118,7 @@ export default function BDA() {
           flag: f.isFlagged ? true : false,
           flag_reason: f.isFlagged ? f.flagReason : null,
           flagger_id: f.isFlagged ? user?.id || null : null,
+          review_action: f.reviewAction
         };
       });
       await saveParameters(activeProjectId, paramsToSave);
@@ -121,6 +127,23 @@ export default function BDA() {
       console.error('Save failed:', error);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleApprove = async () => {
+    if (!activeProjectId) return;
+    
+    // Optional: You might want to automatically save any pending edits before approving!
+    await handleSave(); 
+
+    setIsApproving(true);
+    try {
+      await approveDocument(activeProjectId);
+      setApproveSuccess(true);
+    } catch (error) {
+      console.error('Batch approval failed:', error);
+    } finally {
+      setIsApproving(false);
     }
   };
 
@@ -196,16 +219,23 @@ export default function BDA() {
           <ActionToolbar
             onUploadClick={() => setIsUploadModalOpen(true)}
             onAnalyze={() => handleAnalyze(fields)}
+            
             onSave={handleSave}
+            onApprove={handleApprove}          
             onExport={handleExport}
+
             onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
             isSidebarOpen={isSidebarOpen}
             isAnalyzing={isAnalyzing}
             analyzeStatus={analyzeStatus}
             isSaving={isSaving}
+
+            isApproving={isApproving}         
             isExporting={isExporting}
+
             isAnalyzeDisabled={uploadedFiles.length === 0 || isAnalyzing}
             isExportDisabled={isExporting || !activeProjectId}
+            isApproveDisabled={isApproving || !activeProjectId}
           />
 
           <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: MIN_MAIN_WIDTH, bgcolor: colors.background }}>
@@ -223,7 +253,7 @@ export default function BDA() {
                 onShowSource={handleJumpToSource}
                 onSwitchSpecification={handleSwitchSpecification}
                 onFlag={handleFlag}
-                readOnly={isAnalyzing || isSaving || isExporting}
+                readOnly={isAnalyzing || isSaving || isExporting || isApproving}
               />
             </Box>
           </Box>
@@ -246,6 +276,10 @@ export default function BDA() {
 
       <Snackbar open={saveSuccess} autoHideDuration={3000} onClose={() => setSaveSuccess(false)}>
         <Alert severity="success">State saved to database.</Alert>
+      </Snackbar>
+
+      <Snackbar open={approveSuccess} autoHideDuration={3000} onClose={() => setApproveSuccess(false)}>
+        <Alert severity="success">Document successfully approved!</Alert>
       </Snackbar>
     </ThemeProvider>
   );

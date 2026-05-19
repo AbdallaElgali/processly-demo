@@ -11,6 +11,7 @@ import {
   ProjectCreateInput,
   ParameterInput,
   Project,
+  apiApproveProjectParameters,
 } from '@/api/projects';
 
 // --- Interfaces ---
@@ -27,6 +28,7 @@ interface ProjectContextType {
   saveParameters: (projectId: string, parameters: ParameterInput[]) => Promise<Project | undefined>;
   saveParametersSilent: (projectId: string, parameters: ParameterInput[]) => Promise<Project | undefined>;
   clearError: () => void;
+  approveDocument: (projectId: string) => Promise<void>;
 }
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
@@ -119,6 +121,23 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     }
   }, [currentProject?.id, loadProjectDetails]);
 
+  const approveDocument = useCallback(async (projectId: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      await apiApproveProjectParameters(projectId);
+      // Reload the project details so the UI updates to show everything as ACCEPTED
+      if (currentProject?.id === projectId) {
+        await loadProjectDetails(projectId);
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to approve document');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentProject?.id, loadProjectDetails]);
+
   const saveParameters = useCallback(async (projectId: string, parameters: ParameterInput[]): Promise<Project | undefined> => {
     setIsLoading(true);
     setError(null);
@@ -160,7 +179,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       addContributor,
       saveParameters,
       saveParametersSilent,
-      clearError
+      clearError,
+      approveDocument
     }}>
       {children}
     </ProjectContext.Provider>

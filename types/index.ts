@@ -29,13 +29,14 @@ export interface Specification {
 }
 
 export interface InputField {
-  id: string;       // parameter_key (e.g. "U_MIN")
-  dbId: string;     // project_parameters.id — the actual DB row UUID used for flagging
+  id: string;       
+  dbId: string;     
   label: string;
   specifications: Specification[];
   selectedSpecId?: string;
   isFlagged: boolean | null;
   flagReason: string | null;
+  reviewAction: string; // <-- NEW: Store the local UI state ('PENDING', 'MODIFIED', 'ACCEPTED')
 }
 
 export const SCHEMA_GROUPS: { group: string; fields: SchemaField[] }[] = [

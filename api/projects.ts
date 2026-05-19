@@ -22,6 +22,7 @@ export interface ParameterInput {
   flag: boolean;
   flag_reason: string | null;
   flagger_id: string | null;
+  review_action: string;
 }
 
 // --- Response Types (mirroring backend schemas) ---
@@ -45,6 +46,7 @@ export interface ProjectParameter {
   human_flagged: boolean;
   flagger_id: string | null;
   flag_reason: string | null;
+  review_action: string; 
 }
 
 export interface Project {
@@ -98,4 +100,13 @@ export const apiSaveProjectParameters = async (projectId: string, parameters: Pa
     body: JSON.stringify({ parameters }), // Wraps in the BatchParameterSaveInput schema
   });
   if (!response.ok) throw new Error(await response.text());
+};
+
+export const apiApproveProjectParameters = async (projectId: string): Promise<{ message: string, parameters_approved: number }> => {
+  const response = await fetch(`${API_BASE_URL}/${projectId}/approve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  });
+  if (!response.ok) throw new Error(await response.text());
+  return response.json();
 };

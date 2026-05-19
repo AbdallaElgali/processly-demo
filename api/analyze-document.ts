@@ -122,14 +122,13 @@ const mapSpecsToFields = (rawSpecs: Record<string, unknown>): InputField[] => {
 // --- UPDATED ANALYZE FUNCTION ---
 export const analyzeDocument = async (
   projectId: string,
-  previousSpecs: Record<string, unknown> | null, // <-- ADDED THIS PARAMETER
+  user: { id: string }, // <-- ADDED THIS PARAMETER
+  previousSpecs: Record<string, unknown> | null, 
   onProgress: (status: string, partialFields: InputField[]) => void
 ): Promise<InputField[]> => {
 
   console.log(`[${new Date().toISOString()}] 🚀 Initiating SSE connection...`);
 
-  // If we have previous specs, send them in the body to trigger iterative mode.
-  // If not, send no body to trigger the initial blind mode.
   const fetchOptions: RequestInit = {
     method: 'POST',
     headers: {
@@ -138,9 +137,16 @@ export const analyzeDocument = async (
     }
   };
 
+  // Construct the payload to match FastAPI's multi-body parameter expectation
+  const payload: Record<string, unknown> = {
+    current_user: user
+  };
+
   if (previousSpecs) {
-    fetchOptions.body = JSON.stringify(previousSpecs);
+    payload.previous_specs = previousSpecs;
   }
+
+  fetchOptions.body = JSON.stringify(payload);
 
   const response = await fetch(`${API_URL}/specs/stream-specs?project_id=${projectId}`, fetchOptions);
 
