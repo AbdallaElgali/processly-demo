@@ -1,6 +1,6 @@
+import { config } from './config';
 
-
-const API_URL = process.env.API_URL || 'http://localhost:8000';
+const API_URL = config.api;
 
 export const sendMessage = async(message: string, fileId: string) => {
   const response = await fetch(API_URL +'/chat', {
