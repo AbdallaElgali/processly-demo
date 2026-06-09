@@ -26,7 +26,7 @@ import { useDocumentManager } from '@/hooks/DocumentManager';
 import { theme } from '@/theme/theme';
 import { colors } from '@/theme/colors';
 import { MemoizedInputFieldsList } from '@/components/input-fields-list';
-import { LayoutHeader } from '@/components/LayoutHeader';
+import { LayoutHeader } from '@/components/Headers/LayoutHeader';
 import { MemoizedSidebar } from '@/components/Sidebar';
 import { ProjectBar } from '@/components/ProjectBar';
 import dynamic from 'next/dynamic';

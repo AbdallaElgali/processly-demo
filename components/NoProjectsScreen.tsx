@@ -12,7 +12,7 @@ import {
   Typography,
 } from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-import { LayoutHeader } from '@/components/LayoutHeader';
+import { LayoutHeader } from '@/components/Headers/LayoutHeader';
 import { theme } from '@/theme/theme';
 import { colors } from '@/theme/colors';
 
