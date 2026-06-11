@@ -1,4 +1,5 @@
 import { InputField, Specification, SCHEMA_GROUPS } from "@/types";
+import { v4 as uuidv4 } from 'uuid';
 
 const API_URL = process.env.API_URL || 'http://localhost:8000';
 
@@ -48,7 +49,7 @@ export const mapFieldsToSpecs = (fields: InputField[] | undefined): Record<strin
         } : null;
         const val: number = spec.value !== '' ? Number(spec.value) : 0.00;
         return {
-          id: spec.id,
+          id: spec.candidateId,
           value: val,
           unit: spec.unit,
           confidence: spec.confidence !== null ? spec.confidence / 100 : null,
@@ -86,7 +87,8 @@ const mapSpecsToFields = (rawSpecs: Record<string, unknown>): InputField[] => {
     const mappedSpecifications: Specification[] = metricsArray.map((item: Record<string, unknown>) => {
       const src = (item.source as Record<string, unknown>) || item;
       return {
-        id: item.id as string,
+        id: uuidv4() as string,
+        candidateId: item.id as string,
         value: item.value !== null && item.value !== undefined ? String(item.value) : (item.ai_value ? String(item.ai_value) : ''),
         unit: (item.unit as string) || (item.expected_unit as string) || '',
         confidence: item.confidence !== null && item.confidence !== undefined ? ((item.confidence as number) * 100) : null,
@@ -102,7 +104,7 @@ const mapSpecsToFields = (rawSpecs: Record<string, unknown>): InputField[] => {
         calculated: (item.is_calculated as boolean) || false,
         rule_passed: !item.rule_violations || (item.rule_violations as unknown[]).length === 0,
         rule_violations: (item.rule_violations as string[]) || [],
-        requires_review: (item.requires_review as boolean) || false,
+        requires_review: (item.requires_review as boolean) || false
       };
     });
 
@@ -113,6 +115,7 @@ const mapSpecsToFields = (rawSpecs: Record<string, unknown>): InputField[] => {
       specifications: mappedSpecifications,
       isFlagged: null,
       flagReason: null,
+      reviewAction: ''
     });
   });
 

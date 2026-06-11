@@ -110,17 +110,19 @@ export default function BDA() {
         const activeSpec = f.specifications.find(s => s.id === f.selectedSpecId) || f.specifications[0];
         const parsedValue = activeSpec?.value ? Number(activeSpec.value) : null;
         return {
-          parameter_key: f.id,
+          parameter_key: f.id,  // InputField id (the parameter key, ie: "U_MAX")
           final_value: parsedValue !== null && !isNaN(parsedValue) ? parsedValue : null,
           final_unit: activeSpec?.unit || null,
           is_human_modified: activeSpec ? (activeSpec.confidence === null) : true,
-          selected_candidate_id: activeSpec?.id || null,
+          selected_candidate_id: activeSpec?.candidateId ?? null,
           flag: f.isFlagged ? true : false,
           flag_reason: f.isFlagged ? f.flagReason : null,
           flagger_id: f.isFlagged ? user?.id || null : null,
           review_action: f.reviewAction
         };
       });
+      console.log('Parameters to Save: ', paramsToSave)
+
       await saveParameters(activeProjectId, paramsToSave);
       setSaveSuccess(true);
     } catch (error) {

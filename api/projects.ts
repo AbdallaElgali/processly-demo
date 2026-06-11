@@ -40,6 +40,7 @@ export interface ProjectParameter {
   final_value: number | null;
   final_unit: string | null;
   confidence: number | null;
+  selected_candidate_id: string | null;
   source_text_snippet: string | null;
   source_page_number: number | null;
   is_human_modified: boolean;

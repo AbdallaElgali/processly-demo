@@ -32,7 +32,7 @@ export const useDocumentManager = (projectId: string | null) => {
   }, []);
 
   const hydrateFiles = useCallback(async (dbDocs: ProjectDocument[]) => {
-    const API_BASE = process.env.API_URL || 'http://localhost:8000';
+    const API_BASE = process.env.API_URL || 'http://localhost:8000'; // !! Must change to match api/config.ts and be dynamic for prod vs local
     setIsLoading(true);
     try {
       // Revoke any existing blob URLs before replacing

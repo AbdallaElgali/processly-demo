@@ -29,7 +29,8 @@ export const useParameterManager = () => {
 
       if (dbParam.final_value !== null) {
         const dbSpec: Specification = {
-          id: dbParam.id,
+          id: uuidv4(),  // ui id
+          candidateId: dbParam.selected_candidate_id ?? null,  // real ai_metric_candidates FK, NOT the parameter row id
           value: dbParam.final_value.toString(),
           unit: dbParam.final_unit ?? '',
           confidence: dbParam.confidence ?? null,
@@ -60,22 +61,24 @@ export const useParameterManager = () => {
     setFields([]);
   }, []);
 
-  const handleFieldChange = useCallback((fieldId: string, value: string, unit: string) => {
+  const handleFieldChange = useCallback((fieldId: string, value: string, unit: string) => {  // Human Change!
     setFields(prev => prev.map(field => {
       if (field.id !== fieldId) return field;
       const activeId = field.selectedSpecId;
-      if (activeId) {
+      if (activeId) {  // Case A: Extracted value with Human Override
         return {
           ...field,
           reviewAction: 'MODIFIED',
           specifications: field.specifications.map(s =>
-            s.id === activeId ? { ...s, value, unit } : s
+            // Human override: it's no longer that AI candidate, so drop the FK
+            s.id === activeId ? { ...s, value, unit, candidateId: null } : s
           ),
         };
       }
       const newSpecId = uuidv4();
-      const newSpec: Specification = {
+      const newSpec: Specification = {  // Case B: Non-Extracted value with Human Override
         id: newSpecId,
+        candidateId: null,
         value,
         unit,
         confidence: null,

@@ -17,7 +17,8 @@ export interface SpecificationSource {
 }
 
 export interface Specification {
-  id: string;
+  id: string;  // if null it's human inputed
+  candidateId: string | null;  // ID for the UI, doesn't have to be a real ai metric
   value: string;
   confidence: number | null;
   unit: string | null;
