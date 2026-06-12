@@ -1,50 +1,92 @@
 import { useState, useMemo, useEffect } from 'react';
 
-// --- Dummy Data ---
-const DUMMY_USERS = ['Alice Smith', 'Bob Jones', 'Charlie Davis', 'Diana Prince'];
+// --- Interfaces ---
+export interface User {
+  user_id: string;
+  username: string;
+  department: string;
+  permission_type: string | null;
+}
 
-const generateDummyProjects = () => {
-  return Array.from({ length: 20 }).map((_, i) => {
-    const totalParams = Math.floor(Math.random() * 50) + 50; // 50 to 100
-    const aiParams = Math.floor(totalParams * (Math.random() * 0.4 + 0.6)); // 60% to 100% of total
-    const acceptedParams = Math.floor(aiParams * (Math.random() * 0.3 + 0.7)); // 70% to 100% of AI
-    
-    return {
-      id: `proj-${i + 1}`,
-      name: `Battery Cell Batch ${2000 + i}`,
-      date: new Date(2026, 5, i + 1).toISOString().split('T')[0],
-      user: DUMMY_USERS[Math.floor(Math.random() * DUMMY_USERS.length)],
-      f1Score: Number((Math.random() * 0.3 + 0.7).toFixed(2)), // 0.70 to 1.00
-      totalParams,
-      aiParams,
-      acceptedParams,
-    };
-  });
-};
-
-const ALL_PROJECTS = generateDummyProjects();
+export interface ProjectMetrics {
+  id: string;
+  name: string;
+  date: string;
+  users: User[]; // Updated to strictly be an array of User objects
+  f1Score: number;
+  totalParams: number;
+  aiParams: number;
+  acceptedParams: number;
+}
 
 export function useAdminData() {
-  const [projects, setProjects] = useState(ALL_PROJECTS);
+  // --- Data & Network States ---
+  const [projects, setProjects] = useState<ProjectMetrics[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   
-  // Sidebar states
+  // --- Sidebar & Filter States ---
   const [isExpanded, setIsExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUser, setSelectedUser] = useState<string>('All');
   const [dateFilter, setDateFilter] = useState<string>('');
 
-  // 1. Filter Projects for the Sidebar
+  // --- Fetch Data on Mount ---
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        setIsLoading(true);
+        // Using NEXT_PUBLIC assuming a Next.js environment
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        const response = await fetch(`${API_URL}/audit/projects`);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch projects: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        setProjects(data.metrics);
+      } catch (err: any) {
+        setError(err.message || "An unknown error occurred.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProjects();
+  }, []);
+
+  // --- Dynamically Derive the Users List for the Dropdown ---
+  const uniqueUsers = useMemo(() => {
+    const userSet = new Set<string>();
+    projects.forEach(p => {
+      // Safely iterate through the users array if it exists
+      if (p.users && p.users.length > 0) {
+         p.users.forEach(u => userSet.add(u.username));
+      }
+    });
+    return ['All', ...Array.from(userSet)].sort();
+  }, [projects]);
+
+  // --- 1. Filter Projects for the Sidebar ---
   const filteredProjects = useMemo(() => {
     return projects.filter(p => {
       const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesUser = selectedUser === 'All' || p.user === selectedUser;
+      
+      // NEW LOGIC: Check if the selected user exists anywhere in this project's users array
+      const matchesUser = 
+        selectedUser === 'All' || 
+        (p.users && p.users.some(u => u.username === selectedUser));
+        
       const matchesDate = !dateFilter || p.date === dateFilter;
+      
       return matchesSearch && matchesUser && matchesDate;
     });
   }, [projects, searchQuery, selectedUser, dateFilter]);
 
-  // 2. Compute Dashboard Data (either global or selected project)
+  // --- 2. Compute Dashboard Data ---
   const dashboardData = useMemo(() => {
     const targetProjects = selectedProjectId 
       ? projects.filter(p => p.id === selectedProjectId)
@@ -53,7 +95,10 @@ export function useAdminData() {
     if (targetProjects.length === 0) return null;
 
     // Charts Data
-    const recentProjects = [...targetProjects].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5).reverse();
+    const recentProjects = [...targetProjects]
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, 5)
+      .reverse();
     
     const chartData = recentProjects.map(p => ({
       name: p.name.substring(0, 10) + '...',
@@ -68,7 +113,9 @@ export function useAdminData() {
 
     const totalAi = targetProjects.reduce((acc, p) => acc + p.aiParams, 0);
     const totalAccepted = targetProjects.reduce((acc, p) => acc + p.acceptedParams, 0);
-    const avgAcceptanceRate = totalAi > 0 ? ((totalAccepted / totalAi) * 100).toFixed(1) : 0;
+    
+    const totalParams = targetProjects.reduce((acc, p) => acc + p.totalParams, 0);
+    const avgAcceptanceRate = totalParams > 0 ? ((totalAccepted / totalParams) * 100).toFixed(1) : 0;
 
     const totalAssistedProjects = targetProjects.filter(p => p.aiParams > 0).length;
 
@@ -84,7 +131,10 @@ export function useAdminData() {
   }, [projects, selectedProjectId]);
 
   return {
+    projects,
     filteredProjects,
+    isLoading,         // Make sure your UI checks this!
+    error,             // Make sure your UI checks this!
     selectedProjectId,
     setSelectedProjectId,
     isExpanded,
@@ -95,7 +145,7 @@ export function useAdminData() {
     setSelectedUser,
     dateFilter,
     setDateFilter,
-    users: ['All', ...DUMMY_USERS],
+    users: uniqueUsers, // Now feeds from actual database reviewers
     dashboardData
   };
 }
