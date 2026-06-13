@@ -11,7 +11,7 @@ import {
   Tooltip as RechartsTooltip, Legend, ResponsiveContainer 
 } from 'recharts';
 
-import { theme } from '@/theme/theme';
+import { theme} from '@/theme/theme';
 import { colors } from '@/theme/colors';
 import { useAdminData } from '@/hooks/AdminData';
 import { AdminSidebar } from '@/components/ProjectsSideBar/AdminSideBar';
