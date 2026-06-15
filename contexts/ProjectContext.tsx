@@ -89,14 +89,18 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       const newProjectData: ProjectCreateInput = { ...data, user_id: user.id };
       const response = await apiCreateProject(newProjectData);
 
-      await fetchUserProjects();
-
-      const newProjectId = response?.project?.id;
-      if (newProjectId) {
-        await loadProjectDetails(newProjectId);
+      const newProject = response?.project;
+      if (newProject) {
+        // Optimistically add the new project to the list. The
+        // GET /projects/user/{id} list endpoint is eventually consistent and
+        // may not return a just-created project immediately, so relying on a
+        // refetch here would leave `projects` empty and re-trigger the
+        // "initialize project" screen. Merge directly instead.
+        setProjects(prev => prev.some(p => p.id === newProject.id) ? prev : [...prev, newProject]);
+        await loadProjectDetails(newProject.id);
       }
 
-      return response?.project;
+      return newProject;
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create project');
       throw err;

@@ -36,6 +36,7 @@ export interface InputField {
   selectedSpecId?: string;
   isFlagged: boolean | null;
   flagReason: string | null;
+  activeFlagId?: string | null;
   reviewAction: string; // <-- NEW: Store the local UI state ('PENDING', 'MODIFIED', 'ACCEPTED')
 }
 

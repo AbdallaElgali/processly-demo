@@ -23,13 +23,15 @@ export const useParameterManager = () => {
         dbId: dbParam.id,
         label,
         isFlagged: dbParam.human_flagged,
+        activeFlagId: dbParam.active_flag_id ?? null, // <-- Load the active ticket ID
         flagReason: dbParam.flag_reason ?? '',
         reviewAction: dbParam.review_action || 'PENDING',
       };
 
       if (dbParam.final_value !== null) {
         const dbSpec: Specification = {
-          id: dbParam.id,
+          // Bind the spec ID to the actual AI candidate ID so we can reference it when flagging
+          id: dbParam.id || uuidv4(), 
           value: dbParam.final_value.toString(),
           unit: dbParam.final_unit ?? '',
           confidence: dbParam.confidence ?? null,
@@ -123,20 +125,43 @@ export const useParameterManager = () => {
     const field = fields.find(f => f.id === fieldId);
 
     if (!field?.dbId || !user?.id) {
-      console.error('Missing dbId or user ID — cannot flag parameter');
+      console.error('Missing dbId or user ID — cannot update flag');
+      return;
+    }
+
+    // Determine the AI candidate being flagged.
+    const candidateId = field.selectedSpecId;
+    if (isFlagged && !candidateId) {
+      console.warn("Cannot flag parameter: No AI metric candidate exists to flag.");
+      // Optional: Trigger a UI toast/alert here
       return;
     }
 
     setIsSyncing(fieldId);
     try {
       if (isFlagged) {
-        await flagParameter(user.id, field.dbId, reason ?? 'No reason provided');
+        // Human is creating/updating a flag
+        const newFlagId = await flagParameter(
+            user.id, 
+            field.dbId, 
+            candidateId as string, 
+            field.activeFlagId || null, // Pass parent if we are re-flagging
+            reason ?? 'No reason provided'
+        );
+        
+        setFields(prev => prev.map(f =>
+          f.id === fieldId ? { ...f, isFlagged, flagReason: reason ?? '', activeFlagId: newFlagId } : f
+        ));
       } else {
-        await unFlagParameter(user.id, field.dbId);
+        // Human is dismissing/removing the flag manually
+        if (field.activeFlagId) {
+            await unFlagParameter(field.activeFlagId, null, "DISMISSED");
+        }
+        
+        setFields(prev => prev.map(f =>
+          f.id === fieldId ? { ...f, isFlagged, flagReason: '', activeFlagId: null } : f
+        ));
       }
-      setFields(prev => prev.map(f =>
-        f.id === fieldId ? { ...f, isFlagged, flagReason: reason ?? '' } : f
-      ));
     } catch (error) {
       console.error('Failed to sync flag to backend:', error);
     } finally {

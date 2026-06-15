@@ -54,7 +54,8 @@ export const mapFieldsToSpecs = (fields: InputField[] | undefined): Record<strin
           confidence: spec.confidence !== null ? spec.confidence / 100 : null,
           source: backendSource,
           is_flagged: field.isFlagged || false,
-          flag_reason: field.flagReason || ""
+          flag_reason: field.flagReason || "",
+          active_flag_id: field.activeFlagId || null
         };
       });
     } else if (field.isFlagged) {
@@ -69,7 +70,8 @@ export const mapFieldsToSpecs = (fields: InputField[] | undefined): Record<strin
         confidence: null,
         source: null,
         is_flagged: true,
-        flag_reason: field.flagReason || ""
+        flag_reason: field.flagReason || "",
+        active_flag_id: field.activeFlagId
       }];
     }
   });
@@ -147,6 +149,9 @@ export const analyzeDocument = async (
   }
 
   fetchOptions.body = JSON.stringify(payload);
+
+  console.log(payload)
+
 
   const response = await fetch(`${API_URL}/specs/stream-specs?project_id=${projectId}`, fetchOptions);
 

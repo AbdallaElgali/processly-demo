@@ -33,31 +33,37 @@ export interface ProjectDocument {
   file_url: string;
   type: string;
 }
-
 export interface ProjectParameter {
   id: string;
   parameter_key: string;
   final_value: number | null;
   final_unit: string | null;
+  is_human_modified: boolean;
+  selected_candidate_id: string | null;
+  review_action: string;
+  reviewed_at: string | null;
+  
+  // Flagging fields (MUST match backend exactly)
+  human_flagged: boolean;
+  active_flag_id: string | null; // <--- THIS WAS MISSING
+  flag_reason: string | null;
+  flagger_id: string | null;
+
+  // AI Candidate joined fields
   confidence: number | null;
   source_text_snippet: string | null;
   source_page_number: number | null;
-  is_human_modified: boolean;
-  human_flagged: boolean;
-  flagger_id: string | null;
-  flag_reason: string | null;
-  review_action: string; 
 }
 
 export interface Project {
   id: string;
   alias_id: string;
-  title?: string;
-  name?: string;
   description?: string;
+  customer?: string;
+  status: string;
+  created_at: string;
   documents?: ProjectDocument[];
   parameters?: ProjectParameter[];
-  status: "NEW" | "PENDING_REVIEW" | "IN_REVIEW" | "APPROVED";
 }
 
 // --- API Functions ---

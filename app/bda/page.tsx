@@ -193,7 +193,7 @@ export default function BDA() {
     );
   }
 
-  if (projects.length === 0) {
+  if (projects.length === 0 && !currentProject) {
     return (
       <NoProjectsScreen
         onCreateProject={async (alias) => {

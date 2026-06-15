@@ -44,6 +44,9 @@ export const useAnalyze = (
     
     try {
       // <-- UPDATED: Pass user as the 2nd argument
+      console.log('PREVIOUS SPECS: ' + previousSpecs)
+      const x = 1;
+      if (x == 1){
       const final = await analyzeDocument(activeProjectId, user, previousSpecs, (status, partial) => {
         setAnalyzeStatus(status);
         queueAnalyzePartial(partial);
@@ -57,7 +60,7 @@ export const useAnalyze = (
         handlePopulateExtractedData(pendingPartialRef.current);
         pendingPartialRef.current = null;
       }
-      handlePopulateExtractedData(final);
+      handlePopulateExtractedData(final);}
     } finally {
       setIsAnalyzing(false);
     }
