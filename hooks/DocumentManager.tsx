@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { uploadDocuments } from '@/api/upload-doc';
 import { ActiveHighlight } from '@/types';
 import { ProjectDocument } from '@/api/projects';
+import { config } from '@/api/config';
 
 interface UploadedFile {
   id: string;
@@ -32,7 +33,7 @@ export const useDocumentManager = (projectId: string | null) => {
   }, []);
 
   const hydrateFiles = useCallback(async (dbDocs: ProjectDocument[]) => {
-    const API_BASE = process.env.API_URL || 'http://localhost:8000';
+    const API_BASE = config.api;
     setIsLoading(true);
     try {
       // Revoke any existing blob URLs before replacing
@@ -109,7 +110,6 @@ export const useDocumentManager = (projectId: string | null) => {
   };
 
   const handleJumpToSource = useCallback((source: ActiveHighlight) => {
-    console.log(source)
     if (!source) return;
     // Only switch the active file when we have an explicit documentId.
     // If documentId is null (e.g. DB-hydrated params), keep the current

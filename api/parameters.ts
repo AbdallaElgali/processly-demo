@@ -6,14 +6,12 @@ const API_URL = config.api;
 const API_BASE_URL = API_URL + '/flagging'; 
 
 export const flagParameter = async (
-    user_id: string, 
-    parameter_id: string, 
-    ai_metric_candidate_id: string, 
-    parent_flag_id: string | null = null, 
+    user_id: string,
+    parameter_id: string,
+    ai_metric_candidate_id: string | null,
+    parent_flag_id: string | null = null,
     flag_reason: string | null = null
 ): Promise<string> => {
-    console.log(`Flagging candidate ${ai_metric_candidate_id} for user ${user_id}`);
-    
     const response = await fetch(`${API_BASE_URL}/ai-flag-parameter`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

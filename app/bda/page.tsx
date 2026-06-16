@@ -23,6 +23,8 @@ import { UploadModal } from '@/components/UploadModal';
 import { ProjectBar } from '@/components/ProjectBar';
 import dynamic from 'next/dynamic';
 import { FrontendBatteryFileExport } from '@/static/battery-template';
+import { InputField } from '@/types';
+import { inputFieldToParameterInput } from '@/lib/parameter-adapter';
 
 const DocumentRouter = dynamic(
   () => import('@/components/DocumentViewer/DocumentRouter').then((mod) => mod.MemoizedDocumentRouter),
@@ -35,7 +37,7 @@ const MIN_MAIN_WIDTH = 400;
 
 export default function BDA() {
   const { user, logout, isLoading: authLoading } = useAuth();
-  const { projects, currentProject, isLoading: projectsLoading, createNewProject, saveParameters, loadProjectDetails, approveDocument } = useProject();
+  const { projects, currentProject, isLoading: projectsLoading, createNewProject, saveParameters, saveParametersSilent, loadProjectDetails, approveDocument } = useProject();
   const router = useRouter();
 
   const [hasMounted, setHasMounted] = useState(false);
@@ -55,10 +57,20 @@ export default function BDA() {
 
   const { viewerWidth, startResizing } = useResizer(isSidebarOpen);
 
+  // Persist the current fields to the backend without a loading spinner. Passed
+  // into the parameter manager so flag changes are saved immediately.
+  const persistFields = useCallback(async (fieldsToPersist: InputField[]) => {
+    if (!activeProjectId) return;
+    await saveParametersSilent(
+      activeProjectId,
+      fieldsToPersist.map(f => inputFieldToParameterInput(f, user?.id ?? null))
+    );
+  }, [activeProjectId, saveParametersSilent, user?.id]);
+
   const {
     fields, handleFieldChange, handleRemoveField, handleSwitchSpecification,
     handlePopulateExtractedData, hydrateFieldsFromDB, resetFields, handleFlag,
-  } = useParameterManager();
+  } = useParameterManager({ persist: persistFields });
   const {
     uploadedFiles, activeFileId, activeDoc, activeSource, hydrateFiles,
     isLoading: isDocLoading, handleDocumentUpload, handleSelectFile, handleJumpToSource, clearFiles,
@@ -106,21 +118,7 @@ export default function BDA() {
     if (!activeProjectId) return;
     setIsSaving(true);
     try {
-      const paramsToSave = fields.map(f => {
-        const activeSpec = f.specifications.find(s => s.id === f.selectedSpecId) || f.specifications[0];
-        const parsedValue = activeSpec?.value ? Number(activeSpec.value) : null;
-        return {
-          parameter_key: f.id,
-          final_value: parsedValue !== null && !isNaN(parsedValue) ? parsedValue : null,
-          final_unit: activeSpec?.unit || null,
-          is_human_modified: activeSpec ? (activeSpec.confidence === null) : true,
-          selected_candidate_id: activeSpec?.id || null,
-          flag: f.isFlagged ? true : false,
-          flag_reason: f.isFlagged ? f.flagReason : null,
-          flagger_id: f.isFlagged ? user?.id || null : null,
-          review_action: f.reviewAction
-        };
-      });
+      const paramsToSave = fields.map(f => inputFieldToParameterInput(f, user?.id ?? null));
       await saveParameters(activeProjectId, paramsToSave);
       setSaveSuccess(true);
     } catch (error) {

@@ -59,7 +59,6 @@ export const InputFieldItem = ({ field, onChange, onRemove, onShowSource, onSwit
   const flagReason = field.flagReason ?? null;
   
   const handleSourceClick = () => {
-    console.log(displaySource)
     if (!displaySource) return;
 
     if (displaySource.boundingBox === null && displaySource.pageNumber === null) {

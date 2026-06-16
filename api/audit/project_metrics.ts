@@ -1,37 +1,11 @@
-const API_URL = process.env.API_URL || 'http://localhost:8000'
+import { config } from '@/api/config';
+import type { ProjectMetrics } from '@/types/audit';
 
-interface User {
-    user_id: string;
-    username: string;
-    department: string;
-    permission_type: string;
-}
-interface ProjectMetrics {
-    id: string;
-    name: string;
-    date: string;
-    users: User[];
-    f1Score: number;
-    totalParams: number;
-    aiParams: number;
-    acceptedParams: number;
-
-}
-
-export const fetch_project_metrics = async() => {
-    try{
-        const response = await fetch(`${API_URL}/audit/projects`)
-        if (response.status == 200){
-            const data = await response.json()
-            const metrics: ProjectMetrics[] = data.metrics
-            return metrics
-        }
-        else{
-            throw new Error("Reponse status " + response.status + " returned but no error.")
-        }
-
+export const fetch_project_metrics = async (): Promise<ProjectMetrics[]> => {
+    const response = await fetch(`${config.api}/audit/projects`);
+    if (response.status === 200) {
+        const data = await response.json();
+        return data.metrics as ProjectMetrics[];
     }
-    catch (err){
-        throw err;
-    }
-}
+    throw new Error('Response status ' + response.status + ' returned but no error.');
+};

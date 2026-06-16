@@ -2,7 +2,7 @@
 
 import '@/hooks/url-polyfill';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Box,
@@ -30,6 +30,8 @@ import { LayoutHeader } from '@/components/Headers/LayoutHeader';
 import { MemoizedSidebar } from '@/components/Sidebar';
 import { ProjectBar } from '@/components/ProjectBar';
 import dynamic from 'next/dynamic';
+import { InputField } from '@/types';
+import { inputFieldToParameterInput } from '@/lib/parameter-adapter';
 
 const SIDEBAR_WIDTH = 260;
 const TOOLBAR_WIDTH = 56;
@@ -43,7 +45,7 @@ const DocumentRouter = dynamic(
 
 export default function ReviewPage() {
   const { user, logout, isLoading: authLoading } = useAuth();
-  const { projects, currentProject, isLoading: projectsLoading, loadProjectDetails } = useProject();
+  const { projects, currentProject, isLoading: projectsLoading, loadProjectDetails, saveParametersSilent } = useProject();
   const router = useRouter();
 
   const [hasMounted, setHasMounted] = useState(false);
@@ -55,10 +57,20 @@ export default function ReviewPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const { viewerWidth, startResizing } = useResizer(isSidebarOpen);
+
+  // Persist flag changes immediately — review mode has no Save button.
+  const persistFields = useCallback(async (fieldsToPersist: InputField[]) => {
+    if (!activeProjectId) return;
+    await saveParametersSilent(
+      activeProjectId,
+      fieldsToPersist.map(f => inputFieldToParameterInput(f, user?.id ?? null))
+    );
+  }, [activeProjectId, saveParametersSilent, user?.id]);
+
   const {
     fields, handleFlag, hydrateFieldsFromDB, resetFields,
     handleFieldChange, handleRemoveField, handleSwitchSpecification,
-  } = useParameterManager();
+  } = useParameterManager({ persist: persistFields });
   const {
     activeFileId, activeDoc, activeSource, hydrateFiles,
     handleSelectFile, handleJumpToSource, clearFiles,

@@ -1,23 +1,9 @@
 import { useState, useMemo, useEffect } from 'react';
+import { config } from '@/api/config';
+import type { ProjectMetrics } from '@/types/audit';
 
-// --- Interfaces ---
-export interface User {
-  user_id: string;
-  username: string;
-  department: string;
-  permission_type: string | null;
-}
-
-export interface ProjectMetrics {
-  id: string;
-  name: string;
-  date: string;
-  users: User[]; // Updated to strictly be an array of User objects
-  f1Score: number;
-  totalParams: number;
-  aiParams: number;
-  acceptedParams: number;
-}
+// Re-exported for existing consumers that import these from this hook.
+export type { AuditUser as User, ProjectMetrics } from '@/types/audit';
 
 export function useAdminData() {
   // --- Data & Network States ---
@@ -38,18 +24,16 @@ export function useAdminData() {
     const fetchProjects = async () => {
       try {
         setIsLoading(true);
-        // Using NEXT_PUBLIC assuming a Next.js environment
-        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        const response = await fetch(`${API_URL}/audit/projects`);
-        
+        const response = await fetch(`${config.api}/audit/projects`);
+
         if (!response.ok) {
           throw new Error(`Failed to fetch projects: ${response.status}`);
         }
-        
+
         const data = await response.json();
         setProjects(data.metrics);
-      } catch (err: any) {
-        setError(err.message || "An unknown error occurred.");
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'An unknown error occurred.');
       } finally {
         setIsLoading(false);
       }

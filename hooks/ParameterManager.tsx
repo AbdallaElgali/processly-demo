@@ -1,61 +1,25 @@
 import { useState, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { InputField, Specification, SCHEMA_GROUPS } from '@/types';
+import { InputField, Specification } from '@/types';
 import { ProjectParameter } from '@/api/projects';
 import { useAuth } from '@/contexts/AuthContext';
 import { flagParameter, unFlagParameter } from '@/api/parameters';
+import { dbParamToInputField } from '@/lib/parameter-adapter';
 
-// Flat lookup: parameter_key → display label
-const FIELD_LABEL_MAP = new Map(
-  SCHEMA_GROUPS.flatMap(g => g.fields.map(f => [f.id, f.label]))
-);
+interface UseParameterManagerOptions {
+  // Persists the given fields to the backend. Provided by the page so that flag
+  // changes are durable immediately (without waiting for an explicit Save).
+  persist?: (fields: InputField[]) => Promise<void>;
+}
 
-export const useParameterManager = () => {
+export const useParameterManager = (options?: UseParameterManagerOptions) => {
   const { user } = useAuth();
+  const persist = options?.persist;
   const [fields, setFields] = useState<InputField[]>([]);
   const [isSyncing, setIsSyncing] = useState<string | null>(null);
 
   const hydrateFieldsFromDB = useCallback((dbParameters: ProjectParameter[]) => {
-    const hydratedFields: InputField[] = dbParameters.map(dbParam => {
-      const label = FIELD_LABEL_MAP.get(dbParam.parameter_key) ?? dbParam.parameter_key;
-      const base = {
-        id: dbParam.parameter_key,
-        dbId: dbParam.id,
-        label,
-        isFlagged: dbParam.human_flagged,
-        activeFlagId: dbParam.active_flag_id ?? null, // <-- Load the active ticket ID
-        flagReason: dbParam.flag_reason ?? '',
-        reviewAction: dbParam.review_action || 'PENDING',
-      };
-
-      if (dbParam.final_value !== null) {
-        const dbSpec: Specification = {
-          // Bind the spec ID to the actual AI candidate ID so we can reference it when flagging
-          id: dbParam.id || uuidv4(), 
-          value: dbParam.final_value.toString(),
-          unit: dbParam.final_unit ?? '',
-          confidence: dbParam.confidence ?? null,
-          source: {
-            documentId: null,
-            textSnippet: dbParam.source_text_snippet ?? null,
-            pageNumber: dbParam.source_page_number ?? null,
-            reason: null,
-            boundingBox: null,
-            tableName: null,
-            cellCoordinates: null,
-          },
-          calculated: false,
-          rule_passed: true,
-          rule_violations: [],
-          requires_review: false,
-        };
-        return { ...base, specifications: [dbSpec], selectedSpecId: dbSpec.id };
-      }
-
-      return { ...base, specifications: [], selectedSpecId: undefined };
-    });
-
-    setFields(hydratedFields);
+    setFields(dbParameters.map(dbParamToInputField));
   }, []);
 
   const resetFields = useCallback(() => {
@@ -75,9 +39,10 @@ export const useParameterManager = () => {
           ),
         };
       }
-      const newSpecId = uuidv4();
+      // No spec yet — a human is entering a brand-new value (no AI candidate).
       const newSpec: Specification = {
-        id: newSpecId,
+        id: uuidv4(),
+        candidateId: null,
         value,
         unit,
         confidence: null,
@@ -87,7 +52,7 @@ export const useParameterManager = () => {
         rule_violations: [],
         requires_review: false,
       };
-      return { ...field, reviewAction: 'MODIFIED', specifications: [newSpec], selectedSpecId: newSpecId };
+      return { ...field, reviewAction: 'MODIFIED', specifications: [newSpec], selectedSpecId: newSpec.id };
     }));
   }, []);
 
@@ -121,53 +86,52 @@ export const useParameterManager = () => {
     });
   }, []);
 
+  // Single flag write-path: hits the flag ticket endpoint AND persists the
+  // parameter row so `human_flagged` survives a reload in both editor and
+  // review modes. (Previously the column write only happened on explicit Save,
+  // so review-mode flags were lost on refresh.)
   const handleFlag = useCallback(async (fieldId: string, isFlagged: boolean, reason?: string | null) => {
     const field = fields.find(f => f.id === fieldId);
-
     if (!field?.dbId || !user?.id) {
       console.error('Missing dbId or user ID — cannot update flag');
       return;
     }
 
-    // Determine the AI candidate being flagged.
-    const candidateId = field.selectedSpecId;
-    if (isFlagged && !candidateId) {
-      console.warn("Cannot flag parameter: No AI metric candidate exists to flag.");
-      // Optional: Trigger a UI toast/alert here
-      return;
-    }
+    const activeSpec = field.specifications.find(s => s.id === field.selectedSpecId) ?? field.specifications[0];
+    const candidateId = activeSpec?.candidateId ?? null;
 
     setIsSyncing(fieldId);
     try {
+      let nextFields: InputField[];
       if (isFlagged) {
-        // Human is creating/updating a flag
+        // Chain a new ticket to the existing one (if any) so the backend can track lineage.
         const newFlagId = await flagParameter(
-            user.id, 
-            field.dbId, 
-            candidateId as string, 
-            field.prevFlagId || null, // Pass parent if we are re-flagging
-            reason ?? 'No reason provided'
+          user.id,
+          field.dbId,
+          candidateId,
+          field.activeFlagId ?? null,
+          reason ?? 'No reason provided'
         );
-        
-        setFields(prev => prev.map(f =>
-          f.id === fieldId ? { ...f, isFlagged, flagReason: reason ?? '', activeFlagId: f.prevFlagId ? f.prevFlagId : newFlagId } : f
-        ));
+        nextFields = fields.map(f =>
+          f.id === fieldId ? { ...f, isFlagged: true, flagReason: reason ?? '', activeFlagId: newFlagId } : f
+        );
       } else {
-        // Human is dismissing/removing the flag manually
         if (field.activeFlagId) {
-            await unFlagParameter(field.activeFlagId, null, "DISMISSED");
+          await unFlagParameter(field.activeFlagId, null, 'DISMISSED');
         }
-        
-        setFields(prev => prev.map(f =>
-          f.id === fieldId ? { ...f, isFlagged, flagReason: '', activeFlagId: null, prevFlagId: field.activeFlagId } : f
-        ));
+        nextFields = fields.map(f =>
+          f.id === fieldId ? { ...f, isFlagged: false, flagReason: null, activeFlagId: null } : f
+        );
       }
+
+      setFields(nextFields);
+      if (persist) await persist(nextFields);
     } catch (error) {
       console.error('Failed to sync flag to backend:', error);
     } finally {
       setIsSyncing(null);
     }
-  }, [fields, user?.id]);
+  }, [fields, user?.id, persist]);
 
   return {
     fields,
