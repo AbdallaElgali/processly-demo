@@ -37,6 +37,7 @@ export interface InputField {
   isFlagged: boolean | null;
   flagReason: string | null;
   activeFlagId?: string | null;
+  prevFlagId?: string | null; // <-- NEW: Store the previous flag ID to detect changes
   reviewAction: string; // <-- NEW: Store the local UI state ('PENDING', 'MODIFIED', 'ACCEPTED')
 }
 

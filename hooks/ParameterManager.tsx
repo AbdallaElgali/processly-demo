@@ -145,12 +145,12 @@ export const useParameterManager = () => {
             user.id, 
             field.dbId, 
             candidateId as string, 
-            field.activeFlagId || null, // Pass parent if we are re-flagging
+            field.prevFlagId || null, // Pass parent if we are re-flagging
             reason ?? 'No reason provided'
         );
         
         setFields(prev => prev.map(f =>
-          f.id === fieldId ? { ...f, isFlagged, flagReason: reason ?? '', activeFlagId: newFlagId } : f
+          f.id === fieldId ? { ...f, isFlagged, flagReason: reason ?? '', activeFlagId: f.prevFlagId ? f.prevFlagId : newFlagId } : f
         ));
       } else {
         // Human is dismissing/removing the flag manually
@@ -159,7 +159,7 @@ export const useParameterManager = () => {
         }
         
         setFields(prev => prev.map(f =>
-          f.id === fieldId ? { ...f, isFlagged, flagReason: '', activeFlagId: null } : f
+          f.id === fieldId ? { ...f, isFlagged, flagReason: '', activeFlagId: null, prevFlagId: field.activeFlagId } : f
         ));
       }
     } catch (error) {
