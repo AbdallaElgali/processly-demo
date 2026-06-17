@@ -246,8 +246,8 @@ export const mapFieldsToSpecs = (
       specs[field.id] = field.specifications.map(spec => {
         const backendSource = spec.source
           ? { ...spec.source, boundingBox: reverseFormatBoundingBox(spec.source.boundingBox) }
-          : null;
-        const val: number = spec.value !== '' ? Number(spec.value) : 0.0;
+          : null; 
+        const val: number = spec.value !== '' ? Number(spec.value) : 0.0;  //!!!EJIFJIEFIOPEJFS FOUND IT!!!!
         return {
           // Send the real candidate id; omit it for human-entered specs so
           // Pydantic's default_factory generates a valid UUID (sending null 422s).
