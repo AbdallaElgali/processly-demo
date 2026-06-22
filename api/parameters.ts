@@ -43,3 +43,16 @@ export const unFlagParameter = async (
     
     if (!response.ok) throw new Error(await response.text());
 }
+
+export const updateResolvedBy = async (
+    flag_id: string, 
+    resolved_by: string | null = null
+): Promise<void> => {
+   const response = await fetch(`${API_BASE_URL}/select-correct-ai-candidate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ flag_id, resolved_by }),
+    });
+    
+    if (!response.ok) throw new Error(await response.text());
+}

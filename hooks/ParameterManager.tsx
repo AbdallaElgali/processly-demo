@@ -3,8 +3,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { InputField, Specification } from '@/types';
 import { ProjectParameter } from '@/api/projects';
 import { useAuth } from '@/contexts/AuthContext';
-import { flagParameter, unFlagParameter } from '@/api/parameters';
+import { flagParameter, unFlagParameter, updateResolvedBy } from '@/api/parameters';
 import { dbParamToInputField } from '@/lib/parameter-adapter';
+import { UnfoldLess } from '@mui/icons-material';
 
 interface UseParameterManagerOptions {
   // Persists the given fields to the backend. Provided by the page so that flag
@@ -60,11 +61,27 @@ export const useParameterManager = (options?: UseParameterManagerOptions) => {
     setFields(prev => prev.filter(f => f.id !== id));
   }, []);
 
-  const handleSwitchSpecification = useCallback((fieldId: string, specId: string) => {
+const handleSwitchSpecification = useCallback((fieldId: string, specId: string) => {
+    // Update UI state synchronously
     setFields(prev => prev.map(field =>
       field.id === fieldId ? { ...field, selectedSpecId: specId } : field
     ));
-  }, []);
+
+    // 1. Find the parent field first
+    const targetField = fields.find(field => field.id === fieldId);
+    
+    // 2. Find the specific specification inside that field
+    const current_spec = targetField?.specifications.find(spec => spec.candidateId === specId);
+    
+    console.log('Target Field: ', targetField);
+    console.log('Current Spec: ', current_spec);
+
+    // 3. Access flag properties from targetField, and candidateId from current_spec
+    if (targetField?.isFlagged && targetField?.activeFlagId && current_spec?.candidateId) {
+      updateResolvedBy(targetField.activeFlagId, current_spec.candidateId)
+        .catch(error => console.error("Failed to update resolver:", error));
+    }
+  }, [fields]);
 
   const handlePopulateExtractedData = useCallback((extractedFields: InputField[]) => {
     setFields(prevFields => {
