@@ -108,19 +108,38 @@ interface ProjectSummaryProps {
 const ProjectSummary: React.FC<ProjectSummaryProps> = ({ projectId, onBack }) => {
   const { summaryData, isLoading, error } = useProjectSummary(projectId);
   
+  // Search and Filter States
   const [searchQuery, setSearchQuery] = useState('');
   const [reviewFilter, setReviewFilter] = useState('ALL');
+  const [runsFilter, setRunsFilter] = useState('ALL');
+  const [flagsFilter, setFlagsFilter] = useState('ALL');
   
   // Track selected parameter for drill-down routing
   const [selectedParameterKey, setSelectedParameterKey] = useState<string | null>(null);
 
+  // Derive filtered parameters based on UI state
   const filteredParameters = useMemo(() => {
     return summaryData.filter(param => {
+      // Search text
       const matchesSearch = param.parameterKey.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      // Review Status
       const matchesReview = reviewFilter === 'ALL' || param.reviewAction === reviewFilter;
-      return matchesSearch && matchesReview;
+      
+      // Extraction Runs Logic
+      let matchesRuns = true;
+      if (runsFilter === 'MULTIPLE') matchesRuns = param.totalExtractionRuns > 1;
+      if (runsFilter === 'ONE_PLUS') matchesRuns = param.totalExtractionRuns >= 1;
+      if (runsFilter === 'ZERO') matchesRuns = param.totalExtractionRuns === 0;
+
+      // Flags Logic
+      let matchesFlags = true;
+      if (flagsFilter === 'HAS_FLAGS') matchesFlags = param.totalFlags > 0;
+      if (flagsFilter === 'NO_FLAGS') matchesFlags = param.totalFlags === 0;
+
+      return matchesSearch && matchesReview && matchesRuns && matchesFlags;
     });
-  }, [summaryData, searchQuery, reviewFilter]);
+  }, [summaryData, searchQuery, reviewFilter, runsFilter, flagsFilter]);
 
   // Route to Lineage view if a parameter is selected
   if (selectedParameterKey) {
@@ -154,19 +173,23 @@ const ProjectSummary: React.FC<ProjectSummaryProps> = ({ projectId, onBack }) =>
         Project Parameters
       </Typography>
 
-      {/* Controls Bar */}
-      <Box sx={{ display: 'flex', gap: 2, mb: 4, alignItems: 'center' }}>
+      {/* Controls Bar: Flex-wrap added to support multiple dropdowns */}
+      <Box sx={{ display: 'flex', gap: 2, mb: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+        
+        {/* Search */}
         <TextField
           size="small"
           placeholder="Search parameters..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          sx={{ flex: 1, bgcolor: colors.surface }}
+          sx={{ flex: 1, minWidth: 200, bgcolor: colors.surface }}
           InputProps={{
             startAdornment: <SearchIcon sx={{ color: 'text.secondary', mr: 1 }} />
           }}
         />
-        <FormControl size="small" sx={{ minWidth: 200, bgcolor: colors.surface }}>
+        
+        {/* Review Status Filter */}
+        <FormControl size="small" sx={{ minWidth: 160, bgcolor: colors.surface }}>
           <InputLabel>Review Status</InputLabel>
           <Select
             value={reviewFilter}
@@ -179,6 +202,36 @@ const ProjectSummary: React.FC<ProjectSummaryProps> = ({ projectId, onBack }) =>
             <MenuItem value="REJECTED">Rejected</MenuItem>
           </Select>
         </FormControl>
+
+        {/* Extraction Runs Filter */}
+        <FormControl size="small" sx={{ minWidth: 160, bgcolor: colors.surface }}>
+          <InputLabel>Extraction Runs</InputLabel>
+          <Select
+            value={runsFilter}
+            label="Extraction Runs"
+            onChange={(e) => setRunsFilter(e.target.value)}
+          >
+            <MenuItem value="ALL">All Runs</MenuItem>
+            <MenuItem value="ONE_PLUS">1+ Runs</MenuItem>
+            <MenuItem value="MULTIPLE">Multiple Runs (2+)</MenuItem>
+            <MenuItem value="ZERO">Zero Runs (Manual)</MenuItem>
+          </Select>
+        </FormControl>
+
+        {/* Flags Filter */}
+        <FormControl size="small" sx={{ minWidth: 160, bgcolor: colors.surface }}>
+          <InputLabel>Flags</InputLabel>
+          <Select
+            value={flagsFilter}
+            label="Flags"
+            onChange={(e) => setFlagsFilter(e.target.value)}
+          >
+            <MenuItem value="ALL">All Flags</MenuItem>
+            <MenuItem value="HAS_FLAGS">Has Flags (1+)</MenuItem>
+            <MenuItem value="NO_FLAGS">No Flags (0)</MenuItem>
+          </Select>
+        </FormControl>
+
       </Box>
 
       {/* Render the List of Parameter Rows */}

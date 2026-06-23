@@ -27,12 +27,13 @@ export const fetch_parameter_lineage = async (
   project_id: string, 
   parameter_key: string
 ): Promise<ParameterLineageResponse> => {
-  // Make sure this URL matches your actual backend route
   const response = await fetch(`${config.api}/audit/project/${project_id}/parameter/${parameter_key}/lineage`);
   
   if (response.status === 200) {
     const data = await response.json();
-    return data as ParameterLineageResponse;
+    
+    // FIX: Extract the actual response object from the "lineage" wrapper
+    return data.lineage as ParameterLineageResponse;
   }
   
   console.error(response);

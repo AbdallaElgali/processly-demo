@@ -15,6 +15,7 @@ export function useParameterLineage(projectId: string, parameterKey: string) {
         setIsLoading(true);
         setError(null);
         const data = await fetch_parameter_lineage(projectId, parameterKey);
+        console.log(data)
         
         if (isMounted) {
           // DEFENSIVE FIX: Check if data.events exists and is an array before sorting
