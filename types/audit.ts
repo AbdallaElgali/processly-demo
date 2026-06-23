@@ -19,3 +19,70 @@ export interface ProjectMetrics {
   aiParams: number;
   acceptedParams: number;
 }
+
+export interface ChartDataPoint {
+  name: string;
+  f1Score: number;
+  totalParams: number;
+  aiParams: number;
+}
+
+export interface DashboardInsights {
+  avgF1: string | number;
+  avgAcceptanceRate: string | number;
+  totalAssistedProjects: number;
+  totalAiParams: number;
+}
+
+export interface DashboardData {
+  chartData: ChartDataPoint[];
+  insights: DashboardInsights;
+}
+
+export interface GroupInsights {
+  totalExtractionRuns: number;
+  acceptanceRate: number;
+  totalFlags: number;
+}
+
+
+export interface ProjectSummary {
+  parameterKey: string;
+  finalValue: string | null;
+  reviewAction: string;
+  isHumanModified: boolean;
+  totalCandidates: number;
+  totalFlags: number;
+  lastAiUpdate: string | null;
+  isAiAccepted: boolean;
+  totalExtractionRuns: number;
+}
+
+export interface FlagDetail {
+  flagId: string;
+  flagReason: string | null;
+  status: string;
+  flagType: string | null;
+  createdAt: string;
+  resolvedByCandidateId: string | null;
+}
+
+export interface ParameterLineageEvent {
+  candidateId: string;
+  extractionRunId: string;
+  value: string | null;
+  unit: string | null;
+  extractionLogic: string | null;
+  confidence: number;
+  createdAt: string;
+  flag: FlagDetail | null;
+  isWinner: boolean;
+}
+
+export interface ParameterLineageResponse {
+  parameterKey: string;
+  finalValue: string | null;
+  reviewAction: string | null;
+  isAiAccepted: boolean;
+  events: ParameterLineageEvent[];
+}

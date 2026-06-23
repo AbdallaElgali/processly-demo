@@ -99,7 +99,7 @@ export function useAdminData() {
     const totalAccepted = targetProjects.reduce((acc, p) => acc + p.acceptedParams, 0);
     
     const totalParams = targetProjects.reduce((acc, p) => acc + p.totalParams, 0);
-    const avgAcceptanceRate = totalParams > 0 ? ((totalAccepted / totalParams) * 100).toFixed(1) : 0;
+    const avgAcceptanceRate = totalParams > 0 ? Number((totalAccepted / totalParams) * 100).toFixed(1) : 0;
 
     const totalAssistedProjects = targetProjects.filter(p => p.aiParams > 0).length;
 
