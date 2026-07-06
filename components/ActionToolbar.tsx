@@ -9,6 +9,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import SaveIcon from '@mui/icons-material/Save';
 import DoneAllIcon from '@mui/icons-material/DoneAll'; // <-- NEW: Import for batch approval
 import { colors } from '@/theme/colors';
+import MessageIcon from '@mui/icons-material/Message';
 
 const TOOLBAR_WIDTH = 56;
 
@@ -19,6 +20,7 @@ interface ActionToolbarProps {
   onApprove: () => void; // <-- NEW
   onExport: () => void;
   onToggleSidebar: () => void;
+  onFeedbackClick: () => void; // <-- NEW
   isSidebarOpen: boolean;
   isAnalyzing: boolean;
   analyzeStatus: string;
@@ -28,6 +30,7 @@ interface ActionToolbarProps {
   isAnalyzeDisabled: boolean;
   isApproveDisabled: boolean; // <-- NEW
   isExportDisabled: boolean;
+  isFeedbackDisabled: boolean; // <-- NEW
 }
 
 export const ActionToolbar = ({
@@ -37,6 +40,7 @@ export const ActionToolbar = ({
   onApprove, // <-- NEW
   onExport,
   onToggleSidebar,
+  onFeedbackClick,
   isSidebarOpen,
   isAnalyzing,
   analyzeStatus,
@@ -46,6 +50,7 @@ export const ActionToolbar = ({
   isAnalyzeDisabled,
   isApproveDisabled, // <-- NEW
   isExportDisabled,
+  isFeedbackDisabled, // <-- NEW
 }: ActionToolbarProps) => {
   return (
     <Box sx={{
@@ -114,6 +119,13 @@ export const ActionToolbar = ({
       <IconButton onClick={onToggleSidebar}>
         {isSidebarOpen ? <ChevronLeftIcon /> : <MenuIcon />}
       </IconButton>
+      <Tooltip title="Feedback" placement="right">
+        <Box sx={{ position: 'relative' }}>
+          <IconButton onClick={onFeedbackClick} disabled={isFeedbackDisabled} color="secondary">
+            <MessageIcon />
+          </IconButton>
+        </Box>
+      </Tooltip>
     </Box>
   );
 };

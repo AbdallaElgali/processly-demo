@@ -136,6 +136,7 @@ export const apiAddContributor = async (projectId: string, username: string): Pr
 };
 
 export const apiSaveProjectParameters = async (projectId: string, parameters: ParameterInput[]): Promise<void> => {
+  console.log('Parameters to save: (1)', parameters);
   const response = await fetch(`${API_BASE_URL}/${projectId}/parameters`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },

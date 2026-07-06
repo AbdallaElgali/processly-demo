@@ -183,6 +183,7 @@ export const inputFieldToParameterInput = (
 ): ParameterInput => {
   const activeSpec = f.specifications.find(s => s.id === f.selectedSpecId) ?? f.specifications[0];
   const parsed = activeSpec?.value ? Number(activeSpec.value) : null;
+
   return {
     parameter_key: f.id,
     final_value: parsed !== null && !isNaN(parsed) ? parsed : null,

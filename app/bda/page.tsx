@@ -25,6 +25,8 @@ import dynamic from 'next/dynamic';
 import { FrontendBatteryFileExport } from '@/static/battery-template';
 import { InputField } from '@/types';
 import { inputFieldToParameterInput } from '@/lib/parameter-adapter';
+import { FeedbackModal } from '@/components/FeedbackModal';
+
 
 const DocumentRouter = dynamic(
   () => import('@/components/DocumentViewer/DocumentRouter').then((mod) => mod.MemoizedDocumentRouter),
@@ -54,6 +56,9 @@ export default function BDA() {
 
   const [isApproving, setIsApproving] = useState(false);
   const [approveSuccess, setApproveSuccess] = useState(false);
+
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+  const [isFeedbackDisabled, setIsFeedbackDisabled] = useState(false);
 
   const { viewerWidth, startResizing } = useResizer(isSidebarOpen);
 
@@ -119,6 +124,9 @@ export default function BDA() {
     setIsSaving(true);
     try {
       const paramsToSave = fields.map(f => inputFieldToParameterInput(f, user?.id ?? null));
+
+      console.log('Parameters to save: (1)', paramsToSave);
+
       await saveParameters(activeProjectId, paramsToSave);
       setSaveSuccess(true);
     } catch (error) {
@@ -203,6 +211,9 @@ export default function BDA() {
 
   const projectName = currentProject?.alias_id || currentProject?.title || currentProject?.name || '';
 
+  const toggleFeedbackModal = () => {
+   
+  }
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -217,6 +228,7 @@ export default function BDA() {
           <ActionToolbar
             onUploadClick={() => setIsUploadModalOpen(true)}
             onAnalyze={() => handleAnalyze(fields)}
+            onFeedbackClick={() => setIsFeedbackModalOpen(prev => !prev)}
             
             onSave={handleSave}
             onApprove={handleApprove}          
@@ -234,6 +246,7 @@ export default function BDA() {
             isAnalyzeDisabled={uploadedFiles.length === 0 || isAnalyzing}
             isExportDisabled={isExporting || !activeProjectId}
             isApproveDisabled={isApproving || !activeProjectId}
+            isFeedbackDisabled={isFeedbackDisabled}
           />
 
           <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: MIN_MAIN_WIDTH, bgcolor: colors.background }}>
@@ -271,6 +284,21 @@ export default function BDA() {
         isUploaded={!!activeFileId}
         isLoading={isDocLoading}
       />
+      {/* 4. Render the FeedbackModal */}
+      {user?.id && activeProjectId && (
+        <FeedbackModal
+          open={isFeedbackModalOpen}
+          onClose={() => setIsFeedbackModalOpen(false)}
+          userId={user.id}
+          projectId={activeProjectId}
+          documents={(uploadedFiles || []).map((file: any) => ({
+            id: file.id,
+            // Try different common property names for the document title
+            name: file.name || file.filename || file.file_name || file.title || `Document ${file.id.substring(0, 4)}...`
+          }))}
+        />
+      )}
+
 
       <Snackbar open={saveSuccess} autoHideDuration={3000} onClose={() => setSaveSuccess(false)}>
         <Alert severity="success">State saved to database.</Alert>

@@ -71,6 +71,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     setError(null);
     try {
       const data = await apiGetProjectDetails(projectId);
+      console.log('Loaded project details:', data);
       setCurrentProject(data);
       return data;
     } catch (err: unknown) {

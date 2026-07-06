@@ -116,7 +116,7 @@ const handleSwitchSpecification = useCallback((fieldId: string, specId: string) 
 
     const activeSpec = field.specifications.find(s => s.id === field.selectedSpecId) ?? field.specifications[0];
     const candidateId = activeSpec?.candidateId ?? null;
-
+    console.log('Flagging field candidate ID:', candidateId, 'with reason:', reason, 'isFlagged:', isFlagged);
     setIsSyncing(fieldId);
     try {
       let nextFields: InputField[];
