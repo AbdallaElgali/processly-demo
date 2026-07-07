@@ -1,13 +1,15 @@
 import { useState, useMemo, useEffect } from 'react';
 import { config } from '@/api/config';
 import type { ProjectMetrics } from '@/types/audit';
-
+import type { FeedbackFilters, FeedbackItem } from '@/api/audit/feedback';
+import { fetch_feedback } from '@/api/audit/feedback';
 // Re-exported for existing consumers that import these from this hook.
 export type { AuditUser as User, ProjectMetrics } from '@/types/audit';
 
 export function useAdminData() {
   // --- Data & Network States ---
   const [projects, setProjects] = useState<ProjectMetrics[]>([]);
+  const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>([]); 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,6 +41,21 @@ export function useAdminData() {
       }
     };
 
+    const fetchFeedbacks = async () => {
+      const feedbackFilters: FeedbackFilters = {
+        limit: 5, // Adjust as needed
+        offset: 0
+      };
+
+      try {
+        const feedbackResponse = await fetch_feedback(feedbackFilters);
+        setFeedbacks(feedbackResponse.feedbacks);
+      } catch (err: unknown) {
+        console.error(err instanceof Error ? err.message : 'An unknown error occurred while fetching feedbacks.');
+      }
+    }
+        
+    fetchFeedbacks();
     fetchProjects();
   }, []);
 
@@ -130,6 +147,7 @@ export function useAdminData() {
     dateFilter,
     setDateFilter,
     users: uniqueUsers, // Now feeds from actual database reviewers
-    dashboardData
+    dashboardData,
+    feedbacks
   };
 }
