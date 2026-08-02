@@ -185,6 +185,7 @@ export const inputFieldToParameterInput = (
   const parsed = activeSpec?.value ? Number(activeSpec.value) : null;
 
   return {
+    project_parameter_id: f.dbId,
     parameter_key: f.id,
     final_value: parsed !== null && !isNaN(parsed) ? parsed : null,
     final_unit: activeSpec?.unit || null,

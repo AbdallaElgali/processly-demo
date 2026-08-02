@@ -7,9 +7,10 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DownloadIcon from '@mui/icons-material/Download';
 import MenuIcon from '@mui/icons-material/Menu';
 import SaveIcon from '@mui/icons-material/Save';
-import DoneAllIcon from '@mui/icons-material/DoneAll'; // <-- NEW: Import for batch approval
-import { colors } from '@/theme/colors';
+import DoneAllIcon from '@mui/icons-material/DoneAll'; 
 import MessageIcon from '@mui/icons-material/Message';
+import SettingsIcon from '@mui/icons-material/Settings'; // <-- NEW: Import for Templates
+import { colors } from '@/theme/colors';
 
 const TOOLBAR_WIDTH = 56;
 
@@ -17,40 +18,42 @@ interface ActionToolbarProps {
   onUploadClick: () => void;
   onAnalyze: () => void;
   onSave: () => void;
-  onApprove: () => void; // <-- NEW
+  onApprove: () => void; 
   onExport: () => void;
   onToggleSidebar: () => void;
-  onFeedbackClick: () => void; // <-- NEW
+  onFeedbackClick: () => void; 
+  onManageTemplatesClick: () => void; // <-- NEW: Prop for opening templates modal
   isSidebarOpen: boolean;
   isAnalyzing: boolean;
   analyzeStatus: string;
   isSaving: boolean;
-  isApproving: boolean; // <-- NEW
+  isApproving: boolean; 
   isExporting: boolean;
   isAnalyzeDisabled: boolean;
-  isApproveDisabled: boolean; // <-- NEW
+  isApproveDisabled: boolean; 
   isExportDisabled: boolean;
-  isFeedbackDisabled: boolean; // <-- NEW
+  isFeedbackDisabled: boolean; 
 }
 
 export const ActionToolbar = ({
   onUploadClick,
   onAnalyze,
   onSave,
-  onApprove, // <-- NEW
+  onApprove, 
   onExport,
   onToggleSidebar,
   onFeedbackClick,
+  onManageTemplatesClick, // <-- NEW: Destructure prop
   isSidebarOpen,
   isAnalyzing,
   analyzeStatus,
   isSaving,
-  isApproving, // <-- NEW
+  isApproving, 
   isExporting,
   isAnalyzeDisabled,
-  isApproveDisabled, // <-- NEW
+  isApproveDisabled, 
   isExportDisabled,
-  isFeedbackDisabled, // <-- NEW
+  isFeedbackDisabled, 
 }: ActionToolbarProps) => {
   return (
     <Box sx={{
@@ -91,7 +94,6 @@ export const ActionToolbar = ({
         </Box>
       </Tooltip>
 
-      {/* --- NEW: Approve Document Button --- */}
       <Tooltip title="Approve Document" placement="right">
         <Box sx={{ position: 'relative' }}>
           <IconButton onClick={onApprove} disabled={isApproveDisabled} color="primary">
@@ -114,11 +116,19 @@ export const ActionToolbar = ({
         </Box>
       </Tooltip>
 
+      {/* --- NEW: Manage Templates Button --- */}
+      <Tooltip title="Manage Templates" placement="right">
+        <IconButton onClick={onManageTemplatesClick} sx={{ color: 'text.secondary' }}>
+          <SettingsIcon />
+        </IconButton>
+      </Tooltip>
+
       <Divider sx={{ width: '70%', my: 1 }} />
 
       <IconButton onClick={onToggleSidebar}>
         {isSidebarOpen ? <ChevronLeftIcon /> : <MenuIcon />}
       </IconButton>
+      
       <Tooltip title="Feedback" placement="right">
         <Box sx={{ position: 'relative' }}>
           <IconButton onClick={onFeedbackClick} disabled={isFeedbackDisabled} color="secondary">

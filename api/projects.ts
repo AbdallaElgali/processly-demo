@@ -11,10 +11,13 @@ export interface ProjectCreateInput {
   description?: string;
   customer?: string;
   user_id: string;
+  template_id: string | null;  // MUST ADD
+  customer_id: string;  // MUST ADD
 }
 
 export interface ParameterInput {
   parameter_key: string;
+  project_parameter_id: string;
   final_value: number | null;
   final_unit: string | null;
   is_human_modified: boolean;

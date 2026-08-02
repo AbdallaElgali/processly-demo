@@ -13,6 +13,10 @@ interface User {
   id: string; 
   username: string;
   department: string;
+  template_id: string;
+  lang: string | null;
+  settings_last_updated_at: string;
+  theme: string;
 }
 
 // 2. Fixed the user type from 'string | null' to 'User | null'
@@ -46,8 +50,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser({ 
             id: freshData.id, 
             username: freshData.username, 
-            department: freshData.department 
+            department: freshData.department,
+            template_id: freshData.template_id,
+            theme: freshData.theme,
+            settings_last_updated_at: freshData.settings_last_updated_at,
+            lang: freshData.lang
           });
+
         } else {
           // If the backend says the user doesn't exist (404), clear local state
           logout();
@@ -74,7 +83,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const currentUser: User = { 
           id: data.id, 
           username: data.username, 
-          department: data.department 
+          department: data.department,
+          lang: data.lang,
+          template_id: data.template_id,
+          theme: data.theme,
+          settings_last_updated_at: data.settings_last_updated_at
         };
         
         setUser(currentUser);
