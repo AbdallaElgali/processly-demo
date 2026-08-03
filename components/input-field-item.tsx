@@ -10,13 +10,17 @@ import {
   Chip,
   Collapse,
   Badge,
-  Button
+  Button,
+  InputBase // <-- Added
 } from '@mui/material';
 import FindInPageIcon from '@mui/icons-material/FindInPage';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import FlagIcon from '@mui/icons-material/Flag';
 import OutlinedFlagIcon from '@mui/icons-material/OutlinedFlag';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'; // <-- Added
+import ExpandLessIcon from '@mui/icons-material/ExpandLess'; // <-- Added
 import { InputField, SpecificationSource, SCHEMA_GROUPS } from '@/types';
+import { updateProjectParameter } from '@/api/projects'; // <-- Added
 import { colors } from '@/theme/colors';
 
 interface InputFieldItemProps {
@@ -26,6 +30,7 @@ interface InputFieldItemProps {
   onShowSource: (source: SpecificationSource) => void;
   onSwitch: (fieldId: string, specId: string) => void;
   onFlag?: (id: string, isFlagged: boolean, reason?: string | null) => void;
+  onUpdateMetadata: (dbId: string, fieldId: string, data: updateProjectParameter) => void; // <-- Added
   readOnly?: boolean;
 }
 
@@ -38,9 +43,28 @@ const getConfidenceColor = (confidence: number | null) => {
 
 type PanelView = 'none' | 'ai' | 'snippet' | 'flag';
 
-export const InputFieldItem = ({ field, onChange, onRemove, onShowSource, onSwitch, onFlag, readOnly = false }: InputFieldItemProps) => {
+export const InputFieldItem = ({ field, onChange, onRemove, onShowSource, onSwitch, onFlag, onUpdateMetadata, readOnly = false }: InputFieldItemProps) => {
   const [activePanel, setActivePanel] = useState<PanelView>('none');
   const [flagReasonDraft, setFlagReasonDraft] = useState<string>(field.flagReason || '');
+  
+  // NEW: State for the metadata details expander
+  const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
+
+  // Cast field to any to access the newly mapped optional properties
+  const fAny = field as any;
+  const currentAlias = fAny.parameter_alias || field.label || '';
+  const currentDesc = fAny.description_override || '';
+  const currentAi = fAny.ai_instructions || '';
+
+  // NEW: Inline editing states
+  const [isEditingAlias, setIsEditingAlias] = useState(false);
+  const [editAlias, setEditAlias] = useState(currentAlias);
+
+  const [isEditingDesc, setIsEditingDesc] = useState(false);
+  const [editDesc, setEditDesc] = useState(currentDesc);
+
+  const [isEditingAi, setIsEditingAi] = useState(false);
+  const [editAi, setEditAi] = useState(currentAi);
 
   const activeSpec = field.specifications.find(s => s.id === field.selectedSpecId) || field.specifications[0];
   const suggestions = field.specifications.filter(s => s.id !== activeSpec?.id);
@@ -70,7 +94,7 @@ export const InputFieldItem = ({ field, onChange, onRemove, onShowSource, onSwit
 
   const handleSaveFlag = () => {
     setActivePanel('none');
-    if (onFlag) onFlag(field.id, true, flagReasonDraft); // FIX: Ensure we send the draft, not the old flagReason
+    if (onFlag) onFlag(field.id, true, flagReasonDraft); 
   };
 
   const handleClearFlag = () => {
@@ -79,17 +103,75 @@ export const InputFieldItem = ({ field, onChange, onRemove, onShowSource, onSwit
     if (onFlag) onFlag(field.id, false, '');
   };
 
+  // NEW: Save handlers for metadata
+  const handleSaveMetadata = (newAlias: string, newDesc: string, newAi: string) => {
+    if (newAlias === currentAlias && newDesc === currentDesc && newAi === currentAi) return;
+    
+    onUpdateMetadata(field.dbId, field.id, {
+      parameter_alias: newAlias || null,
+      description_override: newDesc || null,
+      ai_instructions: newAi || null
+    });
+  };
+
+  const handleBlurAlias = () => {
+    setIsEditingAlias(false);
+    handleSaveMetadata(editAlias, currentDesc, currentAi);
+  };
+
+  const handleBlurDesc = () => {
+    setIsEditingDesc(false);
+    handleSaveMetadata(currentAlias, editDesc, currentAi);
+  };
+
+  const handleBlurAi = () => {
+    setIsEditingAi(false);
+    handleSaveMetadata(currentAlias, currentDesc, editAi);
+  };
+
   return (
     <Box sx={{ py: 1.5, borderBottom: `1px solid ${colors.border}40`, '&:last-child': { borderBottom: 'none' } }}>
 
       {/* PRIMARY HUMAN INPUT ROW */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
 
-        {/* Label */}
-        <Box sx={{ flex: '0 0 30%', minWidth: 0 }}>
-          <Typography variant="body2" fontWeight={500} color="text.primary" noWrap title={field.label}>
-            {field.label}
-          </Typography>
+        {/* Expand Button & Label Area */}
+        <Box sx={{ flex: '0 0 30%', minWidth: 0, display: 'flex', alignItems: 'center' }}>
+          <IconButton 
+            size="small" 
+            onClick={() => setIsDetailsExpanded(!isDetailsExpanded)}
+            sx={{ p: 0.5, mr: 0.5, color: 'text.secondary', ml: -1 }}
+          >
+            {isDetailsExpanded ? <ExpandLessIcon fontSize="inherit" /> : <ExpandMoreIcon fontSize="inherit" />}
+          </IconButton>
+          
+          {isEditingAlias ? (
+            <InputBase
+              value={editAlias}
+              onChange={(e) => setEditAlias(e.target.value)}
+              onBlur={handleBlurAlias}
+              onKeyDown={(e) => e.key === 'Enter' && handleBlurAlias()}
+              autoFocus
+              sx={{ typography: 'body2', fontWeight: 500, flex: 1, color: 'text.primary' }}
+            />
+          ) : (
+            <Typography 
+              variant="body2" 
+              fontWeight={500} 
+              color="text.primary" 
+              noWrap 
+              title={readOnly ? currentAlias : "Double click to edit alias"}
+              onDoubleClick={() => {
+                if (!readOnly) {
+                  setEditAlias(currentAlias);
+                  setIsEditingAlias(true);
+                }
+              }}
+              sx={{ cursor: readOnly ? 'default' : 'text', flex: 1 }}
+            >
+              {currentAlias || field.id}
+            </Typography>
+          )}
         </Box>
 
         {/* Input Fields (Value + Unit) */}
@@ -132,7 +214,7 @@ export const InputFieldItem = ({ field, onChange, onRemove, onShowSource, onSwit
         {/* Action Tools */}
         <Box sx={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 0.5 }}>
 
-          {/* Flag Toggle Tool - REMOVED displayValue RESTRICTION */}
+          {/* Flag Toggle Tool */}
           <Tooltip title={isFlagged ? "Edit Flag" : "Flag Parameter"} arrow>
             <IconButton
               size="small"
@@ -185,7 +267,112 @@ export const InputFieldItem = ({ field, onChange, onRemove, onShowSource, onSwit
         </Box>
       </Box>
 
-      {/* SECONDARY PANEL EXPANSION AREA */}
+      {/* METADATA EXPANSION AREA (Description & AI Instructions) */}
+      <Collapse in={isDetailsExpanded} unmountOnExit>
+        <Box sx={{
+          mt: 1,
+          ml: 4, // Aligns under the label text
+          mr: 2,
+          pb: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 1.5
+        }}>
+          
+          {/* Description Override */}
+          <Box>
+            <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ display: 'block', mb: 0.25 }}>
+              Description Override
+            </Typography>
+            {isEditingDesc ? (
+              <InputBase
+                fullWidth
+                multiline
+                value={editDesc}
+                onChange={(e) => setEditDesc(e.target.value)}
+                onBlur={handleBlurDesc}
+                autoFocus
+                sx={{ 
+                  typography: 'body2', 
+                  color: 'text.primary',
+                  bgcolor: 'background.paper', 
+                  p: 1, 
+                  borderRadius: 1, 
+                  border: `1px solid ${colors.primary}40` 
+                }}
+              />
+            ) : (
+              <Typography 
+                variant="body2" 
+                color={currentDesc ? 'text.primary' : 'text.disabled'}
+                onDoubleClick={() => {
+                  if (!readOnly) {
+                    setEditDesc(currentDesc);
+                    setIsEditingDesc(true);
+                  }
+                }}
+                sx={{ 
+                  cursor: readOnly ? 'default' : 'text', 
+                  minHeight: '24px',
+                  display: 'flex',
+                  alignItems: 'center'
+                }}
+                title={readOnly ? "" : "Double click to edit description"}
+              >
+                {currentDesc || "Double-click to add a description..."}
+              </Typography>
+            )}
+          </Box>
+
+          {/* AI Instructions */}
+          <Box>
+            <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ display: 'block', mb: 0.25 }}>
+              AI Extraction Instructions
+            </Typography>
+            {isEditingAi ? (
+              <InputBase
+                fullWidth
+                multiline
+                value={editAi}
+                onChange={(e) => setEditAi(e.target.value)}
+                onBlur={handleBlurAi}
+                autoFocus
+                sx={{ 
+                  typography: 'body2', 
+                  color: 'text.primary',
+                  bgcolor: 'background.paper', 
+                  p: 1, 
+                  borderRadius: 1, 
+                  border: `1px solid ${colors.primary}40` 
+                }}
+              />
+            ) : (
+              <Typography 
+                variant="body2" 
+                color={currentAi ? 'text.primary' : 'text.disabled'}
+                onDoubleClick={() => {
+                  if (!readOnly) {
+                    setEditAi(currentAi);
+                    setIsEditingAi(true);
+                  }
+                }}
+                sx={{ 
+                  cursor: readOnly ? 'default' : 'text', 
+                  minHeight: '24px',
+                  display: 'flex',
+                  alignItems: 'center'
+                }}
+                title={readOnly ? "" : "Double click to edit AI instructions"}
+              >
+                {currentAi || "Double-click to add AI instructions..."}
+              </Typography>
+            )}
+          </Box>
+
+        </Box>
+      </Collapse>
+
+      {/* SECONDARY PANEL EXPANSION AREA (AI, Snippet, Flag) */}
       <Collapse in={activePanel !== 'none'} unmountOnExit>
         <Box sx={{
           mt: 1,

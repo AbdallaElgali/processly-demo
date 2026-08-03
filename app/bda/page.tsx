@@ -4,7 +4,6 @@ import '@/hooks/url-polyfill'; // <--- THIS MUST BE LINE 1
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-// ADDED: Dialog, Typography, IconButton for the Modal
 import { Box, ThemeProvider, CssBaseline, CircularProgress, Snackbar, Alert, Dialog, Typography, IconButton } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 
@@ -29,8 +28,9 @@ import { InputField } from '@/types';
 import { inputFieldToParameterInput } from '@/lib/parameter-adapter';
 import { FeedbackModal } from '@/components/FeedbackModal';
 
-// ADDED: Import the new TemplatesManager component
+// Import the new TemplatesManager component
 import { TemplatesManager } from '@/components/TemplatesManager'; 
+import { updateProjectParameter } from '@/api/projects';
 
 const DocumentRouter = dynamic(
   () => import('@/components/DocumentViewer/DocumentRouter').then((mod) => mod.MemoizedDocumentRouter),
@@ -43,7 +43,7 @@ const MIN_MAIN_WIDTH = 400;
 
 export default function BDA() {
   const { user, logout, isLoading: authLoading } = useAuth();
-  const { projects, currentProject, isLoading: projectsLoading, createNewProject, saveParameters, saveParametersSilent, loadProjectDetails, approveDocument } = useProject();
+  const { projects, currentProject, isLoading: projectsLoading, createNewProject, saveParameters, saveParametersSilent, loadProjectDetails, approveDocument, updateParameterMetadata } = useProject();
   const router = useRouter();
 
   const [hasMounted, setHasMounted] = useState(false);
@@ -64,7 +64,7 @@ export default function BDA() {
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [isFeedbackDisabled, setIsFeedbackDisabled] = useState(false);
 
-  // ADDED: State for the Templates Manager Modal
+  // State for the Templates Manager Modal
   const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
 
   const { viewerWidth, startResizing } = useResizer(isSidebarOpen);
@@ -80,8 +80,9 @@ export default function BDA() {
 
   const {
     fields, handleFieldChange, handleRemoveField, handleSwitchSpecification,
-    handlePopulateExtractedData, hydrateFieldsFromDB, resetFields, handleFlag,
+    handlePopulateExtractedData, hydrateFieldsFromDB, resetFields, handleFlag, handleUpdateMetadataLocal
   } = useParameterManager({ persist: persistFields });
+  
   const {
     uploadedFiles, activeFileId, activeDoc, activeSource, hydrateFiles,
     isLoading: isDocLoading, handleDocumentUpload, handleSelectFile, handleJumpToSource, clearFiles,
@@ -101,9 +102,79 @@ export default function BDA() {
     }
   }, [handleDocumentUpload, activeProjectId, loadProjectDetails]);
 
-  const handleExport = () => { /* Export logic... */ };
-  const handleSave = async () => { /* Save logic... */ };
-  const handleApprove = async () => { /* Approve logic... */ };
+  const handleUpdateMetadata = async (dbId: string, fieldId: string, data: updateProjectParameter) => {
+    // 1. Instantly update UI locally
+    handleUpdateMetadataLocal(fieldId, data);
+    // 2. Fire and forget to the backend
+    try {
+      await updateParameterMetadata(dbId, data);
+    } catch (e) {
+      console.error("Failed to persist metadata changes", e);
+    }
+  };
+  // --- FIXED: WIRED UP THE ACTION HANDLERS ---
+
+  const handleSave = async () => { 
+    if (!activeProjectId) return;
+    setIsSaving(true);
+    try {
+      const parametersToSave = fields.map(f => inputFieldToParameterInput(f, user?.id ?? null));
+      await saveParameters(activeProjectId, parametersToSave);
+      setSaveSuccess(true);
+    } catch (error) {
+      console.error("Failed to save parameters:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleApprove = async () => { 
+    if (!activeProjectId) return;
+    setIsApproving(true);
+    try {
+      await approveDocument(activeProjectId);
+      setApproveSuccess(true);
+    } catch (error) {
+      console.error("Failed to approve document:", error);
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
+  const handleExport = async () => { 
+      if (!activeProjectId) return;
+      setIsExporting(true);
+      try {
+        const exporter = new FrontendBatteryFileExport();
+        const { content, filename } = exporter.generate(fields, projectName);
+
+        if (!content || content.trim() === '') {
+          console.error("Generated content is empty!");
+          return;
+        }
+
+        const blob = new Blob([content], { type: 'application/xml;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', filename);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // FIX: Delay revoking the URL so the browser has time to finish writing the .part file to disk
+        setTimeout(() => {
+          URL.revokeObjectURL(url);
+        }, 1000);
+
+        setSaveSuccess(true);
+      } catch (error) {
+        console.error("Failed to export:", error);
+      } finally {
+        setIsExporting(false);
+      }
+    };
+  // ------------------------------------------
 
   // Effects...
   useEffect(() => {
@@ -143,6 +214,7 @@ export default function BDA() {
       </ThemeProvider>
     );
   }
+  
   if (projects.length === 0 && !currentProject) {
     return (
       <NoProjectsScreen
@@ -174,8 +246,6 @@ export default function BDA() {
             onApprove={handleApprove}          
             onExport={handleExport}
             onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
-            
-            // ADDED: Pass the trigger down to the ActionToolbar
             onManageTemplatesClick={() => setIsTemplatesModalOpen(true)}
 
             isSidebarOpen={isSidebarOpen}
@@ -205,6 +275,7 @@ export default function BDA() {
                 onShowSource={handleJumpToSource}
                 onSwitchSpecification={handleSwitchSpecification}
                 onFlag={handleFlag}
+                onUpdateMetadata={handleUpdateMetadata}
                 readOnly={isAnalyzing || isSaving || isExporting || isApproving}
               />
             </Box>
@@ -241,7 +312,7 @@ export default function BDA() {
         />
       )}
 
-      {/* ADDED: The Templates Manager Modal */}
+      {/* The Templates Manager Modal */}
       <Dialog 
         open={isTemplatesModalOpen} 
         onClose={() => setIsTemplatesModalOpen(false)}

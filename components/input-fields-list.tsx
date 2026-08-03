@@ -10,6 +10,7 @@ import {
 import { InputField, SpecificationSource, SCHEMA_GROUPS } from '@/types';
 import { InputFieldItem } from './input-field-item';
 import { colors } from '@/theme/colors';
+import { updateProjectParameter } from '@/api/projects';
 
 interface InputFieldsListProps {
   fields: InputField[];
@@ -19,6 +20,7 @@ interface InputFieldsListProps {
   onSwitchSpecification: (fieldId: string, specId: string) => void;
   onFlag?: (id: string, isFlagged: boolean, reason?: string | null) => void;
   readOnly?: boolean;
+  onUpdateMetadata: (dbId: string, fieldId: string, data: updateProjectParameter) => void;
 }
 
 export const InputFieldsList = ({
@@ -28,6 +30,7 @@ export const InputFieldsList = ({
   onShowSource,
   onSwitchSpecification,
   onFlag,
+  onUpdateMetadata,
   readOnly = false,
 }: InputFieldsListProps) => {
   const groupedFields = useMemo(() => {
@@ -88,6 +91,7 @@ export const InputFieldsList = ({
                   onSwitch={onSwitchSpecification}
                   onFlag={onFlag}
                   readOnly={readOnly}
+                  onUpdateMetadata={onUpdateMetadata}
                 />
               ))}
             </Box>

@@ -28,6 +28,12 @@ export interface ParameterInput {
   review_action: string;
 }
 
+export interface updateProjectParameter {
+  parameter_alias: string | null;
+  description_override: string | null;
+  ai_instructions: string | null;
+}
+
 // --- Response Types (mirroring backend schemas) ---
 
 export interface ProjectDocument {
@@ -70,6 +76,9 @@ export interface AiMetricCandidate {
 export interface ProjectParameter {
   id: string;
   parameter_key: string;
+  
+  parameter_alias: string;  // Display name for the parameter, can be customized by user
+ 
   final_value: number | null;
   final_unit: string | null;
   is_human_modified: boolean;
@@ -90,6 +99,10 @@ export interface ProjectParameter {
 
   // Full candidate list returned by GET /projects/{id} (FullProjectParameterOutput)
   candidates?: AiMetricCandidate[];
+
+  // Extras
+  description_override: string | null;
+  ai_instructions: string | null;
 }
 
 export interface Project {
@@ -156,3 +169,12 @@ export const apiApproveProjectParameters = async (projectId: string): Promise<{ 
   if (!response.ok) throw new Error(await response.text());
   return response.json();
 };
+
+export const apiUpdateProjectParameter = async (project_parameter_id: string, parameterData: updateProjectParameter): Promise<void> => {
+  const response = await fetch(`${API_BASE_URL}/project-parameter/${project_parameter_id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(parameterData),
+  });
+  if (!response.ok) throw new Error(await response.text());
+}

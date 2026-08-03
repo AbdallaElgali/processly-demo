@@ -120,8 +120,14 @@ const paramLevelSource = (p: ProjectParameter): SpecificationSource => ({
 export const dbParamToInputField = (p: ProjectParameter): InputField => {
   const base = {
     id: p.parameter_key,
-    dbId: p.id,
-    label: FIELD_LABEL_MAP.get(p.parameter_key) ?? p.parameter_key,
+    parameter_name: p.parameter_alias,  // Optional: Include the parameter name if needed
+    dbId: p.id,  // The backend's unique identifier for this parameter row
+    
+    label: p.parameter_alias,
+    parameter_alias: p.parameter_alias,
+    description_override: p.description_override,
+    ai_instructions: p.ai_instructions,
+
     isFlagged: !!p.human_flagged,
     flagReason: p.flag_reason ?? null,
     activeFlagId: p.active_flag_id ?? null,

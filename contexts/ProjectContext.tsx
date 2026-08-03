@@ -8,13 +8,15 @@ import {
   apiGetProjectDetails,
   apiAddContributor,
   apiSaveProjectParameters,
+  apiApproveProjectParameters,
+  apiUpdateProjectParameter, // <-- Import the new API function
   ProjectCreateInput,
   ParameterInput,
+  updateProjectParameter, // <-- Import the new interface
   Project,
-  apiApproveProjectParameters,
 } from '@/api/projects';
+import { getUserTemplates } from '@/api/templates'; 
 
-// --- Interfaces ---
 interface ProjectContextType {
   projects: Project[];
   currentProject: Project | null;
@@ -27,6 +29,7 @@ interface ProjectContextType {
   addContributor: (projectId: string, username: string) => Promise<void>;
   saveParameters: (projectId: string, parameters: ParameterInput[]) => Promise<Project | undefined>;
   saveParametersSilent: (projectId: string, parameters: ParameterInput[]) => Promise<Project | undefined>;
+  updateParameterMetadata: (project_parameter_id: string, data: updateProjectParameter) => Promise<void>; // <-- Add to context interface
   clearError: () => void;
   approveDocument: (projectId: string) => Promise<void>;
 }
@@ -43,6 +46,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   const clearError = () => setError(null);
 
+  // ... (keep fetchUserProjects, loadProjectDetails, createNewProject, addContributor, approveDocument, saveParameters, saveParametersSilent EXACTLY as they are) ...
   const fetchUserProjects = useCallback(async () => {
     if (!user?.id) return;
     setIsLoading(true);
@@ -87,16 +91,31 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     setError(null);
     try {
-      const newProjectData: ProjectCreateInput = { ...data, user_id: user.id };
-      const response = await apiCreateProject(newProjectData);
+      
+      let targetTemplateId = user.template_id;
+      
+      if (!targetTemplateId) {
+        try {
+          const templates = await getUserTemplates(user.id);
+          const systemDefault = templates.find((t: any) => t.is_system_default);
+          if (systemDefault) {
+            targetTemplateId = systemDefault.id;
+          }
+        } catch (e) {
+          console.error("Failed to fetch system default template for new project", e);
+        }
+      }
 
+      const newProjectData: ProjectCreateInput = { 
+        ...data, 
+        user_id: user.id, 
+        template_id: targetTemplateId || null 
+      };
+      
+      const response = await apiCreateProject(newProjectData);
       const newProject = response?.project;
+      
       if (newProject) {
-        // Optimistically add the new project to the list. The
-        // GET /projects/user/{id} list endpoint is eventually consistent and
-        // may not return a just-created project immediately, so relying on a
-        // refetch here would leave `projects` empty and re-trigger the
-        // "initialize project" screen. Merge directly instead.
         setProjects(prev => prev.some(p => p.id === newProject.id) ? prev : [...prev, newProject]);
         await loadProjectDetails(newProject.id);
       }
@@ -108,7 +127,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id, fetchUserProjects, loadProjectDetails]);
+  }, [user?.id, user?.template_id, fetchUserProjects, loadProjectDetails]);
 
   const addContributor = useCallback(async (projectId: string, username: string) => {
     setIsLoading(true);
@@ -131,7 +150,6 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     setError(null);
     try {
       await apiApproveProjectParameters(projectId);
-      // Reload the project details so the UI updates to show everything as ACCEPTED
       if (currentProject?.id === projectId) {
         await loadProjectDetails(projectId);
       }
@@ -159,8 +177,6 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     }
   }, [currentProject?.id, loadProjectDetails]);
 
-  // Silent save: does not set isLoading so the UI never flashes a loading spinner.
-  // Used for auto-save triggered by user actions (e.g. flagging an unsaved parameter).
   const saveParametersSilent = useCallback(async (projectId: string, parameters: ParameterInput[]): Promise<Project | undefined> => {
     try {
       await apiSaveProjectParameters(projectId, parameters);
@@ -169,6 +185,17 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       return data;
     } catch {
       return undefined;
+    }
+  }, []);
+
+  // --- NEW: Add the metadata update method ---
+  const updateParameterMetadata = useCallback(async (project_parameter_id: string, data: updateProjectParameter) => {
+    try {
+      await apiUpdateProjectParameter(project_parameter_id, data);
+      // We don't need to force a full project reload here because we update the UI optimistically.
+    } catch (err: unknown) {
+      console.error("Failed to update parameter metadata:", err);
+      throw err;
     }
   }, []);
 
@@ -184,6 +211,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       addContributor,
       saveParameters,
       saveParametersSilent,
+      updateParameterMetadata, // <-- Pass it down
       clearError,
       approveDocument
     }}>

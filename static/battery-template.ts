@@ -29,7 +29,6 @@ export class FrontendBatteryFileExport {
 
   /**
    * Helper to extract the active value from your UI fields array.
-   * Make sure the 'fieldId' matches the IDs defined in your SCHEMA_GROUPS.
    */
   private getFieldValue(fields: InputField[], fieldId: string): number | null {
     const field = fields.find(f => f.id === fieldId);
@@ -46,6 +45,14 @@ export class FrontendBatteryFileExport {
     return null;
   }
 
+  /**
+   * Helper to dynamically get the field label, falling back to a default name if not found.
+   */
+  private getFieldName(fields: InputField[], fieldId: string, fallbackName: string): string {
+    const field = fields.find(f => f.id === fieldId);
+    return field && field.label ? field.label : fallbackName;
+  }
+
   public generate(fields: InputField[], projectName: string): { content: string, filename: string } {
     const filename = this.generateFilename(projectName);
     const xml = this.generateXml(fields);
@@ -60,7 +67,7 @@ export class FrontendBatteryFileExport {
   }
 
   private generateXml(fields: InputField[]): string {
-    const config = this.defaultConfig; // Using defaults as UI doesn't have these yet
+    const config = this.defaultConfig; 
     const parameters = this.buildParameters(fields);
 
     const xmlLines: string[] = [
@@ -136,7 +143,7 @@ export class FrontendBatteryFileExport {
       // Capacity parameters
       { name: 'C_MEASURED_AH_DB', value: placeholder, unit: 'Ah', valueType: 'battery_variable', color: 'ff804040' },
       { name: 'C_MEASURED_AH_INITIAL', value: placeholder, unit: 'Ah', valueType: 'battery_variable', color: 'Gray' },
-      { name: 'C_NOMINAL_AH_DB', value: capacityAh ?? placeholder, unit: 'Ah', valueType: 'battery_const', color: 'Gray', comment: 'Nennkapazität des Prüflings laut Datenblatt' },
+      { name: this.getFieldName(fields, 'C_NOMINAL_AH', 'C_NOMINAL_AH_DB'), value: capacityAh ?? placeholder, unit: 'Ah', valueType: 'battery_const', color: 'Gray', comment: 'Nennkapazität des Prüflings laut Datenblatt' },
 
       // Cycle count
       { name: 'CYCLE_COUNT_DB', value: 1, valueType: 'battery_variable', color: 'ff0080ff' },
@@ -144,7 +151,7 @@ export class FrontendBatteryFileExport {
       // Energy parameters
       { name: 'E_MEASURED_WH_DB', value: placeholder, unit: 'Wh', valueType: 'battery_variable', color: 'Purple' },
       { name: 'E_MEASURED_WH_INITIAL', value: placeholder, unit: 'Wh', valueType: 'battery_variable', color: 'Gray' },
-      { name: 'E_NOMINAL_WH_DB', value: energyWh ?? placeholder, unit: 'Wh', valueType: 'battery_const', color: 'Gray' },
+      { name: this.getFieldName(fields, 'E_NOMINAL_WH', 'E_NOMINAL_WH_DB'), value: energyWh ?? placeholder, unit: 'Wh', valueType: 'battery_const', color: 'Gray' },
 
       // Energy throughput parameters
       { name: 'E_THROUGHPUT_ACC_DB', value: 0, unit: 'kWh', valueType: 'battery_variable', color: 'Purple' },
@@ -153,14 +160,14 @@ export class FrontendBatteryFileExport {
       { name: 'E_THROUGHPUT_POS_DB', value: 0, unit: 'kWh', valueType: 'battery_variable', color: 'Purple' },
 
       // EOL/EOT parameters
-      { name: 'EOL', value: eolSohNom ?? placeholder, unit: '%', valueType: 'battery_const', color: 'Gray' },
+      { name: this.getFieldName(fields, 'EOL_SOH_NOM', 'EOL'), value: eolSohNom ?? placeholder, unit: '%', valueType: 'battery_const', color: 'Gray' },
       { name: 'EOT', value: eotValue, unit: '%', valueType: 'battery_const', color: 'Gray' },
 
       // Current parameters
-      { name: 'I_MAX_CHA_30S_DB', value: iMaxChaPulse ?? placeholder, unit: 'A', valueType: 'battery_const', color: 'Gray' },
-      { name: 'I_MAX_CHA_CONTINUOUS_DB', value: iMaxChaCont ?? placeholder, unit: 'A', valueType: 'battery_const', color: 'Gray' },
-      { name: 'I_MAX_DCH_30S_DB', value: iMaxDchPulse ? -iMaxDchPulse : -placeholder, unit: 'A', valueType: 'battery_const', color: 'Gray' },
-      { name: 'I_MAX_DCH_CONTINUOUS_DB', value: iMaxDchCont ? -iMaxDchCont : -placeholder, unit: 'A', valueType: 'battery_const', color: 'Gray' },
+      { name: this.getFieldName(fields, 'I_MAX_CHA_PULSE', 'I_MAX_CHA_30S_DB'), value: iMaxChaPulse ?? placeholder, unit: 'A', valueType: 'battery_const', color: 'Gray' },
+      { name: this.getFieldName(fields, 'I_MAX_CHA_CONTINUOUS', 'I_MAX_CHA_CONTINUOUS_DB'), value: iMaxChaCont ?? placeholder, unit: 'A', valueType: 'battery_const', color: 'Gray' },
+      { name: this.getFieldName(fields, 'I_MAX_DCH_PULSE', 'I_MAX_DCH_30S_DB'), value: iMaxDchPulse ? -iMaxDchPulse : -placeholder, unit: 'A', valueType: 'battery_const', color: 'Gray' },
+      { name: this.getFieldName(fields, 'I_MAX_DCH_CONTINUOUS', 'I_MAX_DCH_CONTINUOUS_DB'), value: iMaxDchCont ? -iMaxDchCont : -placeholder, unit: 'A', valueType: 'battery_const', color: 'Gray' },
 
       // Package count & Charge throughput
       { name: 'PACKAGE_COUNT_DB', value: 0, valueType: 'battery_variable', color: 'Maroon' },
@@ -180,22 +187,22 @@ export class FrontendBatteryFileExport {
       { name: 't_CYCLE_DAYS', value: 0, unit: 'd', valueType: 'battery_variable', color: 'Gray' },
 
       // Temperature parameters
-      { name: 'T_MAX_DB', value: tMaxBody ?? placeholder, unit: '°C', valueType: 'battery_const', color: 'Gray' },
-      { name: 'T_MAX_SAFETY_DB', value: tMaxBodySafety ?? placeholder, unit: '°C', valueType: 'battery_const', color: 'Gray' },
-      { name: 'T_MAX_TERMINAL_DB', value: tMaxTerminal ?? placeholder, unit: '°C', valueType: 'battery_const', color: 'Gray' },
-      { name: 'T_MAX_TERMINAL_SAFETY_DB', value: tMaxTerminalSafety ?? placeholder, unit: '°C', valueType: 'battery_const', color: 'Gray' },
-      { name: 'T_MIN_DB', value: tMinBody ?? -placeholder, unit: '°C', valueType: 'battery_const', color: 'Gray' },
-      { name: 'T_MIN_SAFETY_DB', value: tMinBodySafety ?? -placeholder, unit: '°C', valueType: 'battery_const', color: 'Gray' },
-      { name: 'T_MIN_TERMINAL_DB', value: tMinTerminal ?? -placeholder, unit: '°C', valueType: 'battery_const', color: 'Gray' },
-      { name: 'T_MIN_TERMINAL_SAFETY_DB', value: tMinTerminalSafety ?? -placeholder, unit: '°C', valueType: 'battery_const', color: 'Gray' },
+      { name: this.getFieldName(fields, 'T_MAX_BODY', 'T_MAX_DB'), value: tMaxBody ?? placeholder, unit: '°C', valueType: 'battery_const', color: 'Gray' },
+      { name: this.getFieldName(fields, 'T_MAX_BODY_SAFETY', 'T_MAX_SAFETY_DB'), value: tMaxBodySafety ?? placeholder, unit: '°C', valueType: 'battery_const', color: 'Gray' },
+      { name: this.getFieldName(fields, 'T_MAX_TERMINAL', 'T_MAX_TERMINAL_DB'), value: tMaxTerminal ?? placeholder, unit: '°C', valueType: 'battery_const', color: 'Gray' },
+      { name: this.getFieldName(fields, 'T_MAX_TERMINAL_SAFETY', 'T_MAX_TERMINAL_SAFETY_DB'), value: tMaxTerminalSafety ?? placeholder, unit: '°C', valueType: 'battery_const', color: 'Gray' },
+      { name: this.getFieldName(fields, 'T_MIN_BODY', 'T_MIN_DB'), value: tMinBody ?? -placeholder, unit: '°C', valueType: 'battery_const', color: 'Gray' },
+      { name: this.getFieldName(fields, 'T_MIN_BODY_SAFETY', 'T_MIN_SAFETY_DB'), value: tMinBodySafety ?? -placeholder, unit: '°C', valueType: 'battery_const', color: 'Gray' },
+      { name: this.getFieldName(fields, 'T_MIN_TERMINAL', 'T_MIN_TERMINAL_DB'), value: tMinTerminal ?? -placeholder, unit: '°C', valueType: 'battery_const', color: 'Gray' },
+      { name: this.getFieldName(fields, 'T_MIN_TERMINAL_SAFETY', 'T_MIN_TERMINAL_SAFETY_DB'), value: tMinTerminalSafety ?? -placeholder, unit: '°C', valueType: 'battery_const', color: 'Gray' },
       { name: 't_TESTING_DAYS', value: 0, unit: 'd', valueType: 'battery_variable', color: 'Gray' },
       { name: 'vorherigerTesttyp', value: 0, valueType: 'battery_variable', color: 'Gray' },
 
       // Voltage parameters
-      { name: 'U_MAX_DB', value: uMax ?? placeholder, unit: 'V', valueType: 'battery_const', color: 'Gray' },
-      { name: 'U_MAX_SAFETY_DB', value: uMaxSafety ?? (uMax ? uMax + 0.02 : placeholder), unit: 'V', valueType: 'battery_const', color: 'Gray' },
-      { name: 'U_MIN_DB', value: uMin ?? placeholder, unit: 'V', valueType: 'battery_const', color: 'Gray' },
-      { name: 'U_MIN_SAFETY_DB', value: uMinSafety ?? (uMin ? uMin - 0.02 : placeholder), unit: 'V', valueType: 'battery_const', color: 'Gray' },
+      { name: this.getFieldName(fields, 'U_MAX', 'U_MAX_DB'), value: uMax ?? placeholder, unit: 'V', valueType: 'battery_const', color: 'Gray' },
+      { name: this.getFieldName(fields, 'U_MAX_SAFETY', 'U_MAX_SAFETY_DB'), value: uMaxSafety ?? (uMax ? uMax + 0.02 : placeholder), unit: 'V', valueType: 'battery_const', color: 'Gray' },
+      { name: this.getFieldName(fields, 'U_MIN', 'U_MIN_DB'), value: uMin ?? placeholder, unit: 'V', valueType: 'battery_const', color: 'Gray' },
+      { name: this.getFieldName(fields, 'U_MIN_SAFETY', 'U_MIN_SAFETY_DB'), value: uMinSafety ?? (uMin ? uMin - 0.02 : placeholder), unit: 'V', valueType: 'battery_const', color: 'Gray' },
 
       // VVT ID parameters
       { name: 'VVT_ID_BEREIT', value: vvtIdReady, valueType: 'battery_const', color: 'Gray' },

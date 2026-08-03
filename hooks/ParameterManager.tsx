@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { InputField, Specification } from '@/types';
-import { ProjectParameter } from '@/api/projects';
+import { ProjectParameter, updateProjectParameter } from '@/api/projects';
 import { useAuth } from '@/contexts/AuthContext';
 import { flagParameter, unFlagParameter, updateResolvedBy } from '@/api/parameters';
 import { dbParamToInputField } from '@/lib/parameter-adapter';
@@ -27,6 +27,21 @@ export const useParameterManager = (options?: UseParameterManagerOptions) => {
     setFields([]);
   }, []);
 
+  const handleUpdateMetadataLocal = useCallback((fieldId: string, data: updateProjectParameter) => {
+    setFields(prev => prev.map(f => {
+      if (f.id === fieldId) {
+        return {
+          ...f,
+          label: data.parameter_alias || f.id, // Update UI label
+          parameter_alias: data.parameter_alias,
+          description_override: data.description_override,
+          ai_instructions: data.ai_instructions,
+        } as InputField; // Cast to ensure TS accepts the extra properties
+      }
+      return f;
+    }));
+  }, []);
+  
   const handleFieldChange = useCallback((fieldId: string, value: string, unit: string) => {
     setFields(prev => prev.map(field => {
       if (field.id !== fieldId) return field;
@@ -160,5 +175,6 @@ const handleSwitchSpecification = useCallback((fieldId: string, specId: string) 
     resetFields,
     handleFlag,
     isSyncing,
+    handleUpdateMetadataLocal
   };
 };

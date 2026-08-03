@@ -43,6 +43,7 @@ export interface ExtractionTemplateBase {
     name: string;
     user_id?: string;
     customer_id?: string;
+    is_system_default: boolean;
     is_global: boolean;
     created_at: string; // ISO Date string
     updated_at: string; // ISO Date string
