@@ -23,6 +23,9 @@ import { InputField, SpecificationSource, SCHEMA_GROUPS } from '@/types';
 import { updateProjectParameter } from '@/api/projects'; // <-- Added
 import { colors } from '@/theme/colors';
 
+import { CircularProgress } from '@mui/material';
+import ReplayIcon from '@mui/icons-material/Replay';
+
 interface InputFieldItemProps {
   field: InputField;
   onChange: (id: string, value: string, unit: string) => void;
@@ -32,6 +35,9 @@ interface InputFieldItemProps {
   onFlag?: (id: string, isFlagged: boolean, reason?: string | null) => void;
   onUpdateMetadata: (dbId: string, fieldId: string, data: updateProjectParameter) => void; // <-- Added
   readOnly?: boolean;
+  onFlagAndRetry?: (id: string, reason: string) => void;
+  isCorrecting?: boolean;
+  correctionStatus?: string;
 }
 
 const getConfidenceColor = (confidence: number | null) => {
@@ -43,7 +49,12 @@ const getConfidenceColor = (confidence: number | null) => {
 
 type PanelView = 'none' | 'ai' | 'snippet' | 'flag';
 
-export const InputFieldItem = ({ field, onChange, onRemove, onShowSource, onSwitch, onFlag, onUpdateMetadata, readOnly = false }: InputFieldItemProps) => {
+export const InputFieldItem = ({
+  field, onChange, onRemove, onShowSource, onSwitch, onFlag,
+  onFlagAndRetry, isCorrecting = false, correctionStatus = '',
+  onUpdateMetadata, readOnly = false,
+}: InputFieldItemProps) => {
+
   const [activePanel, setActivePanel] = useState<PanelView>('none');
   const [flagReasonDraft, setFlagReasonDraft] = useState<string>(field.flagReason || '');
   
@@ -81,6 +92,8 @@ export const InputFieldItem = ({ field, onChange, onRemove, onShowSource, onSwit
 
   const isFlagged = field.isFlagged ?? false;
   const flagReason = field.flagReason ?? null;
+
+  const isLocked = readOnly || isCorrecting;
   
   const handleSourceClick = () => {
     if (!displaySource) return;
@@ -101,6 +114,11 @@ export const InputFieldItem = ({ field, onChange, onRemove, onShowSource, onSwit
     setActivePanel('none');
     setFlagReasonDraft('');
     if (onFlag) onFlag(field.id, false, '');
+  };
+
+  const handleSaveFlagAndRetry = () => {
+    setActivePanel('none');
+    if (onFlagAndRetry) onFlagAndRetry(field.id, flagReasonDraft);
   };
 
   // NEW: Save handlers for metadata
@@ -171,6 +189,15 @@ export const InputFieldItem = ({ field, onChange, onRemove, onShowSource, onSwit
             >
               {currentAlias || field.id}
             </Typography>
+          )}
+
+          {isCorrecting && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, ml: 1, flexShrink: 0 }}>
+              <CircularProgress size={12} thickness={5} />
+              <Typography variant="caption" color="text.secondary" noWrap>
+                {correctionStatus || 'Correcting...'}
+              </Typography>
+            </Box>
           )}
         </Box>
 
@@ -480,12 +507,24 @@ export const InputFieldItem = ({ field, onChange, onRemove, onShowSource, onSwit
               />
               <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
                 {isFlagged && (
-                  <Button size="small" color="error" onClick={handleClearFlag}>
+                  <Button size="small" color="error" onClick={handleClearFlag} disabled={isCorrecting}>
                     Remove Flag
                   </Button>
                 )}
-                <Button size="small" variant="contained" onClick={handleSaveFlag} disableElevation>
+                <Button size="small" onClick={handleSaveFlag} disabled={isCorrecting}>
                   {isFlagged ? 'Update Flag' : 'Save Flag'}
+                </Button>
+                <Button
+                  size="small"
+                  variant="contained"
+                  onClick={handleSaveFlagAndRetry}
+                  disabled={isCorrecting || !onFlagAndRetry}
+                  disableElevation
+                  startIcon={isCorrecting
+                    ? <CircularProgress size={14} color="inherit" />
+                    : <ReplayIcon fontSize="small" />}
+                >
+                  Save &amp; Retry
                 </Button>
               </Box>
             </Box>

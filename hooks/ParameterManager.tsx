@@ -101,19 +101,37 @@ const handleSwitchSpecification = useCallback((fieldId: string, specId: string) 
   const handlePopulateExtractedData = useCallback((extractedFields: InputField[]) => {
     setFields(prevFields => {
       const updatedFields = [...prevFields];
+
       extractedFields.forEach(incomingField => {
         const idx = updatedFields.findIndex(f => f.id === incomingField.id);
-        if (idx !== -1 && incomingField.specifications?.length > 0) {
-          const sortedSpecs = [...incomingField.specifications].sort((a, b) =>
-            (b.confidence || 0) - (a.confidence || 0)
-          );
-          updatedFields[idx] = {
-            ...updatedFields[idx],
-            specifications: sortedSpecs,
-            selectedSpecId: sortedSpecs[0].id,
-          };
-        }
+        if (idx === -1 || !incomingField.specifications?.length) return;
+
+        const prev = updatedFields[idx];
+
+        const sortedSpecs = [...incomingField.specifications].sort(
+          (a, b) => (b.confidence || 0) - (a.confidence || 0)
+        );
+
+        // A flagged field is one the engineer disputed, so the correction run is
+        // allowed to re-pick. For everything else, try to carry the current
+        // selection forward.
+        const prevSelected = prev.isFlagged
+          ? undefined
+          : prev.specifications.find(s => s.id === prev.selectedSpecId);
+
+        // candidateId is the only identity stable across an analyze round-trip;
+        // spec.id may be re-minted per response, so never carry it over blindly.
+        const preserved = prevSelected?.candidateId
+          ? sortedSpecs.find(s => s.candidateId === prevSelected.candidateId)
+          : undefined;
+
+        updatedFields[idx] = {
+          ...prev,
+          specifications: sortedSpecs,
+          selectedSpecId: preserved?.id ?? sortedSpecs[0].id,
+        };
       });
+
       return updatedFields;
     });
   }, []);
@@ -122,28 +140,30 @@ const handleSwitchSpecification = useCallback((fieldId: string, specId: string) 
   // parameter row so `human_flagged` survives a reload in both editor and
   // review modes. (Previously the column write only happened on explicit Save,
   // so review-mode flags were lost on refresh.)
-  const handleFlag = useCallback(async (fieldId: string, isFlagged: boolean, reason?: string | null) => {
+  const handleFlag = useCallback(async (
+    fieldId: string,
+    isFlagged: boolean,
+    reason?: string | null
+  ): Promise<string | null> => {          // <-- was Promise<void>
     const field = fields.find(f => f.id === fieldId);
     if (!field?.dbId || !user?.id) {
       console.error('Missing dbId or user ID — cannot update flag');
-      return;
+      return null;
     }
 
     const activeSpec = field.specifications.find(s => s.id === field.selectedSpecId) ?? field.specifications[0];
     const candidateId = activeSpec?.candidateId ?? null;
-    console.log('Flagging field candidate ID:', candidateId, 'with reason:', reason, 'isFlagged:', isFlagged);
     setIsSyncing(fieldId);
     try {
       let nextFields: InputField[];
+      let resultFlagId: string | null = null;
+
       if (isFlagged) {
-        // Chain a new ticket to the existing one (if any) so the backend can track lineage.
         const newFlagId = await flagParameter(
-          user.id,
-          field.dbId,
-          candidateId,
-          field.activeFlagId ?? null,
-          reason ?? 'No reason provided'
+          user.id, field.dbId, candidateId,
+          field.activeFlagId ?? null, reason ?? 'No reason provided'
         );
+        resultFlagId = newFlagId;
         nextFields = fields.map(f =>
           f.id === fieldId ? { ...f, isFlagged: true, flagReason: reason ?? '', activeFlagId: newFlagId } : f
         );
@@ -158,12 +178,23 @@ const handleSwitchSpecification = useCallback((fieldId: string, specId: string) 
 
       setFields(nextFields);
       if (persist) await persist(nextFields);
+      return resultFlagId;
     } catch (error) {
       console.error('Failed to sync flag to backend:', error);
+      return null;
     } finally {
       setIsSyncing(null);
     }
   }, [fields, user?.id, persist]);
+
+  const applyFlagChain = useCallback((chain: Record<string, string>) => {
+    if (!chain || Object.keys(chain).length === 0) return;
+    setFields(prev => prev.map(f => {
+      if (!f.activeFlagId) return f;
+      const successor = chain[f.activeFlagId];
+      return successor ? { ...f, activeFlagId: successor } : f;
+    }));
+  }, []);
 
   return {
     fields,
@@ -175,6 +206,7 @@ const handleSwitchSpecification = useCallback((fieldId: string, specId: string) 
     resetFields,
     handleFlag,
     isSyncing,
-    handleUpdateMetadataLocal
+    handleUpdateMetadataLocal,
+    applyFlagChain
   };
 };

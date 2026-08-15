@@ -27,6 +27,7 @@ import { FrontendBatteryFileExport } from '@/static/battery-template';
 import { InputField } from '@/types';
 import { inputFieldToParameterInput } from '@/lib/parameter-adapter';
 import { FeedbackModal } from '@/components/FeedbackModal';
+import { useAnalyzeParameter } from '@/hooks/useAnalyzeParameter';
 
 // Import the new TemplatesManager component
 import { TemplatesManager } from '@/components/TemplatesManager'; 
@@ -80,7 +81,7 @@ export default function BDA() {
 
   const {
     fields, handleFieldChange, handleRemoveField, handleSwitchSpecification,
-    handlePopulateExtractedData, hydrateFieldsFromDB, resetFields, handleFlag, handleUpdateMetadataLocal
+    handlePopulateExtractedData, hydrateFieldsFromDB, resetFields, handleFlag, handleUpdateMetadataLocal, applyFlagChain
   } = useParameterManager({ persist: persistFields });
   
   const {
@@ -92,7 +93,18 @@ export default function BDA() {
   const { isAnalyzing, analyzeStatus, handleAnalyze } = useAnalyze(
     activeProjectId,
     {id: user_id},
-    handlePopulateExtractedData
+    handlePopulateExtractedData,
+    applyFlagChain
+  );
+
+  const {
+    correctingFieldId, correctionStatus, correctionError,
+    clearCorrectionError, handleAnalyzeParameter,
+  } = useAnalyzeParameter(
+    activeProjectId,
+    { id: user_id },
+    handlePopulateExtractedData,
+    applyFlagChain,
   );
 
   const handleDocumentUploadAndRefresh = useCallback(async (files: File[]) => {
@@ -174,6 +186,21 @@ export default function BDA() {
         setIsExporting(false);
       }
     };
+
+    const handleFlagAndRetry = useCallback(async (fieldId: string, reason: string) => {
+      const newFlagId = await handleFlag(fieldId, true, reason);
+      if (!newFlagId) return;
+
+      const field = fields.find(f => f.id === fieldId);
+      if (!field) return;
+
+      await handleAnalyzeParameter({
+        ...field,
+        isFlagged: true,
+        flagReason: reason,
+        activeFlagId: newFlagId,
+      });
+    }, [handleFlag, handleAnalyzeParameter, fields]);
   // ------------------------------------------
 
   // Effects...
@@ -275,6 +302,11 @@ export default function BDA() {
                 onShowSource={handleJumpToSource}
                 onSwitchSpecification={handleSwitchSpecification}
                 onFlag={handleFlag}
+
+                onFlagAndRetry={handleFlagAndRetry}
+                correctingFieldId={correctingFieldId}
+                correctionStatus={correctionStatus}
+
                 onUpdateMetadata={handleUpdateMetadata}
                 readOnly={isAnalyzing || isSaving || isExporting || isApproving}
               />
@@ -343,6 +375,14 @@ export default function BDA() {
 
       <Snackbar open={approveSuccess} autoHideDuration={3000} onClose={() => setApproveSuccess(false)}>
         <Alert severity="success">Document successfully approved!</Alert>
+      </Snackbar>
+      
+      <Snackbar
+        open={!!correctionError}
+        autoHideDuration={5000}
+        onClose={clearCorrectionError}
+      >
+        <Alert severity="error" onClose={clearCorrectionError}>{correctionError}</Alert>
       </Snackbar>
     </ThemeProvider>
   );
