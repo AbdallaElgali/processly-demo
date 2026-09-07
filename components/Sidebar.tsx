@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Box, 
   Typography, 
@@ -14,7 +14,12 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  CircularProgress
+  CircularProgress,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Alert
 } from '@mui/material';
 import {
   InsertDriveFile as InsertDriveFileIcon,
@@ -26,6 +31,7 @@ import {
 import { colors } from '@/theme/colors';
 import { useProject } from '@/contexts/ProjectContext';
 import { ProjectDocument } from '@/api/projects';
+import { useCustomers } from '@/hooks/Customers';
 
 interface SidebarProps {
   currentFileId: string | null;
@@ -42,27 +48,38 @@ export const Sidebar = ({ currentFileId, onSelectFile }: SidebarProps) => {
     isLoading 
   } = useProject();
 
-  // --- UI State ---
   const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
   
-  // Add Contributor Modal State
   const [isContributorModalOpen, setContributorModalOpen] = useState(false);
   const [targetProjectId, setTargetProjectId] = useState<string | null>(null);
   const [contributorUsername, setContributorUsername] = useState('');
 
-  // Create Project Modal State
+  const { customers, loadCustomers, createNewCustomer } = useCustomers();
+
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
   const [newProjectTitle, setNewProjectTitle] = useState('');
   const [newProjectDesc, setNewProjectDesc] = useState('');
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [createProjectError, setCreateProjectError] = useState<string | null>(null);
+
+  const [isNewCustomerModalOpen, setIsNewCustomerModalOpen] = useState(false);
+  const [newCustomerAlias, setNewCustomerAlias] = useState('');
+  const [newCustomerName, setNewCustomerName] = useState('');
+  const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
+  const [customerModalError, setCustomerModalError] = useState<string | null>(null);
 
   const [addContributorEnabled, setAddContributorEnabled] = useState(false);
-  // --- Handlers ---
+  
+  useEffect(() => {
+    loadCustomers();
+  }, [loadCustomers]);
+
   const handleToggleProject = async (projectId: string) => {
     if (expandedProjectId === projectId) {
-      setExpandedProjectId(null); // Close if already open
+      setExpandedProjectId(null);
     } else {
       setExpandedProjectId(projectId);
-      // Load details to fetch the nested documents if not already loaded
       if (currentProject?.id !== projectId) {
         await loadProjectDetails(projectId);
       }
@@ -70,7 +87,7 @@ export const Sidebar = ({ currentFileId, onSelectFile }: SidebarProps) => {
   };
 
   const handleOpenContributorModal = (e: React.MouseEvent, projectId: string) => {
-    e.stopPropagation(); // Prevent accordion from toggling
+    e.stopPropagation();
     setTargetProjectId(projectId);
     setContributorUsername('');
     setContributorModalOpen(true);
@@ -87,34 +104,63 @@ export const Sidebar = ({ currentFileId, onSelectFile }: SidebarProps) => {
   };
 
   const handleCreateProject = async () => {
-    if (!newProjectTitle.trim()) return;
+    if (!newProjectTitle.trim() || !selectedCustomerId) {
+      setCreateProjectError('Project Title and Customer are required.');
+      return;
+    }
+    setCreateProjectError(null);
     try {
       const newProject = await createNewProject({
         alias_id: newProjectTitle.trim(),
-        description: newProjectDesc.trim()
+        description: newProjectDesc.trim(),
+        customer_id: selectedCustomerId,
+        template_id: selectedTemplateId || null, 
       });
+      
       setCreateModalOpen(false);
+      
       setNewProjectTitle('');
       setNewProjectDesc('');
+      setSelectedCustomerId('');
+      setSelectedTemplateId('');
       
-      // Optionally auto-expand the newly created project
       if (newProject?.id) {
         setExpandedProjectId(newProject.id);
         await loadProjectDetails(newProject.id);
       }
     } catch (error: unknown) {
+      setCreateProjectError(error instanceof Error ? error.message : 'Failed to create project.');
       console.error("Failed to create project:", error);
     }
   };
 
-  // Assume the API returns an array of files/documents on the detailed project object. 
-  // Adjust 'files' to 'documents' if your backend schema uses a different key.
+  const handleCreateNewCustomer = async () => {
+    if (!newCustomerAlias.trim()) return;
+    setCustomerModalError(null);
+    setIsCreatingCustomer(true);
+    
+    try {
+      const newlyCreated = await createNewCustomer(newCustomerAlias.trim(), newCustomerName.trim());
+      
+      if (newlyCreated) {
+        setSelectedCustomerId(newlyCreated.id);
+      }
+      
+      setNewCustomerAlias('');
+      setNewCustomerName('');
+      setIsNewCustomerModalOpen(false);
+    } catch (err: unknown) {
+      setCustomerModalError(err instanceof Error ? err.message : 'Failed to create customer.');
+    } finally {
+      setIsCreatingCustomer(false);
+    }
+  };
+
   const activeFiles = currentProject?.documents || [];
 
   return (
     <Box sx={{ height: '100%', width: '100%', bgcolor: colors.surface, borderRight: `1px solid ${colors.border}`, display: 'flex', flexDirection: 'column' }}>
       
-      {/* Sidebar Header & Create Action */}
       <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${colors.border}` }}>
         <Typography variant="overline" sx={{ color: colors.textSecondary, letterSpacing: 1 }}>
           Projects
@@ -128,8 +174,8 @@ export const Sidebar = ({ currentFileId, onSelectFile }: SidebarProps) => {
         </IconButton>
       </Box>
 
-      {/* Projects List */}
       <Box sx={{ flexGrow: 1, overflowY: 'auto', py: 1 }}>
+        {/* ... (Projects List map remains exactly the same) ... */}
         <List sx={{ px: 1 }}>
           {projects.map((project) => {
             const isExpanded = expandedProjectId === project.id;
@@ -143,7 +189,7 @@ export const Sidebar = ({ currentFileId, onSelectFile }: SidebarProps) => {
                     borderRadius: 1, 
                     mb: 0.5,
                     bgcolor: isLoadedProject ? 'rgba(255, 255, 255, 0.05)' : 'transparent',
-                    '&:hover .add-icon': { opacity: 1 }, // Show add icon on hover
+                    '&:hover .add-icon': { opacity: 1 },
                   }}
                 >
                   <ListItemIcon sx={{ minWidth: 36, color: isExpanded ? colors.primary : colors.textSecondary }}>
@@ -160,14 +206,13 @@ export const Sidebar = ({ currentFileId, onSelectFile }: SidebarProps) => {
                     }} 
                   />
                   
-                  {/* Add Contributor Button */}
                   {addContributorEnabled && (<IconButton 
                     title='Add Auditor'
                     className="add-icon"
                     size="small" 
                     onClick={(e) => handleOpenContributorModal(e, project.id)}
                     sx={{ 
-                      opacity: 0, // Hidden by default, shown on hover via CSS above
+                      opacity: 0, 
                       transition: 'opacity 0.2s',
                       color: colors.textSecondary,
                       '&:hover': { color: colors.primary } 
@@ -177,7 +222,6 @@ export const Sidebar = ({ currentFileId, onSelectFile }: SidebarProps) => {
                   </IconButton>)}
                 </ListItemButton>
 
-                {/* Nested Documents List */}
                 <Collapse in={isExpanded} timeout="auto" unmountOnExit>
                   <List component="div" disablePadding sx={{ pl: 4, pr: 1, pb: 1 }}>
                     {isLoading && !isLoadedProject ? (
@@ -241,22 +285,95 @@ export const Sidebar = ({ currentFileId, onSelectFile }: SidebarProps) => {
 
       {/* --- Modals --- */}
       
-      {/* Create Project Modal */}
-      <Dialog open={isCreateModalOpen} onClose={() => setCreateModalOpen(false)} PaperProps={{ sx: { bgcolor: colors.surface, color: 'white', border: `1px solid ${colors.border}` } }}>
+      {/* 1. PRIMARY DIALOG: Create Project */}
+      <Dialog 
+        open={isCreateModalOpen} 
+        onClose={() => setCreateModalOpen(false)} 
+        disableEnforceFocus // Stops it from stealing focus back from the customer modal
+        disableRestoreFocus // Prevents focus bounce
+        style={{ zIndex: 1300 }}
+        PaperProps={{ sx: { bgcolor: colors.surface, color: 'white', border: `1px solid ${colors.border}`, minWidth: '400px' } }}
+      >
         <DialogTitle>Create New Project</DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+          
+          {createProjectError && (
+            <Alert severity="error" sx={{ mb: 1 }}>{createProjectError}</Alert>
+          )}
+
           <TextField
             autoFocus
-            margin="dense"
             label="Project Title"
             fullWidth
             variant="outlined"
             value={newProjectTitle}
             onChange={(e) => setNewProjectTitle(e.target.value)}
-            sx={{ mb: 2, input: { color: 'white' }, label: { color: colors.textSecondary } }}
+            sx={{ input: { color: 'white' }, label: { color: colors.textSecondary } }}
           />
+
+          {/* FIX: We grouped the Select and a dedicated '+' button side-by-side */}
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <FormControl fullWidth>
+              <InputLabel id="customer-select-label" sx={{ color: colors.textSecondary }}>Customer</InputLabel>
+              <Select
+                labelId="customer-select-label"
+                value={selectedCustomerId}
+                label="Customer"
+                onChange={(e) => setSelectedCustomerId(e.target.value)}
+                sx={{
+                  color: 'white',
+                  '.MuiOutlinedInput-notchedOutline': { borderColor: colors.border },
+                  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: colors.primary },
+                  '.MuiSvgIcon-root': { color: colors.textSecondary }
+                }}
+              >
+                {customers.map((customer) => (
+                  <MenuItem key={customer.id} value={customer.id}>
+                    {customer.alias_name} {customer.name ? `(${customer.name})` : ''}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            
+            {/* This button handles the modal opening safely without MUI Select interference */}
+            <Button 
+              variant="outlined" 
+              onClick={() => setIsNewCustomerModalOpen(true)}
+              sx={{ 
+                minWidth: 'auto', 
+                width: 56, 
+                height: 56, // Matches the height of the Select input
+                borderColor: colors.border, 
+                color: colors.primary,
+                '&:hover': { borderColor: colors.primary, bgcolor: 'rgba(0, 170, 185, 0.1)' }
+              }}
+              title="Create New Customer"
+            >
+              <AddIcon />
+            </Button>
+          </Box>
+
+          <FormControl fullWidth>
+            <InputLabel id="template-select-label" sx={{ color: colors.textSecondary }}>Template (Optional)</InputLabel>
+            <Select
+              labelId="template-select-label"
+              value={selectedTemplateId}
+              label="Template (Optional)"
+              onChange={(e) => setSelectedTemplateId(e.target.value)}
+              sx={{
+                color: 'white',
+                '.MuiOutlinedInput-notchedOutline': { borderColor: colors.border },
+                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: colors.primary },
+                '.MuiSvgIcon-root': { color: colors.textSecondary }
+              }}
+            >
+              <MenuItem value=""><em>None</em></MenuItem>
+              <MenuItem value="template_1">Standard Audit Template</MenuItem>
+              <MenuItem value="template_2">Deep Dive Template</MenuItem>
+            </Select>
+          </FormControl>
+          
           <TextField
-            margin="dense"
             label="Description (Optional)"
             fullWidth
             multiline
@@ -267,10 +384,65 @@ export const Sidebar = ({ currentFileId, onSelectFile }: SidebarProps) => {
             sx={{ input: { color: 'white' }, textarea: { color: 'white' }, label: { color: colors.textSecondary } }}
           />
         </DialogContent>
+        
         <DialogActions sx={{ p: 2 }}>
           <Button onClick={() => setCreateModalOpen(false)} sx={{ color: colors.textSecondary }}>Cancel</Button>
-          <Button onClick={handleCreateProject} disabled={isLoading || !newProjectTitle.trim()} variant="contained" sx={{ bgcolor: colors.primary }}>
+          <Button 
+            onClick={handleCreateProject} 
+            disabled={isLoading || !newProjectTitle.trim() || !selectedCustomerId} 
+            variant="contained" 
+            sx={{ bgcolor: colors.primary, '&.Mui-disabled': { bgcolor: 'rgba(0,170,185,0.3)' } }}
+          >
             {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Create'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* 2. NESTED DIALOG: Create New Customer */}
+      <Dialog 
+        open={isNewCustomerModalOpen} 
+        onClose={() => !isCreatingCustomer && setIsNewCustomerModalOpen(false)}
+        disableEnforceFocus
+        // Brute-force the Z-index so it renders on top of the first dialog's backdrop
+        style={{ zIndex: 99999 }} 
+        PaperProps={{ sx: { bgcolor: colors.surface, color: 'white', border: `1px solid ${colors.border}`, minWidth: '350px' } }}
+      >
+        <DialogTitle>Create New Customer</DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+          {customerModalError && (
+            <Alert severity="error" sx={{ mb: 1 }}>{customerModalError}</Alert>
+          )}
+          <TextField
+            fullWidth
+            label="Alias Name (Required)"
+            value={newCustomerAlias}
+            onChange={(e) => setNewCustomerAlias(e.target.value)}
+            autoFocus
+            sx={{ input: { color: 'white' }, label: { color: colors.textSecondary } }}
+          />
+          <TextField
+            fullWidth
+            label="Full Name (Optional)"
+            value={newCustomerName}
+            onChange={(e) => setNewCustomerName(e.target.value)}
+            sx={{ input: { color: 'white' }, label: { color: colors.textSecondary } }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button 
+            onClick={() => setIsNewCustomerModalOpen(false)} 
+            disabled={isCreatingCustomer}
+            sx={{ color: colors.textSecondary }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleCreateNewCustomer} 
+            disabled={!newCustomerAlias.trim() || isCreatingCustomer}
+            variant="contained" 
+            sx={{ bgcolor: colors.primary, '&.Mui-disabled': { bgcolor: 'rgba(0,170,185,0.3)' } }}
+          >
+            {isCreatingCustomer ? <CircularProgress size={24} color="inherit" /> : 'Create'}
           </Button>
         </DialogActions>
       </Dialog>

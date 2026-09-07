@@ -4,7 +4,8 @@ import '@/hooks/url-polyfill'; // <--- THIS MUST BE LINE 1
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Box, ThemeProvider, CssBaseline, CircularProgress, Snackbar, Alert } from '@mui/material';
+import { Box, ThemeProvider, CssBaseline, CircularProgress, Snackbar, Alert, Dialog, Typography, IconButton } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
@@ -15,14 +16,22 @@ import { useAnalyze } from '@/hooks/useAnalyze';
 import { theme } from '@/theme/theme';
 import { colors } from '@/theme/colors';
 import { MemoizedInputFieldsList } from '@/components/input-fields-list';
-import { LayoutHeader } from '@/components/LayoutHeader';
-import { MemoizedSidebar } from '@/components/Sidebar';
+import { LayoutHeader } from '@/components/Headers/LayoutHeader';
+import { MemoizedSidebar } from '@/components/ProjectsSideBar/BDASideBar';
 import { ActionToolbar } from '@/components/ActionToolbar';
 import { NoProjectsScreen } from '@/components/NoProjectsScreen';
 import { UploadModal } from '@/components/UploadModal';
 import { ProjectBar } from '@/components/ProjectBar';
 import dynamic from 'next/dynamic';
 import { FrontendBatteryFileExport } from '@/static/battery-template';
+import { InputField } from '@/types';
+import { inputFieldToParameterInput } from '@/lib/parameter-adapter';
+import { FeedbackModal } from '@/components/FeedbackModal';
+import { useAnalyzeParameter } from '@/hooks/useAnalyzeParameter';
+
+// Import the new TemplatesManager component
+import { TemplatesManager } from '@/components/TemplatesManager'; 
+import { updateProjectParameter } from '@/api/projects';
 
 const DocumentRouter = dynamic(
   () => import('@/components/DocumentViewer/DocumentRouter').then((mod) => mod.MemoizedDocumentRouter),
@@ -35,7 +44,7 @@ const MIN_MAIN_WIDTH = 400;
 
 export default function BDA() {
   const { user, logout, isLoading: authLoading } = useAuth();
-  const { projects, currentProject, isLoading: projectsLoading, createNewProject, saveParameters, loadProjectDetails } = useProject();
+  const { projects, currentProject, isLoading: projectsLoading, createNewProject, saveParameters, saveParametersSilent, loadProjectDetails, approveDocument, updateParameterMetadata } = useProject();
   const router = useRouter();
 
   const [hasMounted, setHasMounted] = useState(false);
@@ -50,23 +59,54 @@ export default function BDA() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
+  const [isApproving, setIsApproving] = useState(false);
+  const [approveSuccess, setApproveSuccess] = useState(false);
+
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+  const [isFeedbackDisabled, setIsFeedbackDisabled] = useState(false);
+
+  // State for the Templates Manager Modal
+  const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
+
   const { viewerWidth, startResizing } = useResizer(isSidebarOpen);
+
+  // Persist the current fields...
+  const persistFields = useCallback(async (fieldsToPersist: InputField[]) => {
+    if (!activeProjectId) return;
+    await saveParametersSilent(
+      activeProjectId,
+      fieldsToPersist.map(f => inputFieldToParameterInput(f, user?.id ?? null))
+    );
+  }, [activeProjectId, saveParametersSilent, user?.id]);
 
   const {
     fields, handleFieldChange, handleRemoveField, handleSwitchSpecification,
-    handlePopulateExtractedData, hydrateFieldsFromDB, resetFields, handleFlag,
-  } = useParameterManager();
+    handlePopulateExtractedData, hydrateFieldsFromDB, resetFields, handleFlag, handleUpdateMetadataLocal, applyFlagChain
+  } = useParameterManager({ persist: persistFields });
+  
   const {
     uploadedFiles, activeFileId, activeDoc, activeSource, hydrateFiles,
     isLoading: isDocLoading, handleDocumentUpload, handleSelectFile, handleJumpToSource, clearFiles,
   } = useDocumentManager(activeProjectId);
 
+  const user_id = user?.id || "";
   const { isAnalyzing, analyzeStatus, handleAnalyze } = useAnalyze(
     activeProjectId,
-    handlePopulateExtractedData
+    {id: user_id},
+    handlePopulateExtractedData,
+    applyFlagChain
   );
 
-  // Refresh currentProject after upload so the sidebar document list stays in sync
+  const {
+    correctingFieldId, correctionStatus, correctionError,
+    clearCorrectionError, handleAnalyzeParameter,
+  } = useAnalyzeParameter(
+    activeProjectId,
+    { id: user_id },
+    handlePopulateExtractedData,
+    applyFlagChain,
+  );
+
   const handleDocumentUploadAndRefresh = useCallback(async (files: File[]) => {
     await handleDocumentUpload(files);
     if (activeProjectId) {
@@ -74,73 +114,106 @@ export default function BDA() {
     }
   }, [handleDocumentUpload, activeProjectId, loadProjectDetails]);
 
-  const handleExport = () => {
-    if (!activeProjectId || !currentProject) return;
-    setIsExporting(true);
+  const handleUpdateMetadata = async (dbId: string, fieldId: string, data: updateProjectParameter) => {
+    // 1. Instantly update UI locally
+    handleUpdateMetadataLocal(fieldId, data);
+    // 2. Fire and forget to the backend
     try {
-      const exporter = new FrontendBatteryFileExport();
-      const projectName = currentProject.alias_id || currentProject.title || 'Export';
-      const { content, filename } = exporter.generate(fields, projectName);
-      const blob = new Blob([content], { type: 'application/xml;charset=utf-8;' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode?.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Export generation failed:', error);
-    } finally {
-      setIsExporting(false);
+      await updateParameterMetadata(dbId, data);
+    } catch (e) {
+      console.error("Failed to persist metadata changes", e);
     }
   };
+  // --- FIXED: WIRED UP THE ACTION HANDLERS ---
 
-  const handleSave = async () => {
+  const handleSave = async () => { 
     if (!activeProjectId) return;
     setIsSaving(true);
     try {
-      const paramsToSave = fields.map(f => {
-        const activeSpec = f.specifications.find(s => s.id === f.selectedSpecId) || f.specifications[0];
-        const parsedValue = activeSpec?.value ? Number(activeSpec.value) : null;
-        return {
-          parameter_key: f.id,
-          final_value: parsedValue !== null && !isNaN(parsedValue) ? parsedValue : null,
-          final_unit: activeSpec?.unit || null,
-          is_human_modified: activeSpec ? (activeSpec.confidence === null) : true,
-          selected_candidate_id: activeSpec?.id || null,
-          flag: f.isFlagged ? true : false,
-          flag_reason: f.isFlagged ? f.flagReason : null,
-          flagger_id: f.isFlagged ? user?.id || null : null,
-        };
-      });
-      await saveParameters(activeProjectId, paramsToSave);
+      const parametersToSave = fields.map(f => inputFieldToParameterInput(f, user?.id ?? null));
+      await saveParameters(activeProjectId, parametersToSave);
       setSaveSuccess(true);
     } catch (error) {
-      console.error('Save failed:', error);
+      console.error("Failed to save parameters:", error);
     } finally {
       setIsSaving(false);
     }
   };
 
-  // 1. Auth Guard
+  const handleApprove = async () => { 
+    if (!activeProjectId) return;
+    setIsApproving(true);
+    try {
+      await approveDocument(activeProjectId);
+      setApproveSuccess(true);
+    } catch (error) {
+      console.error("Failed to approve document:", error);
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
+  const handleExport = async () => { 
+      if (!activeProjectId) return;
+      setIsExporting(true);
+      try {
+        const exporter = new FrontendBatteryFileExport();
+        const { content, filename } = exporter.generate(fields, projectName);
+
+        if (!content || content.trim() === '') {
+          console.error("Generated content is empty!");
+          return;
+        }
+
+        const blob = new Blob([content], { type: 'application/xml;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', filename);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // FIX: Delay revoking the URL so the browser has time to finish writing the .part file to disk
+        setTimeout(() => {
+          URL.revokeObjectURL(url);
+        }, 1000);
+
+        setSaveSuccess(true);
+      } catch (error) {
+        console.error("Failed to export:", error);
+      } finally {
+        setIsExporting(false);
+      }
+    };
+
+    const handleFlagAndRetry = useCallback(async (fieldId: string, reason: string) => {
+      const newFlagId = await handleFlag(fieldId, true, reason);
+      if (!newFlagId) return;
+
+      const field = fields.find(f => f.id === fieldId);
+      if (!field) return;
+
+      await handleAnalyzeParameter({
+        ...field,
+        isFlagged: true,
+        flagReason: reason,
+        activeFlagId: newFlagId,
+      });
+    }, [handleFlag, handleAnalyzeParameter, fields]);
+  // ------------------------------------------
+
+  // Effects...
   useEffect(() => {
     if (hasMounted && !authLoading && !user) router.push('/login');
   }, [user, authLoading, router, hasMounted]);
 
-  // 2. Auto-load First Project
   useEffect(() => {
     if (hasMounted && projects.length > 0 && !currentProject && !projectsLoading) {
       loadProjectDetails(projects[0].id);
     }
   }, [hasMounted, projects, currentProject, projectsLoading, loadProjectDetails]);
 
-  // 3. Handle Project Switching & Hydration
-  // IMPORTANT: hydrateFieldsFromDB is intentionally inside isNewProject.
-  // Calling it on every currentProject update (e.g. after a save triggers
-  // loadProjectDetails) would overwrite in-memory AI specs — which carry
-  // bounding boxes — with DB specs that only store page number + text snippet.
   useEffect(() => {
     if (!currentProject) return;
     const isNewProject = currentProject.id !== prevProjectIdRef.current;
@@ -158,7 +231,6 @@ export default function BDA() {
   }, [currentProject, clearFiles, resetFields, hydrateFiles, hydrateFieldsFromDB]);
 
   if (!hasMounted) return null;
-
   if (authLoading || projectsLoading || !user) {
     return (
       <ThemeProvider theme={theme}>
@@ -169,12 +241,12 @@ export default function BDA() {
       </ThemeProvider>
     );
   }
-
-  if (projects.length === 0) {
+  
+  if (projects.length === 0 && !currentProject) {
     return (
       <NoProjectsScreen
-        onCreateProject={async (alias) => {
-          await createNewProject({ alias_id: alias, title: alias });
+        onCreateProject={async (alias, customerId, templateId) => {
+          await createNewProject({ alias_id: alias, title: alias, template_id: templateId, customer_id: customerId });
         }}
       />
     );
@@ -196,16 +268,23 @@ export default function BDA() {
           <ActionToolbar
             onUploadClick={() => setIsUploadModalOpen(true)}
             onAnalyze={() => handleAnalyze(fields)}
+            onFeedbackClick={() => setIsFeedbackModalOpen(prev => !prev)}
             onSave={handleSave}
+            onApprove={handleApprove}          
             onExport={handleExport}
             onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
+            onManageTemplatesClick={() => setIsTemplatesModalOpen(true)}
+
             isSidebarOpen={isSidebarOpen}
             isAnalyzing={isAnalyzing}
             analyzeStatus={analyzeStatus}
             isSaving={isSaving}
+            isApproving={isApproving}        
             isExporting={isExporting}
             isAnalyzeDisabled={uploadedFiles.length === 0 || isAnalyzing}
             isExportDisabled={isExporting || !activeProjectId}
+            isApproveDisabled={isApproving || !activeProjectId}
+            isFeedbackDisabled={isFeedbackDisabled}
           />
 
           <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: MIN_MAIN_WIDTH, bgcolor: colors.background }}>
@@ -223,7 +302,13 @@ export default function BDA() {
                 onShowSource={handleJumpToSource}
                 onSwitchSpecification={handleSwitchSpecification}
                 onFlag={handleFlag}
-                readOnly={isAnalyzing || isSaving || isExporting}
+
+                onFlagAndRetry={handleFlagAndRetry}
+                correctingFieldId={correctingFieldId}
+                correctionStatus={correctionStatus}
+
+                onUpdateMetadata={handleUpdateMetadata}
+                readOnly={isAnalyzing || isSaving || isExporting || isApproving}
               />
             </Box>
           </Box>
@@ -236,6 +321,8 @@ export default function BDA() {
         </Box>
       </Box>
 
+      {/* --- MODALS & NOTIFICATIONS --- */}
+
       <UploadModal
         open={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
@@ -243,9 +330,59 @@ export default function BDA() {
         isUploaded={!!activeFileId}
         isLoading={isDocLoading}
       />
+      
+      {user?.id && activeProjectId && (
+        <FeedbackModal
+          open={isFeedbackModalOpen}
+          onClose={() => setIsFeedbackModalOpen(false)}
+          userId={user.id}
+          projectId={activeProjectId}
+          documents={(uploadedFiles || []).map((file: any) => ({
+            id: file.id,
+            name: file.name || file.filename || file.file_name || file.title || `Document ${file.id.substring(0, 4)}...`
+          }))}
+        />
+      )}
+
+      {/* The Templates Manager Modal */}
+      <Dialog 
+        open={isTemplatesModalOpen} 
+        onClose={() => setIsTemplatesModalOpen(false)}
+        fullWidth
+        maxWidth="xl"
+        PaperProps={{ sx: { height: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' } }}
+      >
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          p: 2, 
+          borderBottom: `1px solid ${colors.border}` 
+        }}>
+          <Typography variant="h6">Manage Templates</Typography>
+          <IconButton onClick={() => setIsTemplatesModalOpen(false)}>
+            <CloseIcon />
+          </IconButton>
+        </Box>
+        <Box sx={{ flex: 1, overflow: 'hidden' }}>
+          <TemplatesManager />
+        </Box>
+      </Dialog>
 
       <Snackbar open={saveSuccess} autoHideDuration={3000} onClose={() => setSaveSuccess(false)}>
         <Alert severity="success">State saved to database.</Alert>
+      </Snackbar>
+
+      <Snackbar open={approveSuccess} autoHideDuration={3000} onClose={() => setApproveSuccess(false)}>
+        <Alert severity="success">Document successfully approved!</Alert>
+      </Snackbar>
+      
+      <Snackbar
+        open={!!correctionError}
+        autoHideDuration={5000}
+        onClose={clearCorrectionError}
+      >
+        <Alert severity="error" onClose={clearCorrectionError}>{correctionError}</Alert>
       </Snackbar>
     </ThemeProvider>
   );

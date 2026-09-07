@@ -10,6 +10,7 @@ import {
 import { InputField, SpecificationSource, SCHEMA_GROUPS } from '@/types';
 import { InputFieldItem } from './input-field-item';
 import { colors } from '@/theme/colors';
+import { updateProjectParameter } from '@/api/projects';
 
 interface InputFieldsListProps {
   fields: InputField[];
@@ -19,17 +20,19 @@ interface InputFieldsListProps {
   onSwitchSpecification: (fieldId: string, specId: string) => void;
   onFlag?: (id: string, isFlagged: boolean, reason?: string | null) => void;
   readOnly?: boolean;
+  onUpdateMetadata: (dbId: string, fieldId: string, data: updateProjectParameter) => void;
+
+  onFlagAndRetry?: (id: string, reason: string) => void;
+  correctingFieldId?: string | null;
+  correctionStatus?: string;
 }
 
 export const InputFieldsList = ({
-  fields,
-  onFieldChange,
-  onRemoveField,
-  onShowSource,
-  onSwitchSpecification,
-  onFlag,
-  readOnly = false,
+  fields, onFieldChange, onRemoveField, onShowSource, onSwitchSpecification,
+  onFlag, onFlagAndRetry, correctingFieldId, correctionStatus,
+  onUpdateMetadata, readOnly = false,
 }: InputFieldsListProps) => {
+
   const groupedFields = useMemo(() => {
     return SCHEMA_GROUPS.map((group) => {
       const groupFields = fields.filter((f) =>
@@ -87,7 +90,11 @@ export const InputFieldsList = ({
                   onShowSource={onShowSource}
                   onSwitch={onSwitchSpecification}
                   onFlag={onFlag}
+                  onFlagAndRetry={onFlagAndRetry}
+                  isCorrecting={correctingFieldId === field.id}
+                  correctionStatus={correctionStatus}
                   readOnly={readOnly}
+                  onUpdateMetadata={onUpdateMetadata}
                 />
               ))}
             </Box>

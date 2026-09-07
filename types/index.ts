@@ -16,10 +16,19 @@ export interface SpecificationSource {
   cellCoordinates: { row: number; column: number } | null;
 }
 
+// Review lifecycle for a parameter. PENDING = untouched AI value,
+// MODIFIED = a human edited the value, ACCEPTED = approved (backend-owned).
+export type ReviewAction = 'PENDING' | 'MODIFIED' | 'ACCEPTED';
+
 export interface Specification {
+  // Stable id used for React keys and `selectedSpecId`. For an AI candidate this
+  // equals `candidateId`; for a human-entered value it is a generated UUID.
   id: string;
+  // The actual AI metric candidate id in the DB, or null for a human-entered value.
+  // This is the value sent to the backend as `selected_candidate_id` / `ai_metric_candidate_id`.
+  candidateId: string | null;
   value: string;
-  confidence: number | null;
+  confidence: number | null; // canonical UI scale: 0–100 (converted at the API boundary)
   unit: string | null;
   source: SpecificationSource | null;
   calculated: boolean;
@@ -30,12 +39,14 @@ export interface Specification {
 
 export interface InputField {
   id: string;       // parameter_key (e.g. "U_MIN")
-  dbId: string;     // project_parameters.id — the actual DB row UUID used for flagging
+  dbId: string;     // ProjectParameter row id
   label: string;
   specifications: Specification[];
   selectedSpecId?: string;
-  isFlagged: boolean | null;
+  isFlagged: boolean;
   flagReason: string | null;
+  activeFlagId: string | null; // id of the active flag ticket; chained as parent on re-flag
+  reviewAction: ReviewAction;
 }
 
 export const SCHEMA_GROUPS: { group: string; fields: SchemaField[] }[] = [
