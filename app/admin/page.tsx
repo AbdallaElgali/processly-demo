@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Box, IconButton, ToggleButtonGroup, ToggleButton } from '@mui/material';
+import { Box, Chip, IconButton, ToggleButtonGroup, ToggleButton, Typography } from '@mui/material';
 import SettingsIcon from '@mui/icons-material/Settings';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import FeedbackIcon from '@mui/icons-material/Feedback';
@@ -9,7 +9,7 @@ import FeedbackIcon from '@mui/icons-material/Feedback';
 import { colors } from '@/theme/colors';
 import { useAdminData } from '@/hooks/AdminData';
 import { AdminSidebar } from '@/components/ProjectsSideBar/AdminSideBar';
-import { LayoutHeader } from '@/components/Headers/LayoutHeader'; 
+import { AppHeader } from '@/components/shell/AppHeader';
 import { SettingsModal } from '@/components/SettingsModal';
 
 import GlobalOverview from './components/GlobalOverview';
@@ -51,11 +51,16 @@ export default function AdminPage() {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden', bgcolor: colors.background }}>
         
-        <LayoutHeader 
-          title="Admin" 
-          settingsIcon={
+        {/* The shell header, with the admin view switcher in the breadcrumb
+            slot. Labelled unauthenticated per A2: /auth has no password or
+            token, so the UI must not imply permissions are enforced. */}
+        <AppHeader
+          breadcrumb={
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              {/* Added a toggle to switch between views cleanly */}
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                Admin
+              </Typography>
+              <Chip size="small" label="no authentication" sx={{ bgcolor: 'status.warningBg', color: 'status.warning' }} />
               <ToggleButtonGroup
                 value={activeTab}
                 exclusive
@@ -73,11 +78,11 @@ export default function AdminPage() {
                 </ToggleButton>
               </ToggleButtonGroup>
 
-              <IconButton edge="end" onClick={() => setIsSettingsOpen(true)}>
-                <SettingsIcon />
+              <IconButton onClick={() => setIsSettingsOpen(true)} aria-label="Open settings">
+                <SettingsIcon fontSize="small" />
               </IconButton>
             </Box>
-          } 
+          }
         />
 
         <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>

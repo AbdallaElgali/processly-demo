@@ -5,14 +5,19 @@ const API_URL = config.api;
 const API_BASE_URL = API_URL + '/projects';
 
 
+/**
+ * POST /projects/ — exactly the fields ProjectCreateInput declares in
+ * openapi.json. `title` and `customer` used to be here and were sent on every
+ * create; the backend has no such fields and silently dropped them.
+ * `customer_id` is nullable in the schema, so a project can be created before
+ * its customer is known.
+ */
 export interface ProjectCreateInput {
   alias_id: string;
-  title?: string;
-  description?: string;
-  customer?: string;
+  description?: string | null;
+  customer_id?: string | null;
   user_id: string;
-  template_id: string | null;  // MUST ADD
-  customer_id: string;  // MUST ADD
+  template_id: string | null;
 }
 
 export interface ParameterInput {

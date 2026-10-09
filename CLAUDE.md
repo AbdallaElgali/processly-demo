@@ -105,21 +105,30 @@ There is **no `refining` status** — an earlier version of this list claimed on
 
 ---
 
-## 5. Current architecture (as of 2026-10-09, before the redesign)
+## 5. Current architecture
 
-> This section describes the code as it is today. The redesign (RFC §6) will change most of it; update this section as each step lands.
+> The code as it is today. Update this section in the same commit as any step that changes it (§0.7).
 
 ### App entry
-`app/layout.tsx` mounts the whole app's providers, in this order: `AppRouterCacheProvider` (Emotion SSR; without it the server and client disagree on where MUI's global styles go and React reports a hydration mismatch) → `ThemeRegistry` (the single `ThemeProvider` + `CssBaseline`) → `AuthProvider` → `ProjectProvider`. `InitColorSchemeScript` runs before them to set the colour scheme pre-paint. Inter is loaded here with `next/font` and exposed as `--font-inter`.
+`app/layout.tsx` mounts the whole app's providers, in this order: `AppRouterCacheProvider` (Emotion SSR; without it the server and client disagree on where MUI's global styles go and React reports a hydration mismatch) → `ThemeRegistry` (the single `ThemeProvider` + `CssBaseline`) → `AuthProvider` → `ProjectDataProvider`. `InitColorSchemeScript` runs before them to set the colour scheme pre-paint. Inter is loaded here with `next/font` and exposed as `--font-inter`.
 
-`app/page.tsx` redirects to `/bda` or `/login` depending on `useAuth()`. The BDA page is the whole application; `app/login/page.tsx` **is** wired (it is the redirect target and `AuthContext.logout()` routes to it). `app/dev/theme` is a dev-only token preview that 404s in production. Step 3 replaces this routing per decision D4.
+### Routes (decision D4, built in step 3)
+| Route | Screen |
+|---|---|
+| `/` | Redirects to `/projects`, or `/login` when signed out |
+| `/login` | Sign in by username (A2: no password, no token) |
+| `/projects` | Projects list: card grid, search, New project dialog |
+| `/projects/[projectId]` | Redirects to that project's Overview |
+| `/projects/[projectId]/{overview,extract,review,parameters,prompts,audit,settings}` | The project tabs |
+| `/admin` | Audit dashboard, outside the project nav and labelled unauthenticated |
+| `/dev/theme` | Dev-only token preview; 404s in production |
 
-### Three-panel layout (`app/bda/page.tsx`)
-1. **Sidebar**: lists uploaded files; clicking switches the active document
-2. **Parameter Panel**: upload controls, Analyze button, and the list of battery parameters
-3. **Document Viewer**: resizable panel showing the active PDF or Excel file with highlight support
+`/bda` and `/review` are retired and redirect to `/projects` (`next.config.ts`).
 
-A drag handle between the parameter panel and viewer calls `useResizer` to manage the viewer width.
+**Only `review` is a real screen so far** — it hosts the pre-redesign editor body so the app stays usable; the other six are `ScreenPlaceholder`s naming the step that builds them and the routes they will call. Upload and Analyze move to Extract in step 7, and steps 8-10 rebuild Review as the split pane.
+
+### The shell (`components/shell/`, built to the §8.4 bar per AM5 — step 5 does not rebuild it)
+`app/projects/[projectId]/layout.tsx` mounts it once for every tab: `AppHeader` (wordmark, breadcrumb slot, `JobTray`, `ThemeToggle`, account menu) above `ProjectRail` (seven nav items, per-project activity badges, collapsible to icons, arrow/Home/End keyboard navigation) beside the screen. `Breadcrumb` renders `Projects › Customer › Project` per D6. The URL is the source of truth for which project is open; the layout tells `projectsIndex` so badges and the job tray agree with the address bar.
 
 ### Background work and per-project data (`lib/jobs/`, `lib/project-data/`)
 Added in step 2a-i and wired into the app in 2a-ii. **This replaced `ProjectContext`**, which is deleted, along with `useAnalyze`, `useAnalyzeParameter`, `api/analyze-document.ts` and `api/analyze-parameter.ts`.
@@ -128,13 +137,14 @@ Added in step 2a-i and wired into the app in 2a-ii. **This replaced `ProjectCont
 - **`lib/jobs/`** — `types.ts` (Job, payloads, actions), `reducer.ts` (pure), `ordering.ts` (cap, correction-priority, FIFO, one parameter-writing job per project), `sse-types.ts` (hand-written SSE contract + phase mapping), `sse.ts` (reader with `AbortController`), `runners.ts`, `store.ts` (observable + abort registry), `hooks.ts` (`useSyncExternalStore` selectors), `config.ts` (`JOB_CAP = 3`).
 - **`lib/jobs/runtime.ts`** — starts queued jobs when a slot frees and applies each outcome to its own project. In-tab for now.
 - **`lib/project-data/`** — `projects-index.ts` (the user's project list plus the selected project; step 3 moves selection into the URL per D4), `actions.ts` (the operations ProjectContext used to own, each scoped to one project), `provider.tsx` (loads projects for the signed-in user, clears every cache on sign-out).
-- Cross-tab coordination, lease-free liveness via Web Locks (AM2), and queue persistence land in step 2b. Until then a queued upload's files live in memory and do not survive a refresh.
+- **`lib/jobs/locks.ts`, `scheduler.ts`, `persistence.ts`** (step 2b) — the cap is **per browser**: every tab shares one queue in `localStorage`, serialises decisions on one Web Lock, and announces changes over `BroadcastChannel` with `storage` as a backstop. Liveness is "is the per-job lock held", never a timer (AM2), and a job's lock is claimed before it is marked running. A job starts in the tab that queued it; any surviving tab adopts it if that tab is gone. Queued uploads keep their files in IndexedDB (`lib/db.ts` v2).
 
 **A flag requires an AI candidate.** `ai_parameter_flags` has `ai_metric_candidate_id uuid NOT NULL` and `extraction_run_id uuid NOT NULL`, `project_parameters` has no `human_flagged` column (the API field is derived from a join on open flags), and the batch parameter save ignores the `flag` fields its request schema accepts. A parameter that has never been extracted therefore cannot be flagged by any current route; the UI refuses with an explanation instead of failing silently.
 
 ### State management (custom hooks, no Redux/Zustand)
-- **`hooks/ParameterManager.tsx`**: manages `fields: InputField[]`. Fields are pre-populated from `SCHEMA_GROUPS` in `types/index.ts`. After analysis, `handlePopulateExtractedData` replaces specs and auto-selects the highest-confidence one per field.
-- **`hooks/DocumentManager.tsx`**: manages uploaded files (blob URLs in memory), the active file, and the `activeSource` highlight target. `resolveSource()` normalizes backend source coordinates to `PDFSource` or `ExcelSource` by MIME type. `handleJumpToSource` switches the active file and sets the highlight.
+- **`hooks/ParameterManager.tsx`**: a thin set of handlers over `ProjectDataStore`. `fields` live in the store, keyed by `projectId`; the hook does not own them. Merging a run's results into a project's fields is `ProjectDataStore.applySpecs`.
+- **`hooks/DocumentManager.tsx`**: uploaded files as blob URLs in memory, the active file, and the `activeSource` highlight target. `handleJumpToSource` switches the active file and sets the highlight. Documents come from the project's cached details; step 9 makes the fetch lazy per D7.
+- **`hooks/useHasMounted.ts`, `hooks/useLocalStorageFlag.ts`**: `useSyncExternalStore` helpers for post-hydration state and remembered boolean preferences, so neither needs `setState` inside an effect.
 
 ### Data model (`types/index.ts`)
 - `InputField`: one battery parameter (e.g. `U_MIN`), with an array of `Specification` candidates and a `selectedSpecId`.

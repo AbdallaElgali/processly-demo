@@ -135,6 +135,29 @@ describe('candidate selection', () => {
   });
 });
 
+describe('snapshot stability (useSyncExternalStore contract)', () => {
+  it('returns the same object for a project with no state yet', () => {
+    // A fresh object per call makes useSyncExternalStore throw
+    // "getSnapshot should be cached to avoid an infinite loop" and spin the
+    // render loop. This is the normal first-render case.
+    expect(store.get('never-seen')).toBe(store.get('never-seen'));
+  });
+
+  it('returns the same object for an unchanged project', () => {
+    store.setFields('A', [field({ id: 'U_MIN' })]);
+    expect(store.get('A')).toBe(store.get('A'));
+  });
+
+  it('returns a new object only when that project actually changed', () => {
+    store.setFields('A', [field({ id: 'U_MIN' })]);
+    const before = store.get('A');
+    store.setFields('B', [field({ id: 'U_MAX' })]);
+    expect(store.get('A')).toBe(before); // B's change must not churn A
+    store.setError('A', 'boom');
+    expect(store.get('A')).not.toBe(before);
+  });
+});
+
 describe('subscriptions', () => {
   it('notifies subscribers and bumps the version on a change', () => {
     let calls = 0;

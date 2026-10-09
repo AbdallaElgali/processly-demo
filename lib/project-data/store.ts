@@ -43,6 +43,16 @@ type Listener = () => void;
 
 export class ProjectDataStore {
   private states = new Map<string, ProjectState>();
+  /**
+   * Cached empty states, one per projectId.
+   *
+   * `get()` is read by useSyncExternalStore, which compares snapshots by
+   * reference and throws "getSnapshot should be cached to avoid an infinite
+   * loop" if a fresh object comes back each call. Before this cache, asking
+   * for a project with no state yet — the normal case on first render —
+   * minted a new object every time and spun the render loop.
+   */
+  private blanks = new Map<string, ProjectState>();
   private listeners = new Set<Listener>();
   /** Bumped on every change so useSyncExternalStore sees a new snapshot. */
   private version = 0;
@@ -60,7 +70,15 @@ export class ProjectDataStore {
   }
 
   get(projectId: string): ProjectState {
-    return this.states.get(projectId) ?? emptyProjectState(projectId);
+    const existing = this.states.get(projectId);
+    if (existing) return existing;
+
+    let blank = this.blanks.get(projectId);
+    if (!blank) {
+      blank = emptyProjectState(projectId);
+      this.blanks.set(projectId, blank);
+    }
+    return blank;
   }
 
   /** Read without creating state, for callers that only want to know. */
@@ -172,6 +190,7 @@ export class ProjectDataStore {
   /** Drops cached state, e.g. on sign-out, so another user cannot see it. */
   reset() {
     this.states.clear();
+    this.blanks.clear();
     this.emit();
   }
 }
