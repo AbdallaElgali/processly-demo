@@ -122,7 +122,7 @@ There is **no `refining` status** — an earlier version of this list claimed on
 | `/projects/[projectId]` | Redirects to that project's Overview |
 | `/projects/[projectId]/{overview,extract,review,parameters,prompts,audit,settings}` | The project tabs |
 | `/admin` | Audit dashboard, outside the project nav and labelled unauthenticated |
-| `/dev/theme` | Dev-only token preview; 404s in production |
+| `/dev/gallery` | Dev-only component gallery (tokens plus every `components/ui/` primitive, both modes); 404s in production. Absorbed `/dev/theme` in step 5. |
 
 `/bda` and `/review` are retired and redirect to `/projects` (`next.config.ts`).
 
@@ -130,6 +130,9 @@ There is **no `refining` status** — an earlier version of this list claimed on
 
 ### The shell (`components/shell/`, built to the §8.4 bar per AM5 — step 5 does not rebuild it)
 `app/projects/[projectId]/layout.tsx` mounts it once for every tab: `AppHeader` (wordmark, breadcrumb slot, `JobTray`, `ThemeToggle`, account menu) above `ProjectRail` (seven nav items, per-project activity badges, collapsible to icons, arrow/Home/End keyboard navigation) beside the screen. `Breadcrumb` renders `Projects › Customer › Project` per D6. The URL is the source of truth for which project is open; the layout tells `projectsIndex` so badges and the job tray agree with the address bar.
+
+### Shared component library (`components/ui/`, step 5)
+Generic primitives used across screens, as opposed to `components/shell` (navigation chrome) and `components/jobs` (job-store-aware), both already built: `SearchField` (debounced by the caller, `/` focuses it, `Esc` clears), `StatusChip` (the 4 project statuses), `ProjectCard` (extracted from the step-3 projects list), `EmptyState`/`ErrorState`, `Skeletons` (`SkeletonCardGrid`, `SkeletonRows`), `DataTable` (sortable header, skeleton/error/empty body — used by the Runs/Pins/Templates/Members tables from step 7 on), `Toast`/`ToastHost` (one bottom-left queue; `toast.show(...)` is callable from anywhere, including non-component code like a job runner), `ConfirmDialog`/`FormDialog` (shared dialog shells; existing dialogs built before this step, e.g. `NewProjectDialog`, keep their own markup and adopt these only if a later step touches them anyway), `DensityToggle` (controlled; the caller persists the choice), `GuidedTour` (anchored by CSS selector, so it has no coupling to the component it points at; steps 6+ pass real `steps`). All demoed in both modes in `/dev/gallery`.
 
 ### Background work and per-project data (`lib/jobs/`, `lib/project-data/`)
 Added in step 2a-i and wired into the app in 2a-ii. **This replaced `ProjectContext`**, which is deleted, along with `useAnalyze`, `useAnalyzeParameter`, `api/analyze-document.ts` and `api/analyze-parameter.ts`.
