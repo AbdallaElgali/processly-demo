@@ -101,9 +101,9 @@ export const Sidebar = ({ currentFileId, onSelectFile }: BDASidebarProps) => {
         setExpandedProjectId(newProject.id);
         await loadProjectDetails(newProject.id);
       }
-    } catch (error: any) { 
-      setCreateProjectError(error.message || 'Failed to create project.');
-      console.error("Failed to create project:", error); 
+    } catch (error: unknown) {
+      setCreateProjectError(error instanceof Error ? error.message : 'Failed to create project.');
+      console.error("Failed to create project:", error);
     }
   };
 
@@ -119,8 +119,8 @@ export const Sidebar = ({ currentFileId, onSelectFile }: BDASidebarProps) => {
       setNewCustomerAlias('');
       setNewCustomerName('');
       setIsNewCustomerModalOpen(false);
-    } catch (err: any) {
-      setCustomerModalError(err.message || 'Failed to create customer.');
+    } catch (err: unknown) {
+      setCustomerModalError(err instanceof Error ? err.message : 'Failed to create customer.');
     } finally {
       setIsCreatingCustomer(false);
     }

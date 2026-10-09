@@ -71,9 +71,9 @@ export const SettingsModal = ({ open, onClose }: SettingsModalProps) => {
         onClose();
       }, 2000);
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error registering user:', error);
-      setNotification({ type: 'error', message: error.message || 'An error occurred during registration.' });
+      setNotification({ type: 'error', message: error instanceof Error ? error.message : 'An error occurred during registration.' });
     } finally {
       setIsLoading(false);
     }

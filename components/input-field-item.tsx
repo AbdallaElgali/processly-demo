@@ -33,7 +33,7 @@ interface InputFieldItemProps {
   onShowSource: (source: SpecificationSource) => void;
   onSwitch: (fieldId: string, specId: string) => void;
   onFlag?: (id: string, isFlagged: boolean, reason?: string | null) => void;
-  onUpdateMetadata: (dbId: string, fieldId: string, data: updateProjectParameter) => void; // <-- Added
+  onUpdateMetadata?: (dbId: string, fieldId: string, data: updateProjectParameter) => void;
   readOnly?: boolean;
   onFlagAndRetry?: (id: string, reason: string) => void;
   isCorrecting?: boolean;
@@ -61,11 +61,9 @@ export const InputFieldItem = ({
   // NEW: State for the metadata details expander
   const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
 
-  // Cast field to any to access the newly mapped optional properties
-  const fAny = field as any;
-  const currentAlias = fAny.parameter_alias || field.label || '';
-  const currentDesc = fAny.description_override || '';
-  const currentAi = fAny.ai_instructions || '';
+  const currentAlias = field.parameter_alias || field.label || '';
+  const currentDesc = field.description_override || '';
+  const currentAi = field.ai_instructions || '';
 
   // NEW: Inline editing states
   const [isEditingAlias, setIsEditingAlias] = useState(false);
@@ -125,7 +123,7 @@ export const InputFieldItem = ({
   const handleSaveMetadata = (newAlias: string, newDesc: string, newAi: string) => {
     if (newAlias === currentAlias && newDesc === currentDesc && newAi === currentAi) return;
     
-    onUpdateMetadata(field.dbId, field.id, {
+    onUpdateMetadata?.(field.dbId, field.id, {
       parameter_alias: newAlias || null,
       description_override: newDesc || null,
       ai_instructions: newAi || null

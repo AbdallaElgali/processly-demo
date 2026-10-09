@@ -20,7 +20,9 @@ interface InputFieldsListProps {
   onSwitchSpecification: (fieldId: string, specId: string) => void;
   onFlag?: (id: string, isFlagged: boolean, reason?: string | null) => void;
   readOnly?: boolean;
-  onUpdateMetadata: (dbId: string, fieldId: string, data: updateProjectParameter) => void;
+  // Optional: read-only consumers (the Review screen) never edit metadata, and
+  // the edit affordances in InputFieldItem are gated behind `readOnly`.
+  onUpdateMetadata?: (dbId: string, fieldId: string, data: updateProjectParameter) => void;
 
   onFlagAndRetry?: (id: string, reason: string) => void;
   correctingFieldId?: string | null;

@@ -97,7 +97,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       if (!targetTemplateId) {
         try {
           const templates = await getUserTemplates(user.id);
-          const systemDefault = templates.find((t: any) => t.is_system_default);
+          const systemDefault = templates.find(t => t.is_system_default);
           if (systemDefault) {
             targetTemplateId = systemDefault.id;
           }

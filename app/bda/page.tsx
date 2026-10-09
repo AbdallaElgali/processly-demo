@@ -10,6 +10,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { useResizer } from '@/hooks/Resizer';
+import { useHasMounted } from '@/hooks/useHasMounted';
 import { useParameterManager } from '@/hooks/ParameterManager';
 import { useDocumentManager } from '@/hooks/DocumentManager';
 import { useAnalyze } from '@/hooks/useAnalyze';
@@ -47,8 +48,7 @@ export default function BDA() {
   const { projects, currentProject, isLoading: projectsLoading, createNewProject, saveParameters, saveParametersSilent, loadProjectDetails, approveDocument, updateParameterMetadata } = useProject();
   const router = useRouter();
 
-  const [hasMounted, setHasMounted] = useState(false);
-  useEffect(() => { setHasMounted(true); }, []);
+  const hasMounted = useHasMounted();
 
   const activeProjectId = currentProject?.id || null;
   const prevProjectIdRef = useRef<string | null>(null);
@@ -337,9 +337,9 @@ export default function BDA() {
           onClose={() => setIsFeedbackModalOpen(false)}
           userId={user.id}
           projectId={activeProjectId}
-          documents={(uploadedFiles || []).map((file: any) => ({
+          documents={(uploadedFiles || []).map((file) => ({
             id: file.id,
-            name: file.name || file.filename || file.file_name || file.title || `Document ${file.id.substring(0, 4)}...`
+            name: file.name || `Document ${file.id.substring(0, 4)}...`
           }))}
         />
       )}

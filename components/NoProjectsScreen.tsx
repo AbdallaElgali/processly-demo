@@ -28,7 +28,7 @@ interface NoProjectsScreenProps {
 }
 
 const modalStyle = {
-  position: 'absolute' as 'absolute',
+  position: 'absolute' as const,
   top: '50%',
   left: '50%',
   transform: 'translate(-50%, -50%)',
@@ -66,7 +66,7 @@ export const NoProjectsScreen = ({ onCreateProject }: NoProjectsScreenProps) => 
     if (!alias.trim() || !selectedCustomerId) return;
     setError(null);
     try {
-      const templateId = user && 'template_id' in user ? (user as any).template_id : null;
+      const templateId = user?.template_id ?? null;
       await onCreateProject(alias.trim(), selectedCustomerId, templateId);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create project. Please try again.');

@@ -13,7 +13,7 @@ export interface UserFeedbackPayload {
   title?: string | null;
   description: string;
   status?: string;
-  metadata?: Record<string, any> | null;
+  metadata?: Record<string, unknown> | null;
 }
 
 export async function submitFeedbackApi(payload: UserFeedbackPayload) {

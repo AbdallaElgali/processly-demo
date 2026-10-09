@@ -36,7 +36,7 @@ export const useParameterManager = (options?: UseParameterManagerOptions) => {
           parameter_alias: data.parameter_alias,
           description_override: data.description_override,
           ai_instructions: data.ai_instructions,
-        } as InputField; // Cast to ensure TS accepts the extra properties
+        };
       }
       return f;
     }));

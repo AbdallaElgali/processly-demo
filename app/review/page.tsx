@@ -21,6 +21,7 @@ import FlagIcon from '@mui/icons-material/Flag';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { useResizer } from '@/hooks/Resizer';
+import { useHasMounted } from '@/hooks/useHasMounted';
 import { useParameterManager } from '@/hooks/ParameterManager';
 import { useDocumentManager } from '@/hooks/DocumentManager';
 import { theme } from '@/theme/theme';
@@ -48,8 +49,7 @@ export default function ReviewPage() {
   const { projects, currentProject, isLoading: projectsLoading, loadProjectDetails, saveParametersSilent } = useProject();
   const router = useRouter();
 
-  const [hasMounted, setHasMounted] = useState(false);
-  useEffect(() => { setHasMounted(true); }, []);
+  const hasMounted = useHasMounted();
 
   const activeProjectId = currentProject?.id || null;
   const prevProjectIdRef = useRef<string | null>(null);

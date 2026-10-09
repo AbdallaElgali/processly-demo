@@ -41,6 +41,12 @@ export interface InputField {
   id: string;       // parameter_key (e.g. "U_MIN")
   dbId: string;     // ProjectParameter row id
   label: string;
+  // Mirrored from the backend ProjectParameter row (see api/projects.ts).
+  // `dbParamToInputField` already populates these; declaring them keeps the
+  // consumers type-safe instead of casting the field to `any`.
+  parameter_alias?: string | null;
+  description_override?: string | null;
+  ai_instructions?: string | null;
   specifications: Specification[];
   selectedSpecId?: string;
   isFlagged: boolean;

@@ -33,6 +33,7 @@ import {
   Switch,
   FormControlLabel
 } from '@mui/material';
+import type { SelectChangeEvent } from '@mui/material';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import AddIcon from '@mui/icons-material/Add';
 import SaveIcon from '@mui/icons-material/Save';
@@ -48,7 +49,7 @@ import StarBorderIcon from '@mui/icons-material/StarBorder';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { colors } from '@/theme/colors';
-import { TemplateRuleUpsert, CanonicalParameter } from '@/api/templates';
+import { TemplateRuleUpsert, CanonicalParameter, TemplateRule } from '@/api/templates';
 import { useTemplateData } from '@/hooks/TemplatesHook';
 
 export function TemplatesManager() {
@@ -491,8 +492,8 @@ export function TemplatesManager() {
 
 interface RuleEditorFormProps {
   parameters: CanonicalParameter[];
-  existingRules: any[];
-  initialData?: any;
+  existingRules: TemplateRule[];
+  initialData?: TemplateRule;
   onSave: (data: TemplateRuleUpsert) => void;
   isSaving: boolean;
   isEditMode?: boolean;
@@ -506,7 +507,7 @@ function RuleEditorForm({ parameters, existingRules, initialData, onSave, isSavi
   const [isActive, setIsActive] = useState(initialData?.is_active ?? true);
   
   // Auto-fill alias when a canonical param is selected (if alias is empty)
-  const handleParamChange = (e: any) => {
+  const handleParamChange = (e: SelectChangeEvent<string>) => {
     const selectedId = e.target.value;
     setParamId(selectedId);
     if (!alias) {

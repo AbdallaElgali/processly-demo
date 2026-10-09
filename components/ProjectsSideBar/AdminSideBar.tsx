@@ -8,10 +8,11 @@ import {
   CloseFullscreen as CloseFullscreenIcon, Clear as ClearIcon 
 } from '@mui/icons-material';
 import { BaseSidebar } from './BaseSideBar';
+import type { ProjectMetrics } from '@/types/audit';
 
 // Props passed down from the AdminPage's useAdminData hook
 interface AdminSidebarProps {
-  projects: any[];
+  projects: ProjectMetrics[];
   selectedProjectId: string | null;
   setSelectedProjectId: (id: string | null) => void;
   isExpanded: boolean;
@@ -31,10 +32,14 @@ export const AdminSidebar = ({
   selectedUser, setSelectedUser, dateFilter, setDateFilter, users
 }: AdminSidebarProps) => {
 
+  // `p.users` is the real field on ProjectMetrics; the previous code read a
+  // non-existent `p.user`, which rendered the literal string "undefined".
   const formattedProjects = projects.map(p => ({
     id: p.id,
     primaryText: p.name,
-    secondaryText: `${p.user} | ${p.date}`
+    secondaryText: [p.users?.map(u => u?.username).filter(Boolean).join(', '), p.date]
+      .filter(Boolean)
+      .join(' | ')
   }));
 
   const handleProjectClick = (id: string) => {
