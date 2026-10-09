@@ -40,7 +40,15 @@ Every session that changes anything (code, plan, or docs) writes one note to `cl
 | `fe_rfc.md` | RFC-FE-01, the target design: information architecture, run-timeline state machine, Review screen rules, backend contract gaps, delivery plan. **The source of truth for what we are building.** |
 | `openapi.json` | Snapshot of the FastAPI backend's OpenAPI schema. **The source of truth for the API contract.** SSE event payloads are NOT in it; take them from the RFC §3 and the SSE table in the backend summary. Ignore `/system/reset-database`. |
 | `Backend_summary_9-10-2026.md` | Full description of the backend as of 2026-10-09: pipeline, SSE contract table, reason codes, flagging mechanisms, data model. Use it where `openapi.json` is untyped. |
+| `test-data/` (repo root, **gitignored**) | Real customer documents for manual testing, with `README.txt` mapping files to the edge cases they cover. **Confidential.** See the rules below. |
 | `*.png` | Mindee reference screenshots, dark mode and light mode. Visual **inspiration only**: take layout, density, navigation structure, the dropzone, the split-pane review pattern, the guided-tour idea, and how each mode handles surfaces and contrast. **Do not** copy Mindee's logo, branding, red accent color, or exact styling. |
+
+### Rules for `test-data/` — these are real customer documents
+
+1. **Never commit them.** `test-data/` is in `.gitignore`; do not add it with `git add -A` or `git add .`, which is how it got committed once already (step 2b, amended out). Stage files explicitly.
+2. **Never quote their contents.** History notes, commit messages and chat may name a **file** and a **parameter key** (`U_MIN`, `I_MAX_DCH_PULSE`) and nothing else — no extracted values, no snippets, no table contents, no customer identifiers beyond the file name.
+3. **Never send them anywhere except the local backend** on `localhost:8000`. No third-party service, no upload, no paste into an external tool.
+4. **Use the smallest file that exercises the case** for any run that costs OpenAI tokens, and record in the history note which file was used and how many runs were made.
 
 **Deferred (do not build yet):** command palette / global keyboard launcher.
 
