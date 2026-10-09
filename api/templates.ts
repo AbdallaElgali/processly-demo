@@ -30,12 +30,22 @@ export interface ProjectToTemplate {
 }
 
 // Response Interfaces (Inferred from your backend types)
+/**
+ * GET /extraction-templates/parameters -- the canonical parameter dictionary.
+ * Typed in openapi.json as CanonicalParameter; this mirrors it exactly.
+ *
+ * `category` is the field decision D5 depends on: until the backend returns a
+ * category with each project parameter (Task B item B4), the Parameters and
+ * Review screens group by joining this dictionary on `name` == parameter_key.
+ * The previous type declared a `description` field that does not exist and
+ * omitted `category` entirely, so the join was impossible.
+ */
 export interface CanonicalParameter {
     id: string;
     name: string;
-    description?: string;
-    expected_unit?: string;
-    // ... add other fields based on your DB schema
+    category: string | null;
+    default_description: string | null;
+    expected_unit: string | null;
 }
 
 export interface ExtractionTemplateBase {
@@ -53,11 +63,13 @@ export interface TemplateRule {
     id: string;
     template_id: string;
     parameter_id: string;
+    /** Required by the backend schema; was missing from this type. */
+    canonical_name: string;
     custom_alias: string;
     is_active: boolean;
-    description_override?: string;
-    ai_instructions?: string;
-    expected_unit_override?: string;
+    description_override: string | null;
+    ai_instructions: string | null;
+    expected_unit_override: string | null;
 }
 
 export interface TemplateWithRules extends ExtractionTemplateBase {

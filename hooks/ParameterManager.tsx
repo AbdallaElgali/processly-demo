@@ -3,19 +3,23 @@ import { v4 as uuidv4 } from 'uuid';
 import { InputField, Specification } from '@/types';
 import { ProjectParameter, updateProjectParameter } from '@/api/projects';
 import { useAuth } from '@/contexts/AuthContext';
-import { flagParameter, unFlagParameter, updateResolvedBy } from '@/api/parameters';
-import { dbParamToInputField } from '@/lib/parameter-adapter';
-import { UnfoldLess } from '@mui/icons-material';
+import { updateResolvedBy } from '@/api/parameters';
+import { dbParamToInputField, inputFieldToParameterInput } from '@/lib/parameter-adapter';
+import { clearHumanFlag, raiseHumanFlag } from '@/lib/review/flagging';
 
 interface UseParameterManagerOptions {
   // Persists the given fields to the backend. Provided by the page so that flag
   // changes are durable immediately (without waiting for an explicit Save).
   persist?: (fields: InputField[]) => Promise<void>;
+  /** Required for the H1 no-candidate flag path, which writes the parameter row. */
+  projectId?: string | null;
 }
 
 export const useParameterManager = (options?: UseParameterManagerOptions) => {
   const { user } = useAuth();
   const persist = options?.persist;
+  const projectId = options?.projectId ?? null;
+  const [flagError, setFlagError] = useState<string | null>(null);
   const [fields, setFields] = useState<InputField[]>([]);
   const [isSyncing, setIsSyncing] = useState<string | null>(null);
 
@@ -151,26 +155,45 @@ const handleSwitchSpecification = useCallback((fieldId: string, specId: string) 
       return null;
     }
 
+    if (!projectId) {
+      console.error('Missing projectId — cannot update flag');
+      return null;
+    }
+
     const activeSpec = field.specifications.find(s => s.id === field.selectedSpecId) ?? field.specifications[0];
     const candidateId = activeSpec?.candidateId ?? null;
     setIsSyncing(fieldId);
+    setFlagError(null);
     try {
       let nextFields: InputField[];
       let resultFlagId: string | null = null;
 
       if (isFlagged) {
-        const newFlagId = await flagParameter(
-          user.id, field.dbId, candidateId,
-          field.activeFlagId ?? null, reason ?? 'No reason provided'
-        );
-        resultFlagId = newFlagId;
+        // Contract fix H1: a parameter with no AI candidate cannot have a flag
+        // ticket (ai_metric_candidate_id is required), so raiseHumanFlag
+        // persists the flag on the parameter row instead of 422-ing. Either
+        // way a failure now throws rather than being swallowed.
+        const result = await raiseHumanFlag({
+          projectId,
+          userId: user.id,
+          projectParameterId: field.dbId,
+          candidateId,
+          parentFlagId: field.activeFlagId ?? null,
+          reason: reason ?? 'No reason provided',
+          fallbackRow: inputFieldToParameterInput(field, user.id),
+        });
+        resultFlagId = result.flagId;
         nextFields = fields.map(f =>
-          f.id === fieldId ? { ...f, isFlagged: true, flagReason: reason ?? '', activeFlagId: newFlagId } : f
+          f.id === fieldId
+            ? { ...f, isFlagged: true, flagReason: reason ?? '', activeFlagId: result.flagId }
+            : f
         );
       } else {
-        if (field.activeFlagId) {
-          await unFlagParameter(field.activeFlagId, null, 'DISMISSED');
-        }
+        await clearHumanFlag({
+          projectId,
+          activeFlagId: field.activeFlagId ?? null,
+          fallbackRow: inputFieldToParameterInput(field, user.id),
+        });
         nextFields = fields.map(f =>
           f.id === fieldId ? { ...f, isFlagged: false, flagReason: null, activeFlagId: null } : f
         );
@@ -180,12 +203,16 @@ const handleSwitchSpecification = useCallback((fieldId: string, specId: string) 
       if (persist) await persist(nextFields);
       return resultFlagId;
     } catch (error) {
+      // Previously this only reached console.error, so a rejected flag left the
+      // row looking flagged until the next reload.
+      const message = error instanceof Error ? error.message : 'Failed to save the flag.';
       console.error('Failed to sync flag to backend:', error);
+      setFlagError(message);
       return null;
     } finally {
       setIsSyncing(null);
     }
-  }, [fields, user?.id, persist]);
+  }, [fields, user?.id, persist, projectId]);
 
   const applyFlagChain = useCallback((chain: Record<string, string>) => {
     if (!chain || Object.keys(chain).length === 0) return;
@@ -206,6 +233,9 @@ const handleSwitchSpecification = useCallback((fieldId: string, specId: string) 
     resetFields,
     handleFlag,
     isSyncing,
+    /** Surfaced so a rejected flag is visible instead of silently lost (H1). */
+    flagError,
+    clearFlagError: useCallback(() => setFlagError(null), []),
     handleUpdateMetadataLocal,
     applyFlagChain
   };

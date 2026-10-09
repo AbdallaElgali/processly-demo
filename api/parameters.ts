@@ -5,10 +5,19 @@ const API_URL = config.api;
 // Make sure this points to the router prefix where your endpoints live
 const API_BASE_URL = API_URL + '/flagging'; 
 
+/**
+ * POST /flagging/ai-flag-parameter.
+ *
+ * `ai_metric_candidate_id` is REQUIRED by AIFlagRequest, so it is typed as a
+ * non-null string here. Passing null produced a 422 that the old caller
+ * swallowed, losing the flag (contract fix H1). Callers with no candidate must
+ * use `raiseHumanFlag` in lib/review/flagging.ts, which persists the flag on
+ * the parameter row instead.
+ */
 export const flagParameter = async (
     user_id: string,
     parameter_id: string,
-    ai_metric_candidate_id: string | null,
+    ai_metric_candidate_id: string,
     parent_flag_id: string | null = null,
     flag_reason: string | null = null
 ): Promise<string> => {

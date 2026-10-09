@@ -54,8 +54,13 @@ Plans and exploration findings go to `claude-notes/plans/`. When a `<plan>-amend
 npm run dev             # Start dev server at http://localhost:3000
 npm run build           # Production build (must pass after every step)
 npm run lint            # Run ESLint (must pass after every step)
+npm test                # Vitest unit tests (must pass after every step, from 2a-i on)
 npm run check:contrast  # Assert the WCAG ratios of theme/tokens.json (must pass)
 ```
+
+`npm test` covers the pure logic only — the job scheduler's cap/priority/FIFO
+rules, the job reducer, the SSE-to-phase mapping, and the per-project data
+guarantee. UI is verified in the browser and the dev gallery, not here.
 
 No test suite is configured yet. Until one exists, "verification" means build + lint + a manual check described in the history note.
 
@@ -100,6 +105,13 @@ The contract is `claude-notes/context/openapi.json`. Key routes in the current b
 3. **Document Viewer**: resizable panel showing the active PDF or Excel file with highlight support
 
 A drag handle between the parameter panel and viewer calls `useResizer` to manage the viewer width.
+
+### Background work and per-project data (`lib/jobs/`, `lib/project-data/`)
+Added in step 2a-i. Not yet wired into the UI — that is step 2a-ii.
+
+- **`lib/project-data/store.ts`** — `ProjectState` keyed by `projectId` (details, fields, liveSpecs, per-operation loading, error). **This is the fix for the D11 bug**: results are applied to `store.get(job.projectId)`, so a run that outlives a project switch can no longer write one project's candidates into another's rows. Regression-tested.
+- **`lib/jobs/`** — `types.ts` (Job, payloads, actions), `reducer.ts` (pure), `ordering.ts` (cap, correction-priority, FIFO, one parameter-writing job per project), `sse-types.ts` (hand-written SSE contract + phase mapping), `sse.ts` (reader with `AbortController`), `runners.ts`, `store.ts` (observable + abort registry), `hooks.ts` (`useSyncExternalStore` selectors), `config.ts` (`JOB_CAP = 3`).
+- Cross-tab coordination, lease-free liveness via Web Locks (AM2), and queue persistence land in step 2b.
 
 ### State management (custom hooks, no Redux/Zustand)
 - **`hooks/ParameterManager.tsx`**: manages `fields: InputField[]`. Fields are pre-populated from `SCHEMA_GROUPS` in `types/index.ts`. After analysis, `handlePopulateExtractedData` replaces specs and auto-selects the highest-confidence one per field.

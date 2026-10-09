@@ -188,12 +188,16 @@ export const inputFieldToParameterInput = (
   userId: string | null
 ): ParameterInput => {
   const activeSpec = f.specifications.find(s => s.id === f.selectedSpecId) ?? f.specifications[0];
-  const parsed = activeSpec?.value ? Number(activeSpec.value) : null;
+  const raw = activeSpec?.value ?? '';
+  const parsed = raw === '' ? null : Number(raw);
 
   return {
     project_parameter_id: f.dbId,
     parameter_key: f.id,
-    final_value: parsed !== null && !isNaN(parsed) ? parsed : null,
+    // A value that is not a number is sent as the string the engineer typed.
+    // It used to be coerced to null, which discarded it on save; the backend
+    // accepts number | string | null.
+    final_value: parsed === null ? null : Number.isNaN(parsed) ? raw : parsed,
     final_unit: activeSpec?.unit || null,
     is_human_modified: f.reviewAction === 'MODIFIED',
     selected_candidate_id: activeSpec?.candidateId ?? null,

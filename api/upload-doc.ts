@@ -2,18 +2,33 @@ import { config } from './config';
 
 const API_URL = config.api;
 
-interface UploadSuccess {
+export interface UploadSuccess {
   filename: string;
   document_id: string;
 }
 
-interface UploadResponse {
-  project_id: string;
-  successful_uploads: UploadSuccess[];
-  errors: string[];
+/**
+ * Per-file failure. The backend appends objects, not strings
+ * (BDA/src/api_routes/upload_files.py:70,105) -- this type previously said
+ * `string[]`, so a partial failure rendered as "[object Object]" if it was
+ * shown at all. Nothing surfaced them before.
+ */
+export interface UploadFailure {
+  filename: string;
+  error: string;
 }
 
-export const uploadDocuments = async (files: File[], project_id: string): Promise<UploadResponse> => {
+export interface UploadResponse {
+  project_id: string;
+  successful_uploads: UploadSuccess[];
+  errors: UploadFailure[];
+}
+
+export const uploadDocuments = async (
+  files: File[],
+  project_id: string,
+  signal?: AbortSignal,
+): Promise<UploadResponse> => {
   const formData = new FormData();
 
   formData.append('project_id', project_id);
@@ -26,11 +41,10 @@ export const uploadDocuments = async (files: File[], project_id: string): Promis
   const response = await fetch(API_URL + '/files/upload-documents/', {
     method: 'POST',
     body: formData,
+    signal,
   });
 
-  console.log('API Response Status:', response.status);
   const data = await response.json() as UploadResponse & { message?: string };
-  console.log('API Response Data:', data);
 
   if (response.ok) {
     return {

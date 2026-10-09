@@ -18,7 +18,13 @@ export interface ProjectCreateInput {
 export interface ParameterInput {
   parameter_key: string;
   project_parameter_id: string;
-  final_value: number | null;
+  /**
+   * The backend accepts `number | string | null`. Typing it `number | null`
+   * made `inputFieldToParameterInput` coerce every non-numeric value to null,
+   * silently discarding it on save. Widened here (plan 7, pulled forward from
+   * step 4) because the H1 fallback path writes this row.
+   */
+  final_value: number | string | null;
   final_unit: string | null;
   is_human_modified: boolean;
   selected_candidate_id: string | null;

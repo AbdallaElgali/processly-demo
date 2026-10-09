@@ -67,7 +67,7 @@ export default function ReviewPage() {
   const {
     fields, handleFlag, hydrateFieldsFromDB, resetFields,
     handleFieldChange, handleRemoveField, handleSwitchSpecification,
-  } = useParameterManager({ persist: persistFields });
+  } = useParameterManager({ persist: persistFields, projectId: activeProjectId });
   const {
     activeFileId, activeDoc, activeSource, hydrateFiles,
     handleSelectFile, handleJumpToSource, clearFiles,

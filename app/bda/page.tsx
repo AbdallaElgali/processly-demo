@@ -81,7 +81,7 @@ export default function BDA() {
   const {
     fields, handleFieldChange, handleRemoveField, handleSwitchSpecification,
     handlePopulateExtractedData, hydrateFieldsFromDB, resetFields, handleFlag, handleUpdateMetadataLocal, applyFlagChain
-  } = useParameterManager({ persist: persistFields });
+  } = useParameterManager({ persist: persistFields, projectId: activeProjectId });
   
   const {
     uploadedFiles, activeFileId, activeDoc, activeSource, hydrateFiles,
