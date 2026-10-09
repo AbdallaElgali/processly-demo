@@ -1,10 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Box, Paper, Typography, TextField, Button, ThemeProvider, CssBaseline } from '@mui/material';
+import { Box, Paper, Typography, TextField, Button } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { theme } from '@/theme/theme';
 import { colors } from '@/theme/colors';
 
 export default function LoginPage() {
@@ -37,9 +36,7 @@ export default function LoginPage() {
   };
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Box sx={{ display: 'flex', height: '100dvh', alignItems: 'center', justifyContent: 'center', bgcolor: colors.background }}>
+    <Box sx={{ display: 'flex', height: '100dvh', alignItems: 'center', justifyContent: 'center', bgcolor: colors.background }}>
         <Paper elevation={3} sx={{ p: 5, display: 'flex', flexDirection: 'column', width: '100%', maxWidth: 400, bgcolor: colors.surface }}>
           <Typography variant="h5" sx={{ mb: 1, fontWeight: 'bold', textAlign: 'center' }}>
             Voltavision BDA
@@ -70,7 +67,6 @@ export default function LoginPage() {
             </Button>
           </form>
         </Paper>
-      </Box>
-    </ThemeProvider>
+    </Box>
   );
 }

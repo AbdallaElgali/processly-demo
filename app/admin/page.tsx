@@ -1,12 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Box, ThemeProvider, CssBaseline, IconButton, ToggleButtonGroup, ToggleButton } from '@mui/material';
+import { Box, IconButton, ToggleButtonGroup, ToggleButton } from '@mui/material';
 import SettingsIcon from '@mui/icons-material/Settings';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import FeedbackIcon from '@mui/icons-material/Feedback';
 
-import { theme } from '@/theme/theme';
 import { colors } from '@/theme/colors';
 import { useAdminData } from '@/hooks/AdminData';
 import { AdminSidebar } from '@/components/ProjectsSideBar/AdminSideBar';
@@ -50,9 +49,7 @@ export default function AdminPage() {
   };
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden', bgcolor: colors.background }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden', bgcolor: colors.background }}>
         
         <LayoutHeader 
           title="Admin" 
@@ -134,7 +131,6 @@ export default function AdminPage() {
           open={isSettingsOpen} 
           onClose={() => setIsSettingsOpen(false)} 
         />
-      </Box>
-    </ThemeProvider>
+    </Box>
   );
 }

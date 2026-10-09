@@ -6,10 +6,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Box,
-  CssBaseline,
   CircularProgress,
   IconButton,
-  ThemeProvider,
   Tooltip,
   Typography,
   Paper,
@@ -24,7 +22,6 @@ import { useResizer } from '@/hooks/Resizer';
 import { useHasMounted } from '@/hooks/useHasMounted';
 import { useParameterManager } from '@/hooks/ParameterManager';
 import { useDocumentManager } from '@/hooks/DocumentManager';
-import { theme } from '@/theme/theme';
 import { colors } from '@/theme/colors';
 import { MemoizedInputFieldsList } from '@/components/input-fields-list';
 import { LayoutHeader } from '@/components/Headers/LayoutHeader';
@@ -109,20 +106,15 @@ export default function ReviewPage() {
 
   if (authLoading || projectsLoading || !user) {
     return (
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <Box sx={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', bgcolor: colors.background }}>
-          <CircularProgress />
-        </Box>
-      </ThemeProvider>
+      <Box sx={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', bgcolor: colors.background }}>
+        <CircularProgress />
+      </Box>
     );
   }
 
   if (projects.length === 0) {
     return (
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', bgcolor: colors.background }}>
+      <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', bgcolor: colors.background }}>
           <LayoutHeader />
           <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Paper sx={{ p: 4, textAlign: 'center', maxWidth: 400 }}>
@@ -132,8 +124,7 @@ export default function ReviewPage() {
               </Typography>
             </Paper>
           </Box>
-        </Box>
-      </ThemeProvider>
+      </Box>
     );
   }
 
@@ -143,9 +134,7 @@ export default function ReviewPage() {
   const flaggedCount = fields.filter(f => f.isFlagged).length;
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden' }}>
         <LayoutHeader />
         <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
@@ -241,7 +230,6 @@ export default function ReviewPage() {
             />
           </Box>
         </Box>
-      </Box>
-    </ThemeProvider>
+    </Box>
   );
 }

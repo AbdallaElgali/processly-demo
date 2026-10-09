@@ -51,9 +51,10 @@ Plans and exploration findings go to `claude-notes/plans/`. When a `<plan>-amend
 ## 3. Commands
 
 ```bash
-npm run dev      # Start dev server at http://localhost:3000
-npm run build    # Production build (must pass after every step)
-npm run lint     # Run ESLint (must pass after every step)
+npm run dev             # Start dev server at http://localhost:3000
+npm run build           # Production build (must pass after every step)
+npm run lint            # Run ESLint (must pass after every step)
+npm run check:contrast  # Assert the WCAG ratios of theme/tokens.json (must pass)
 ```
 
 No test suite is configured yet. Until one exists, "verification" means build + lint + a manual check described in the history note.
@@ -89,7 +90,9 @@ The contract is `claude-notes/context/openapi.json`. Key routes in the current b
 > This section describes the code as it is today. The redesign (RFC §6) will change most of it; update this section as each step lands.
 
 ### App entry
-`app/page.tsx` re-exports `app/bda/page.tsx` as the root. The BDA page is the entire application. `app/login/page.tsx` exists but is not wired into routing.
+`app/layout.tsx` mounts the whole app's providers, in this order: `AppRouterCacheProvider` (Emotion SSR; without it the server and client disagree on where MUI's global styles go and React reports a hydration mismatch) → `ThemeRegistry` (the single `ThemeProvider` + `CssBaseline`) → `AuthProvider` → `ProjectProvider`. `InitColorSchemeScript` runs before them to set the colour scheme pre-paint. Inter is loaded here with `next/font` and exposed as `--font-inter`.
+
+`app/page.tsx` redirects to `/bda` or `/login` depending on `useAuth()`. The BDA page is the whole application; `app/login/page.tsx` **is** wired (it is the redirect target and `AuthContext.logout()` routes to it). `app/dev/theme` is a dev-only token preview that 404s in production. Step 3 replaces this routing per decision D4.
 
 ### Three-panel layout (`app/bda/page.tsx`)
 1. **Sidebar**: lists uploaded files; clicking switches the active document
@@ -118,7 +121,15 @@ These are the most valuable existing components. Reuse and extend them rather th
 Thin fetch wrappers, no SDK, no interceptors. All read `process.env.API_URL` with a fallback to `localhost:8000`.
 
 ### Styling
-Dark-mode MUI v7 theme in `theme/theme.ts`. Color tokens in `theme/colors.ts` are imported directly into components instead of using MUI palette tokens.
+MUI v7 with CSS theme variables and **both colour schemes** (step 1). No Tailwind (D2).
+
+- `theme/tokens.json` — the single source of truth for every colour, as `light` / `dark` / `document` groups. `document` is deliberately mode-invariant: a PDF page and a spreadsheet grid *are* the document, so they stay light in dark mode (§8.3).
+- `theme/tokens.ts` — typed view over that JSON, plus `radius`, `motion` (capped at 200 ms) and `shadow`.
+- `theme/theme.ts` — `createTheme` with `cssVariables.colorSchemeSelector: 'data-mui-color-scheme'` and both schemes. Semantic tokens are added to the palette by module augmentation, so components write `sx={{ bgcolor: 'surface.panel' }}` or `theme.vars.palette.*` and **never a raw colour**. Also owns the global focus ring, the `prefers-reduced-motion` reset, and a `MuiButtonBase` focus-visible override (ButtonBase resets `outline: 0`, which otherwise beats the global rule on source order).
+- `theme/layout.ts` — header/rail/split-pane constants, previously duplicated as magic numbers per page.
+- `theme/colors.ts` — **deprecated shim** holding the dark values so pre-redesign screens keep rendering. It is plain hex, not CSS variables, because call sites pass it through `alpha()` and string-concatenate alpha suffixes, both of which break on a `var()`. ESLint warns on importing it; the warning becomes an error when the last screen is migrated and the file is deleted.
+- Mode: default `system`, persisted by MUI to `localStorage` and mirrored to the backend's `user_settings.theme` by `hooks/useThemePreference.ts`. Quick toggle in `components/shell/ThemeToggle.tsx`; the full control belongs in Settings.
+- `npm run check:contrast` asserts the WCAG ratios in `scripts/contrast-check.mjs` and must pass.
 
 ### Local DB (`lib/db.ts`)
 Dexie (IndexedDB) database `BatterySpecDB` with a `files` table. Defined, but file blobs may be held in React state instead; check usages before relying on it.
@@ -136,7 +147,7 @@ A UUID is generated client-side via `uuidv4()` on mount and passed to every API 
 | Client-generated project UUID | The backend has a real `projects` table with customers, templates, and parameters. Projects must be created and listed through `/projects`, not invented client-side. |
 | `SCHEMA_GROUPS` is hardcoded with 4 categories (no End of Life) | The backend schema is dynamic per project and has a 5th category, `END_OF_LIFE`. Parameter lists and categories must come from the project, not a constant. See §8.2. |
 | Loading state is global | Pressing Analyze or uploading blocks the whole app, so the user cannot switch projects. See §8.1. |
-| Dark mode only | Light mode is required. See §8.3. |
+| ~~Dark mode only~~ | **Tokens and both schemes landed in step 1.** Remaining: the pre-redesign screens still import the deprecated `theme/colors.ts` shim, so they render dark in light mode until their own step migrates them to palette tokens. See §8.3. |
 | Only 5 SSE statuses handled | The new pipeline statuses (routing, fallback, workers, category failures) are silently ignored. |
 | Flags, reason codes, prompt pins, lineage not surfaced | See RFC §4–§5. |
 | No test suite | Verification is build + lint + manual until a plan step adds tests. |

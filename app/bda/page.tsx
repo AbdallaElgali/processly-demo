@@ -4,7 +4,7 @@ import '@/hooks/url-polyfill'; // <--- THIS MUST BE LINE 1
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Box, ThemeProvider, CssBaseline, CircularProgress, Snackbar, Alert, Dialog, Typography, IconButton } from '@mui/material';
+import { Box, CircularProgress, Snackbar, Alert, Dialog, Typography, IconButton } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,7 +14,6 @@ import { useHasMounted } from '@/hooks/useHasMounted';
 import { useParameterManager } from '@/hooks/ParameterManager';
 import { useDocumentManager } from '@/hooks/DocumentManager';
 import { useAnalyze } from '@/hooks/useAnalyze';
-import { theme } from '@/theme/theme';
 import { colors } from '@/theme/colors';
 import { MemoizedInputFieldsList } from '@/components/input-fields-list';
 import { LayoutHeader } from '@/components/Headers/LayoutHeader';
@@ -233,12 +232,9 @@ export default function BDA() {
   if (!hasMounted) return null;
   if (authLoading || projectsLoading || !user) {
     return (
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <Box sx={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', bgcolor: colors.background }}>
-          <CircularProgress />
-        </Box>
-      </ThemeProvider>
+      <Box sx={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', bgcolor: colors.background }}>
+        <CircularProgress />
+      </Box>
     );
   }
   
@@ -255,8 +251,7 @@ export default function BDA() {
   const projectName = currentProject?.alias_id || currentProject?.title || currentProject?.name || '';
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
+    <>
       <Box sx={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden' }}>
         <LayoutHeader />
         <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
@@ -384,6 +379,6 @@ export default function BDA() {
       >
         <Alert severity="error" onClose={clearCorrectionError}>{correctionError}</Alert>
       </Snackbar>
-    </ThemeProvider>
+    </>
   );
 }

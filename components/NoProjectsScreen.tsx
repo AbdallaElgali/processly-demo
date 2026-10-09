@@ -5,10 +5,8 @@ import {
   Alert,
   Box,
   Button,
-  CssBaseline,
   Paper,
   TextField,
-  ThemeProvider,
   Typography,
   Select,
   MenuItem,
@@ -18,7 +16,6 @@ import {
 } from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import { LayoutHeader } from '@/components/Headers/LayoutHeader';
-import { theme } from '@/theme/theme';
 import { colors } from '@/theme/colors';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCustomers } from '@/hooks/Customers'; // Adjust the import path as needed
@@ -98,8 +95,7 @@ export const NoProjectsScreen = ({ onCreateProject }: NoProjectsScreenProps) => 
   };
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
+    <>
       <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', bgcolor: colors.background }}>
         <LayoutHeader />
         <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3 }}>
@@ -209,6 +205,6 @@ export const NoProjectsScreen = ({ onCreateProject }: NoProjectsScreenProps) => 
           </Box>
         </Box>
       </Modal>
-    </ThemeProvider>
+    </>
   );
 };
