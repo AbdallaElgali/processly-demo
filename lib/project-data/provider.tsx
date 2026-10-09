@@ -21,6 +21,12 @@ export function ProjectDataProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const userId = user?.id ?? null;
 
+  // Adopts the queue left by the previous session, takes this tab's lock and
+  // joins the cross-tab channel. Idempotent.
+  useEffect(() => {
+    void jobRuntime.start();
+  }, []);
+
   useEffect(() => {
     jobRuntime.setUserId(userId);
 

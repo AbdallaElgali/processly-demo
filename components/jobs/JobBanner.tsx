@@ -89,8 +89,25 @@ export function JobBanner({ projectId }: { projectId: string | null }) {
       )}
 
       {interrupted && (
-        <Alert severity="warning" sx={{ mb: 1 }}>
-          This run was interrupted and saved nothing. Start it again when you are ready.
+        <Alert
+          severity="warning"
+          sx={{ mb: 1 }}
+          action={
+            <Stack direction="row" spacing={1}>
+              <Button size="small" color="inherit" onClick={() => void jobRuntime.runAgain(interrupted.id)}>
+                Run again
+              </Button>
+              <Button size="small" color="inherit" onClick={() => void jobRuntime.dismiss(interrupted.id)}>
+                Dismiss
+              </Button>
+            </Stack>
+          }
+        >
+          {/* Results are saved only when a run reaches `complete` (D9), so an
+              interrupted run really did save nothing. Re-running costs tokens
+              and creates a new extraction run, so it stays the user's choice. */}
+          The tab running this {KIND_LABEL[interrupted.kind].toLowerCase()} was closed or
+          refreshed, so it saved nothing.
         </Alert>
       )}
 

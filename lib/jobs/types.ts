@@ -55,9 +55,12 @@ export interface Job {
   startedAt?: number;
   endedAt?: number;
 
-  /** Which tab is running it. Display and debugging only; liveness comes from
-   *  the per-job Web Lock, not from a timer (AM2). */
+  /** Which tab is running it. Liveness comes from the per-job Web Lock, not
+   *  from a timer or from this field (AM2). */
   ownerTabId?: string;
+  /** The tab that queued it: that tab starts it, so work appears where the
+   *  user asked for it. Any tab may adopt it if that tab is gone. */
+  enqueuedByTabId?: string;
 
   phase: TimelinePhase;
   events: SseEvent[];

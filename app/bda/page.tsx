@@ -101,7 +101,7 @@ export default function BDA() {
   // sends its results to the wrong project (CLAUDE.md 8.1).
   const handleDocumentUploadAndRefresh = useCallback(async (files: File[]) => {
     if (!activeProjectId) return;
-    jobRuntime.enqueue(createJob(activeProjectId, { kind: 'upload', fileRefs: [] }), files);
+    void jobRuntime.enqueue(createJob(activeProjectId, { kind: 'upload', fileRefs: [] }), files);
     setIsUploadModalOpen(false);
   }, [activeProjectId]);
 
@@ -111,7 +111,7 @@ export default function BDA() {
     // parameters go back as `previous_specs` so the backend re-extracts them.
     const hasFlagged = fields.some(f => f.isFlagged);
     const previousSpecs = hasFlagged ? mapFieldsToSpecs(fields) : null;
-    jobRuntime.enqueue(createJob(activeProjectId, {
+    void jobRuntime.enqueue(createJob(activeProjectId, {
       kind: 'extraction',
       mode: hasFlagged ? 'ITERATIVE' : 'BLIND',
       previousSpecs,
@@ -128,7 +128,7 @@ export default function BDA() {
       { ...field, isFlagged: true, flagReason: reason, activeFlagId: newFlagId },
     ]) as Record<string, unknown> | null;
 
-    jobRuntime.enqueue(createJob(activeProjectId, {
+    void jobRuntime.enqueue(createJob(activeProjectId, {
       kind: 'correction',
       parameterKey: field.id,
       previousMetrics: (scoped?.[field.id] ?? []) as unknown[],
