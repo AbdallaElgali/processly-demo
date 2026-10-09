@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { Box, Typography } from '@mui/material';
+import { Box, Typography, type SxProps, type Theme } from '@mui/material';
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
 
 /**
@@ -19,9 +19,12 @@ const ACCEPT = '.pdf,.xlsx,.xlsm';
 export function Dropzone({
   onFiles,
   queuedHint = false,
+  sx,
 }: {
   onFiles: (files: File[]) => void;
   queuedHint?: boolean;
+  /** Layout overrides, e.g. filling an empty Workspace (AM11). */
+  sx?: SxProps<Theme>;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -70,6 +73,7 @@ export function Dropzone({
           outlineColor: 'accent.focus',
           outlineOffset: 2,
         },
+        ...(sx as object),
       }}
     >
       <input

@@ -6,7 +6,7 @@ import { useProjectActivity } from '@/lib/jobs/hooks';
 import { jobRuntime } from '@/lib/jobs/runtime';
 import { jobStore } from '@/lib/jobs/store';
 import type { Job } from '@/lib/jobs/types';
-import { RunTimeline } from '@/components/extract/RunTimeline';
+import { RunTimeline } from '@/components/workspace/RunTimeline';
 
 const PHASE_LABEL: Record<string, string> = {
   queued: 'Queued',

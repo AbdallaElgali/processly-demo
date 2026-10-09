@@ -43,14 +43,15 @@ The last row is the main payoff. The backend already produces Mindee-grade trace
 flowchart LR
   Home[Projects list] --> P[Project shell]
   P --> O[Overview<br/>status, counts, last run]
-  P --> E[Extract<br/>upload + live run timeline]
-  P --> R[Review<br/>split pane + HITL]
+  P --> W[Workspace<br/>upload, live run, split-pane review + HITL]
   P --> PA[Parameters<br/>schema, templates]
   P --> PM[Prompts & Models<br/>pins, resolution preview]
   P --> AU[Audit<br/>runs, lineage, flags]
   P --> S[Settings<br/>contributors, auditors]
   Admin[Global Admin<br/>slots, versions, GLOBAL/CUSTOMER assignments] -.-> PM
 ```
+
+Since AM11 (owner decision after step 7), Extract and Review are one **Workspace** screen: the run timeline collapses into the toolbar and the review split pane stays usable while a run is going. The Runs history moved to Audit.
 
 `DELETE /system/reset-database` must **never** appear in the UI, not even behind a dev flag.
 

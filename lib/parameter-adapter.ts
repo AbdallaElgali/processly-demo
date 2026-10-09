@@ -9,14 +9,8 @@ import {
   Specification,
   SpecificationSource,
   ReviewAction,
-  SCHEMA_GROUPS,
 } from '@/types';
 import { ProjectParameter, ParameterInput } from '@/api/projects';
-
-// Flat lookup: parameter_key -> display label
-const FIELD_LABEL_MAP = new Map(
-  SCHEMA_GROUPS.flatMap(g => g.fields.map(f => [f.id, f.label] as const))
-);
 
 // Backend confidence is on a 0–1 scale; the UI works in 0–100.
 const toUiConfidence = (c: unknown): number | null =>
@@ -100,6 +94,9 @@ const candidateToSpecification = (item: Record<string, unknown>): Specification 
     rule_passed: !item.rule_violations || (item.rule_violations as unknown[]).length === 0,
     rule_violations: (item.rule_violations as string[]) || [],
     requires_review: (item.requires_review as boolean) || false,
+    expectedUnit: (item.expected_unit as string) ?? null,
+    extractionLogic: (item.extraction_logic as string) ?? null,
+    calculationLogic: (item.calculation_logic as string) ?? null,
   };
 };
 
@@ -210,10 +207,6 @@ export const inputFieldToParameterInput = (
 
 // --- Stream -> UI -----------------------------------------------------------
 
-const schemaLabelMap: Record<string, string> = Object.fromEntries(
-  SCHEMA_GROUPS.flatMap(g => g.fields.map(f => [f.id, f.label]))
-);
-
 // Maps the raw spec map streamed from /specs/stream-specs into transient
 // InputFields. Only `id` and `specifications` are consumed downstream by
 // handlePopulateExtractedData, so the flag/review fields are placeholders.
@@ -227,7 +220,7 @@ export const specsStreamToInputFields = (rawSpecs: Record<string, unknown>): Inp
     extractedFields.push({
       id: fieldId,
       dbId: '', // transient — handlePopulateExtractedData only reads specifications
-      label: schemaLabelMap[fieldId] ?? fieldId,
+      label: fieldId, // transient, like dbId
       specifications: metricsArray.map((item: Record<string, unknown>) =>
         candidateToSpecification(item)
       ),

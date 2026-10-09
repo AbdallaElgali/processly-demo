@@ -11,7 +11,7 @@ export default function OverviewPage() {
       step="Step 12"
       summary="Project status, document and parameter counts, and the last extraction run."
       routes={['GET /projects/{id}', 'GET /projects/{id}/extraction-runs']}
-      action={{ label: 'Go to Extract', href: `/projects/${projectId}/extract` }}
+      action={{ label: 'Open Workspace', href: `/projects/${projectId}/workspace` }}
     />
   );
 }

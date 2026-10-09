@@ -185,7 +185,7 @@ export default function ProjectsPage() {
         onClose={() => setDialogOpen(false)}
         onCreated={(projectId) => {
           setDialogOpen(false);
-          router.push(`/projects/${projectId}/extract`);
+          router.push(`/projects/${projectId}/workspace`);
         }}
       />
 

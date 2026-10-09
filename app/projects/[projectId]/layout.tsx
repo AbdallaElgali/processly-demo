@@ -14,6 +14,7 @@ import { loadProjectDetails } from '@/lib/project-data/actions';
 import { projectsIndex } from '@/lib/project-data/projects-index';
 import { useProjectsIndex } from '@/lib/project-data/provider';
 import { useCustomers } from '@/hooks/Customers';
+import { ToastHost } from '@/components/ui/Toast';
 
 const RAIL_COLLAPSED_KEY = 'bda.rail.collapsed';
 
@@ -72,6 +73,8 @@ export default function ProjectLayout({ children }: { children: ReactNode }) {
           {children}
         </Box>
       </Box>
+      {/* One toast queue for every project screen; job runners and screens both post to it. */}
+      <ToastHost />
     </Box>
   );
 }

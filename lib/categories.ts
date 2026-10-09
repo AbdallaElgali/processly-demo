@@ -81,35 +81,53 @@ export function compareCategories(a: ResolvedCategory, b: ResolvedCategory): num
   return a.order - b.order || a.label.localeCompare(b.label);
 }
 
-export interface CategoryTally {
+export interface FieldGroup {
   category: ResolvedCategory;
-  /** Parameters in this project assigned to this category. */
-  total: number;
-  /** Of those, how many currently have at least one AI candidate. */
-  filled: number;
+  fields: InputField[];
+  /** Parameters in this group whose selected candidate has a value. */
+  found: number;
+}
+
+function fieldHasValue(field: InputField): boolean {
+  const spec = field.specifications.find((s) => s.id === field.selectedSpecId) ?? field.specifications[0];
+  return !!spec && String(spec.value ?? '').trim() !== '';
 }
 
 /**
- * Per-category totals for the Extract screen's CategoryCards: how many of the
- * project's own parameters fall in each category (joining the canonical
- * dictionary on parameter key, decision D5), and how many of those already
- * have a value. `filled` reflects whatever is in `fields` right now, so it
- * updates live as partial results are merged into the project's fields.
+ * Groups a project's parameters by category for the Workspace table (D5,
+ * CLAUDE.md 8.2, AM9).
+ *
+ * - Each field's category comes from joining the canonical dictionary on
+ *   parameter key (`CanonicalParameter.name === field.id`), until Task B (B4)
+ *   puts `category` on the project payload.
+ * - **Every known category is returned, even with zero fields**, so a missing
+ *   End of Life block is visible rather than silently absent.
+ * - Unknown categories are appended with a humanised label; fields with no
+ *   match (or no category) go to Other. Both appear only when non-empty.
+ * - Order within a group is the input order (the backend already sorts by
+ *   category then name); callers re-sort for "needs review first".
  */
-export function tallyByCategory(fields: InputField[], canonical: CanonicalParameter[]): CategoryTally[] {
+export function groupFields(fields: InputField[], canonical: CanonicalParameter[]): FieldGroup[] {
   const categoryByKey = new Map(canonical.map((p) => [p.name, p.category]));
-  const tallies = new Map<string, CategoryTally>();
+  const groups = new Map<string, FieldGroup>();
 
-  for (const field of fields) {
-    const resolved = resolveCategory(categoryByKey.get(field.id));
-    let tally = tallies.get(resolved.key);
-    if (!tally) {
-      tally = { category: resolved, total: 0, filled: 0 };
-      tallies.set(resolved.key, tally);
-    }
-    tally.total += 1;
-    if (field.specifications.length > 0) tally.filled += 1;
+  for (const [key] of KNOWN_CATEGORIES) {
+    const category = resolveCategory(key);
+    groups.set(category.key, { category, fields: [], found: 0 });
   }
 
-  return [...tallies.values()].sort((a, b) => compareCategories(a.category, b.category));
+  for (const field of fields) {
+    const category = resolveCategory(categoryByKey.get(field.id));
+    let group = groups.get(category.key);
+    if (!group) {
+      group = { category, fields: [], found: 0 };
+      groups.set(category.key, group);
+    }
+    group.fields.push(field);
+    if (fieldHasValue(field)) group.found += 1;
+  }
+
+  return [...groups.values()]
+    .filter((g) => g.fields.length > 0 || g.category.order < KNOWN_CATEGORIES.length)
+    .sort((a, b) => compareCategories(a.category, b.category));
 }

@@ -82,7 +82,7 @@ export function JobTray() {
               <ListItemButton
                 key={job.id}
                 component={Link}
-                href={`/projects/${job.projectId}/extract`}
+                href={`/projects/${job.projectId}/workspace`}
                 onClick={() => setAnchor(null)}
               >
                 <Box sx={{ mr: 1.5 }}>

@@ -7,7 +7,6 @@ import {
   Box, Divider, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Tooltip,
 } from '@mui/material';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
-import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
 import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
@@ -19,11 +18,11 @@ import { layout } from '@/theme/layout';
 import { useProjectActivity } from '@/lib/jobs/hooks';
 import { JobBadge, activityBadge } from '@/components/jobs/JobBadge';
 
-/** RFC section 2's project-scoped navigation, in display order. */
+/** RFC section 2's project-scoped navigation, in display order. Extract and
+ *  Review are one Workspace since AM11. */
 const NAV = [
   { slug: 'overview', label: 'Overview', Icon: DashboardOutlinedIcon },
-  { slug: 'extract', label: 'Extract', Icon: AutoAwesomeOutlinedIcon },
-  { slug: 'review', label: 'Review', Icon: FactCheckOutlinedIcon },
+  { slug: 'workspace', label: 'Workspace', Icon: FactCheckOutlinedIcon },
   { slug: 'parameters', label: 'Parameters', Icon: TuneOutlinedIcon },
   { slug: 'prompts', label: 'Prompts & Models', Icon: SmartToyOutlinedIcon },
   { slug: 'audit', label: 'Audit', Icon: HistoryOutlinedIcon },
@@ -31,7 +30,7 @@ const NAV = [
 ] as const;
 
 /** Which nav items carry this project's background-work badge. */
-const BADGE_ON: Record<string, boolean> = { extract: true, review: true };
+const BADGE_ON: Record<string, boolean> = { workspace: true };
 
 interface ProjectRailProps {
   projectId: string;

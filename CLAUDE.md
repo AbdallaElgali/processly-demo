@@ -64,6 +64,8 @@ npm run dev             # Start dev server at http://localhost:3000
 npm run build           # Production build (must pass after every step)
 npm run lint            # Run ESLint (must pass after every step)
 npm test                # Vitest unit tests (must pass after every step, from 2a-i on)
+                        # Vitest's Vite needs Node >= 20.19; on 20.17 run it as
+                        # NODE_OPTIONS=--experimental-require-module npm test
 npm run check:contrast  # Assert the WCAG ratios of theme/tokens.json (must pass)
 ```
 
@@ -120,22 +122,25 @@ There is **no `refining` status** — an earlier version of this list claimed on
 | `/login` | Sign in by username (A2: no password, no token) |
 | `/projects` | Projects list: card grid, search, New project dialog |
 | `/projects/[projectId]` | Redirects to that project's Overview |
-| `/projects/[projectId]/{overview,extract,review,parameters,prompts,audit,settings}` | The project tabs |
+| `/projects/[projectId]/{overview,workspace,parameters,prompts,audit,settings}` | The project tabs. `extract` and `review` redirect to `workspace` (AM11, `next.config.ts`) |
 | `/admin` | Audit dashboard, outside the project nav and labelled unauthenticated |
 | `/dev/gallery` | Dev-only component gallery (tokens plus every `components/ui/` primitive, both modes); 404s in production. Absorbed `/dev/theme` in step 5. |
 
 `/bda` and `/review` are retired and redirect to `/projects` (`next.config.ts`).
 
-**`review` and `extract` are real screens; the other five are still `ScreenPlaceholder`s** naming the step that builds them and the routes they will call. Upload and Analyze moved to Extract in step 7 (Review's toolbar no longer has them); steps 8-10 rebuild Review as the split pane.
+**`workspace` is the real working screen**; Audit shows the live Runs table above a placeholder; Overview, Parameters, Prompts and Settings are still `ScreenPlaceholder`s naming the step that builds them and the routes they will call.
 
-### Extract (`app/projects/[projectId]/extract/`, step 7)
-Tabs: **Extract** (`Dropzone` → an upload job; Analyze → a blind or iterative-correction extraction job, gated by `useCanStart`; `JobBanner`, which renders `RunTimeline` — RFC §3's six-step pipeline, derived purely from the job's own `phase`/`events`, no new phase values — for a running extraction/correction, or a plain phase line for an upload; `CategoryCards` while one of those is running; `DocumentsTable` combining `details.documents` with rows for a queued/running upload's files) and **Runs** (`RunsTab`, `DataTable` over `GET /projects/{id}/extraction-runs`, filter chips by `extraction_type`). `components/extract/` holds all of these plus `CategoryCard`.
-- `lib/categories.ts` — category resolution (D5/AM9: case- and separator-insensitive matching against the known Voltage/Current/Temperature/Capacity/End_Of_Life set, unknown categories humanised and appended, `Other` last) and `tallyByCategory` (per-category found/total for `CategoryCards`, joining the project's own fields against the canonical dictionary). Unit-tested. The full parameter-row grouping (`groupFields`, the Review table's empty-known-category rule) is step 8's; this only backs the Extract screen's progress cards, which show a category solely when the project has parameters in it.
+### Workspace (`app/projects/[projectId]/workspace/`, step 8, AM11/AM14)
+Extract and Review are one screen. **Toolbar:** Add documents (file picker) · Analyze (blind, or iterative when rows are flagged; gated by `useCanStart`) · `JobStatusLine` (the project's job as one line; click opens the full `JobBanner` with `RunTimeline` in a popover) · Runs (→ Audit) · Save · Approve · Export .battery. **Body**, full-bleed: with no documents, the whole body is the `Dropzone`; otherwise a `SplitPane` (`components/ui/SplitPane.tsx`, ratio persisted, keyboard separator) with `ParameterTable` left and `DocumentTabs` + the existing `DocumentRouter` viewer right. Dropping files anywhere on the screen shows a full-area overlay and uploads. `components/workspace/` holds `ParameterTable`, `ParameterRow` (row + detail: candidates, value edit, flag form), `ValueCell`, `indicators.tsx` (`QualifierTags`, `ConfidenceIndicator`, `StateBadge`, `SecondaryFacts`), `JobStatusLine`, `DocumentTabs`, `RunTimeline`, `RunsTab`.
+- **Pure review logic** in `lib/review/` (unit-tested in `review.test.ts`, `export.test.ts`): `rowState.ts` (AM1 precedence, one primary state per row, secondary facts; `requires_review` is never "Bounds"), `reasonCodes.ts` (the four backend strings copied from `BDA/src/engine/reason_codes.py`, prefix match only, AM6), `format.ts` (display rounding to 6 significant digits, AM10; Save never sends the rounded value), `domain.ts` (qualifier tags from the key, C-rate vs absolute, discharge sign, unit-differs), `confidence.ts` (`CONFIDENCE_HIGH = 85` on the UI's 0-100 scale).
+- `lib/categories.ts` — category resolution (D5/AM9: case- and separator-insensitive matching against the known Voltage/Current/Temperature/Capacity/End_Of_Life set, unknown categories humanised and appended, `Other` last) and `groupFields` (every known category always returned, even empty; unknown and Other only when non-empty). Category live state during a run (extracting / updated / workers failed) is drawn in the table's category headers; the step-7 `CategoryCards` and `DocumentsTable` are gone.
+- `static/battery-template.ts` — `.battery` export with its own `BATTERY_EXPORT_KEYS` map (D8) and `missingExportKeys` (the pre-export check). Writes discharge currents with their stored sign; it never negates them.
+- `ToastHost` is mounted once in the project layout; screens and job runners post with `toast.show(...)`.
 - `hooks/useCanonicalParameters.ts` — `GET /extraction-templates/parameters`, cached at module scope so every caller in the session shares one fetch.
-- `job.uploadWarnings?: string[]` (`lib/jobs/types.ts`) carries an upload's per-file failures (`RunOutcome.warnings`) onto the completed job, read by `DocumentsTable`; the reducer's `complete` action takes an optional `warnings` field for this.
+- `job.uploadWarnings?: string[]` (`lib/jobs/types.ts`) carries an upload's per-file failures (`RunOutcome.warnings`) onto the completed job, read by `DocumentTabs` ("N not accepted"); the reducer's `complete` action takes an optional `warnings` field for this.
 
 ### The shell (`components/shell/`, built to the §8.4 bar per AM5 — step 5 does not rebuild it)
-`app/projects/[projectId]/layout.tsx` mounts it once for every tab: `AppHeader` (wordmark, breadcrumb slot, `JobTray`, `ThemeToggle`, account menu) above `ProjectRail` (seven nav items, per-project activity badges, collapsible to icons, arrow/Home/End keyboard navigation) beside the screen. `Breadcrumb` renders `Projects › Customer › Project` per D6. The URL is the source of truth for which project is open; the layout tells `projectsIndex` so badges and the job tray agree with the address bar.
+`app/projects/[projectId]/layout.tsx` mounts it once for every tab: `AppHeader` (wordmark, breadcrumb slot, `JobTray`, `ThemeToggle`, account menu) above `ProjectRail` (six nav items since AM11, per-project activity badges, collapsible to icons, arrow/Home/End keyboard navigation) beside the screen. `Breadcrumb` renders `Projects › Customer › Project` per D6. The URL is the source of truth for which project is open; the layout tells `projectsIndex` so badges and the job tray agree with the address bar.
 
 ### Shared component library (`components/ui/`, step 5)
 Generic primitives used across screens, as opposed to `components/shell` (navigation chrome) and `components/jobs` (job-store-aware), both already built: `SearchField` (debounced by the caller, `/` focuses it, `Esc` clears), `StatusChip` (the 4 project statuses), `ProjectCard` (extracted from the step-3 projects list), `EmptyState`/`ErrorState`, `Skeletons` (`SkeletonCardGrid`, `SkeletonRows`), `DataTable` (sortable header, skeleton/error/empty body — used by the Runs/Pins/Templates/Members tables from step 7 on), `Toast`/`ToastHost` (one bottom-left queue; `toast.show(...)` is callable from anywhere, including non-component code like a job runner), `ConfirmDialog`/`FormDialog` (shared dialog shells; existing dialogs built before this step, e.g. `NewProjectDialog`, keep their own markup and adopt these only if a later step touches them anyway), `DensityToggle` (controlled; the caller persists the choice), `GuidedTour` (anchored by CSS selector, so it has no coupling to the component it points at; steps 6+ pass real `steps`). All demoed in both modes in `/dev/gallery`.
@@ -159,7 +164,8 @@ Added in step 2a-i and wired into the app in 2a-ii. **This replaced `ProjectCont
 ### Data model (`types/index.ts`)
 - `InputField`: one battery parameter (e.g. `U_MIN`), with an array of `Specification` candidates and a `selectedSpecId`.
 - `Specification`: one extracted value with `confidence`, `unit`, `source` (`pageNumber`/`boundingBox` for PDFs, `tableName`/`cellCoordinates` for Excel), plus validation flags (`rule_passed`, `rule_violations`, `requires_review`).
-- `SCHEMA_GROUPS`: hardcoded field list grouped as Voltage, Current, Temperature, Capacity.
+- `Specification` also carries `expectedUnit`, `extractionLogic` (the model's written rationale, or a reason code on a null candidate) and `calculationLogic`, mapped in `lib/parameter-adapter.ts`.
+- There is no hardcoded parameter list any more (`SCHEMA_GROUPS` was deleted in step 8); labels come from `parameter_alias`, categories from `groupFields`.
 
 ### Document viewers (`components/DocumentViewer/`)
 `DocumentRouter` delegates by MIME type to:
@@ -198,7 +204,7 @@ A UUID is generated client-side via `uuidv4()` on mount and passed to every API 
 |---|---|
 | Endpoints in `api/` are outdated (`/files/upload-document/`, `/specs/extract-specs/`, `/chat`) | The backend now uses `/files/upload-documents/`, `/specs/stream-specs`, `/specs/stream-parameter`. `/chat` is not in the current backend. |
 | Client-generated project UUID | The backend has a real `projects` table with customers, templates, and parameters. Projects must be created and listed through `/projects`, not invented client-side. |
-| `SCHEMA_GROUPS` is hardcoded with 4 categories (no End of Life) | The backend schema is dynamic per project and has a 5th category, `END_OF_LIFE`. Parameter lists and categories must come from the project, not a constant. See §8.2. |
+| ~~`SCHEMA_GROUPS` is hardcoded with 4 categories (no End of Life)~~ | **Fixed in step 8.** Deleted; the Workspace groups by `groupFields` from data, End of Life included. |
 | Loading state is global | Pressing Analyze or uploading blocks the whole app, so the user cannot switch projects. See §8.1. |
 | ~~Dark mode only~~ | **Tokens and both schemes landed in step 1.** Remaining: the pre-redesign screens still import the deprecated `theme/colors.ts` shim, so they render dark in light mode until their own step migrates them to palette tokens. See §8.3. |
 | ~~Only 5 SSE statuses handled~~ | **Fixed in step 7.** `RunTimeline` draws all of the pipeline (routing/extracting/supervising) and `JobBanner` labels every warning status (routing_truncated, no_frames_tagged, category_extraction_fallback, category_workers_failed) in place rather than ignoring it. |
@@ -223,7 +229,7 @@ A UUID is generated client-side via `uuidv4()` on mount and passed to every API 
 ### 8.1 Work is scoped to a project, never to the app
 - Long-running work (upload, analysis, extraction, correction) belongs to **one project**. It must never block navigation, other projects, or the rest of the UI.
 - Job state lives in an **app-level store keyed by `projectId`** (and `runId` once the backend provides it), above the route tree. A job keeps running when the user navigates away from its project, because the component that started it is not its owner.
-- Loading is shown **where the work is**: a per-project activity badge in the projects list/sidebar, and progress inside that project's Extract screen. No full-screen spinners, no app-wide disabled states.
+- Loading is shown **where the work is**: a per-project activity badge in the projects list/sidebar, and progress inside that project's Workspace. No full-screen spinners, no app-wide disabled states.
 - One project may not start a second extraction while one is running (disable that project's Analyze button only).
 - **Concurrency cap: at most 3 active jobs app-wide** (uploads and extractions both count; make the number one config constant). Browsers allow only about 6 connections per origin, and the app still needs connections for normal navigation.
 - **Opening projects is never capped.** At the cap, the user can still open, browse and review any project. Only *starting* new work is affected: the new job is **queued**, shown in that project as "Queued, position N" with a cancel action, and starts automatically when a slot frees up (first in, first out).
@@ -270,11 +276,11 @@ Settled after `claude-notes/plans/explore-A.md`. Follow these; do not re-open th
 | D1 | Accent colour | Keep brand cyan `#00AAB9` as the accent hue, with **two shades**: the brand shade for fills and surfaces, and a darker cyan for text, links and focus rings in light mode so they pass WCAG AA contrast on white. Dark mode picks its own readable shade. One accent only; no purple secondary. |
 | D2 | Styling system | **Remove Tailwind.** MUI v7 is the only styling system; one `ThemeProvider` in `app/layout.tsx`. |
 | D3 | User registration | **In scope.** Rebuild it as a proper form: `username` plus a `department` dropdown with exactly `Zelle`, `Module`, `Pack`. Send only fields in `UserRegistration`. It is not "Settings"; Settings is the theme/contributors screen. |
-| D4 | Routing | URL-based project routes: `/projects` (list) and `/projects/[projectId]/(overview\|extract\|review\|parameters\|prompts\|audit\|settings)`. `/bda` and `/review` are retired. `/admin` stays outside the project nav, labelled as unauthenticated. |
+| D4 | Routing | URL-based project routes: `/projects` (list) and `/projects/[projectId]/(overview\|workspace\|parameters\|prompts\|audit\|settings)` (AM11 merged Extract and Review into `workspace`; the old paths redirect). `/bda` and `/review` are retired. `/admin` stays outside the project nav, labelled as unauthenticated. |
 | D5 | Parameter categories | Until the backend adds `category` to the project payload (Task B), group by joining project parameters to `GET /extraction-templates/parameters` (`CanonicalParameter.category`) on the parameter key. This uses a real backend field, so it is not inventing data. Unmatched parameters go to an "Other" group, never dropped. |
 | D6 | Customer in breadcrumb | Use the customer from the project payload if present; otherwise join `GET /customers/` by `customer_id`. If neither resolves, show the project alone. |
 | D7 | Source file for the viewer | Fetch only the active document, via `GET /documents/{doc_id}/file`. Treat 404 and 410 alike as "Source unavailable, values preserved". |
-| D8 | `.battery` export | Keep it, as an Export action in the Review header. It is a fixed downstream format, so it keeps its own **explicit key map** (independent of categories and of the removed `SCHEMA_GROUPS`), and it lists any required key that has no value before exporting. |
+| D8 | `.battery` export | Keep it, as an Export action in the Workspace toolbar. It is a fixed downstream format, so it keeps its own **explicit key map** (independent of categories and of the removed `SCHEMA_GROUPS`), and it lists any required key that has no value before exporting. |
 | D9 | Interrupted runs | Confirmed from the backend: results are saved only when the stream reaches `complete`. An interrupted run has saved nothing. |
 | D10 | Response types | Most `openapi.json` responses are untyped. Hand-write response types for the routes Task A uses, each with a comment naming the route, and mark them for replacement by generated types in Task B. |
 | D11 | Live data-corruption bug | A running analysis currently writes into whichever project is on screen (shared `fields[]`). The job-store step must key **data**, not just loading flags, by `projectId`, and its history note must state that this bug is fixed. |
