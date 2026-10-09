@@ -58,8 +58,13 @@ export function NewProjectDialog({
   }, [open, user?.id, user?.template_id, loadCustomers]);
 
   const reset = () => {
-    setAlias(''); setDescription(''); setCustomerId('');
+    setAlias(''); setDescription(''); setCustomerId(''); setTemplateId('');
     setNewCustomer(''); setAddingCustomer(false); setError(null);
+  };
+
+  const handleClose = () => {
+    reset();
+    onClose();
   };
 
   const handleAddCustomer = async () => {
@@ -103,7 +108,7 @@ export function NewProjectDialog({
   return (
     <FormDialog
       open={open}
-      onClose={onClose}
+      onClose={handleClose}
       title="New project"
       error={error}
       onSubmit={() => void handleCreate()}

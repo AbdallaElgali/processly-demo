@@ -68,6 +68,13 @@ describe('lifecycle', () => {
     expect(only(state).phase).toBe('done');
   });
 
+  it('carries per-file upload warnings onto the completed job', () => {
+    const state = jobsReducer(withJob(baseJob({ status: 'running', kind: 'upload' })), {
+      type: 'complete', jobId: 'j1', at: 9, seen: true, warnings: ['bad.pdf: corrupt file'],
+    });
+    expect(only(state).uploadWarnings).toEqual(['bad.pdf: corrupt file']);
+  });
+
   it('marks a project seen without touching other projects', () => {
     let state = withJob(baseJob({ id: 'a', projectId: 'p1', status: 'completed' }));
     state = jobsReducer(state, { type: 'enqueue', job: baseJob({ id: 'b', projectId: 'p2', status: 'completed' }) });

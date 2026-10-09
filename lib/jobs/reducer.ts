@@ -91,6 +91,7 @@ export function jobsReducer(state: JobsState, action: JobAction): JobsState {
         phase: 'done',
         endedAt: action.at,
         seen: action.seen,
+        uploadWarnings: action.warnings ?? job.uploadWarnings,
       }));
 
     case 'fail':

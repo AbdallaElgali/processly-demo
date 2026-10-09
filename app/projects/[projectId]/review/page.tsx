@@ -6,10 +6,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import {
-  Alert, Box, Button, Divider, Skeleton, Snackbar, Stack, Tooltip, Typography,
+  Alert, Box, Button, Skeleton, Snackbar, Stack, Typography,
 } from '@mui/material';
-import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
-import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import DoneAllIcon from '@mui/icons-material/DoneAll';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
@@ -19,14 +17,13 @@ import { useResizer } from '@/hooks/Resizer';
 import { useParameterManager } from '@/hooks/ParameterManager';
 import { useDocumentManager } from '@/hooks/DocumentManager';
 import { MemoizedInputFieldsList } from '@/components/input-fields-list';
-import { UploadModal } from '@/components/UploadModal';
 import { JobBanner } from '@/components/jobs/JobBanner';
 import { FrontendBatteryFileExport } from '@/static/battery-template';
 import type { InputField } from '@/types';
 import { inputFieldToParameterInput, mapFieldsToSpecs } from '@/lib/parameter-adapter';
 import { updateProjectParameter } from '@/api/projects';
 import { approveProject, saveParameters, updateParameterMetadata } from '@/lib/project-data/actions';
-import { useCanStart, useProjectActivity, useProjectData } from '@/lib/jobs/hooks';
+import { useProjectActivity, useProjectData } from '@/lib/jobs/hooks';
 import { createJob, jobRuntime } from '@/lib/jobs/runtime';
 
 const DocumentRouter = dynamic(
@@ -38,10 +35,11 @@ const DocumentRouter = dynamic(
  * Review — the interim screen.
  *
  * This is the pre-redesign editor body, moved under the new shell so the app
- * stays fully usable while the real screens are built: Extract takes upload
- * and analyze in step 7, and steps 8-10 rebuild this as the split-pane review
- * with the row states from RFC section 4. The toolbar below replaces the old
- * 56px icon rail; everything it does is unchanged.
+ * stays fully usable while the real screens are built. Upload and Analyze
+ * moved to Extract in step 7; this toolbar keeps everything Extract does not
+ * own -- flag, flag-and-retry, candidate switch, save, approve, export. Steps
+ * 8-10 rebuild this as the split-pane review with the row states from RFC
+ * section 4.
  */
 export default function ReviewPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -50,7 +48,6 @@ export default function ReviewPage() {
   const [isSidebarOpen] = useState(true);
   const { viewerWidth, startResizing } = useResizer(isSidebarOpen);
 
-  const [isUploadOpen, setUploadOpen] = useState(false);
   const [isSaving, setSaving] = useState(false);
   const [isApproving, setApproving] = useState(false);
   const [isExporting, setExporting] = useState(false);
@@ -59,7 +56,6 @@ export default function ReviewPage() {
   const projectState = useProjectData(projectId);
   const details = projectState?.details ?? null;
   const activity = useProjectActivity(projectId);
-  const analyzeGate = useCanStart(projectId, 'extraction');
 
   const persistFields = useCallback(
     async (fields: InputField[]) => {
@@ -78,8 +74,8 @@ export default function ReviewPage() {
   } = useParameterManager({ persist: persistFields, projectId });
 
   const {
-    uploadedFiles, activeFileId, activeDoc, activeSource,
-    hydrateFiles, isLoading: isDocLoading, handleJumpToSource, clearFiles,
+    activeDoc, activeSource,
+    hydrateFiles, handleJumpToSource, clearFiles,
   } = useDocumentManager(projectId);
 
   useEffect(() => {
@@ -89,25 +85,6 @@ export default function ReviewPage() {
   useEffect(() => {
     if (details?.documents?.length) void hydrateFiles(details.documents);
   }, [details?.id, details?.documents, hydrateFiles]);
-
-  const handleUpload = useCallback(
-    async (files: File[]) => {
-      await jobRuntime.enqueue(createJob(projectId, { kind: 'upload', fileRefs: [] }), files);
-      setUploadOpen(false);
-    },
-    [projectId],
-  );
-
-  const handleAnalyze = useCallback(() => {
-    const hasFlagged = fields.some((f) => f.isFlagged);
-    void jobRuntime.enqueue(
-      createJob(projectId, {
-        kind: 'extraction',
-        mode: hasFlagged ? 'ITERATIVE' : 'BLIND',
-        previousSpecs: hasFlagged ? mapFieldsToSpecs(fields) : null,
-      }),
-    );
-  }, [projectId, fields]);
 
   const handleFlagAndRetry = useCallback(
     async (fieldId: string, reason: string) => {
@@ -188,8 +165,6 @@ export default function ReviewPage() {
   const correctionJob = activity.running?.kind === 'correction' ? activity.running : undefined;
   const correctingFieldId =
     correctionJob?.payload.kind === 'correction' ? correctionJob.payload.parameterKey : null;
-  const isAnalyzing =
-    activity.running?.kind === 'extraction' || activity.queued?.job.kind === 'extraction';
   const detailsLoading = projectState?.loading.details ?? false;
 
   return (
@@ -202,24 +177,6 @@ export default function ReviewPage() {
         alignItems="center"
         sx={{ px: 3, py: 1.5, borderBottom: 1, borderColor: 'border.subtle', bgcolor: 'surface.panel' }}
       >
-        <Button size="small" startIcon={<CloudUploadOutlinedIcon />} onClick={() => setUploadOpen(true)}>
-          Upload
-        </Button>
-        <Tooltip title={analyzeGate.allowed ? '' : ('reason' in analyzeGate ? analyzeGate.reason : '')}>
-          <span>
-            <Button
-              size="small"
-              variant="contained"
-              startIcon={<AutoAwesomeOutlinedIcon />}
-              onClick={handleAnalyze}
-              loading={isAnalyzing}
-              disabled={uploadedFiles.length === 0 || !analyzeGate.allowed}
-            >
-              Analyze
-            </Button>
-          </span>
-        </Tooltip>
-        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
         <Button size="small" startIcon={<SaveOutlinedIcon />} onClick={handleSave} loading={isSaving}>
           Save
         </Button>
@@ -278,14 +235,6 @@ export default function ReviewPage() {
           />
         </Box>
       </Box>
-
-      <UploadModal
-        open={isUploadOpen}
-        onClose={() => setUploadOpen(false)}
-        onUpload={handleUpload}
-        isUploaded={!!activeFileId}
-        isLoading={isDocLoading}
-      />
 
       <Snackbar open={!!toast} autoHideDuration={4000} onClose={() => setToast(null)}>
         <Alert severity="success" onClose={() => setToast(null)}>{toast}</Alert>

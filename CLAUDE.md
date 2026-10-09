@@ -126,7 +126,13 @@ There is **no `refining` status** — an earlier version of this list claimed on
 
 `/bda` and `/review` are retired and redirect to `/projects` (`next.config.ts`).
 
-**Only `review` is a real screen so far** — it hosts the pre-redesign editor body so the app stays usable; the other six are `ScreenPlaceholder`s naming the step that builds them and the routes they will call. Upload and Analyze move to Extract in step 7, and steps 8-10 rebuild Review as the split pane.
+**`review` and `extract` are real screens; the other five are still `ScreenPlaceholder`s** naming the step that builds them and the routes they will call. Upload and Analyze moved to Extract in step 7 (Review's toolbar no longer has them); steps 8-10 rebuild Review as the split pane.
+
+### Extract (`app/projects/[projectId]/extract/`, step 7)
+Tabs: **Extract** (`Dropzone` → an upload job; Analyze → a blind or iterative-correction extraction job, gated by `useCanStart`; `JobBanner`, which renders `RunTimeline` — RFC §3's six-step pipeline, derived purely from the job's own `phase`/`events`, no new phase values — for a running extraction/correction, or a plain phase line for an upload; `CategoryCards` while one of those is running; `DocumentsTable` combining `details.documents` with rows for a queued/running upload's files) and **Runs** (`RunsTab`, `DataTable` over `GET /projects/{id}/extraction-runs`, filter chips by `extraction_type`). `components/extract/` holds all of these plus `CategoryCard`.
+- `lib/categories.ts` — category resolution (D5/AM9: case- and separator-insensitive matching against the known Voltage/Current/Temperature/Capacity/End_Of_Life set, unknown categories humanised and appended, `Other` last) and `tallyByCategory` (per-category found/total for `CategoryCards`, joining the project's own fields against the canonical dictionary). Unit-tested. The full parameter-row grouping (`groupFields`, the Review table's empty-known-category rule) is step 8's; this only backs the Extract screen's progress cards, which show a category solely when the project has parameters in it.
+- `hooks/useCanonicalParameters.ts` — `GET /extraction-templates/parameters`, cached at module scope so every caller in the session shares one fetch.
+- `job.uploadWarnings?: string[]` (`lib/jobs/types.ts`) carries an upload's per-file failures (`RunOutcome.warnings`) onto the completed job, read by `DocumentsTable`; the reducer's `complete` action takes an optional `warnings` field for this.
 
 ### The shell (`components/shell/`, built to the §8.4 bar per AM5 — step 5 does not rebuild it)
 `app/projects/[projectId]/layout.tsx` mounts it once for every tab: `AppHeader` (wordmark, breadcrumb slot, `JobTray`, `ThemeToggle`, account menu) above `ProjectRail` (seven nav items, per-project activity badges, collapsible to icons, arrow/Home/End keyboard navigation) beside the screen. `Breadcrumb` renders `Projects › Customer › Project` per D6. The URL is the source of truth for which project is open; the layout tells `projectsIndex` so badges and the job tray agree with the address bar.
@@ -195,7 +201,7 @@ A UUID is generated client-side via `uuidv4()` on mount and passed to every API 
 | `SCHEMA_GROUPS` is hardcoded with 4 categories (no End of Life) | The backend schema is dynamic per project and has a 5th category, `END_OF_LIFE`. Parameter lists and categories must come from the project, not a constant. See §8.2. |
 | Loading state is global | Pressing Analyze or uploading blocks the whole app, so the user cannot switch projects. See §8.1. |
 | ~~Dark mode only~~ | **Tokens and both schemes landed in step 1.** Remaining: the pre-redesign screens still import the deprecated `theme/colors.ts` shim, so they render dark in light mode until their own step migrates them to palette tokens. See §8.3. |
-| Only 5 SSE statuses handled | The new pipeline statuses (routing, fallback, workers, category failures) are silently ignored. |
+| ~~Only 5 SSE statuses handled~~ | **Fixed in step 7.** `RunTimeline` draws all of the pipeline (routing/extracting/supervising) and `JobBanner` labels every warning status (routing_truncated, no_frames_tagged, category_extraction_fallback, category_workers_failed) in place rather than ignoring it. |
 | Flags, reason codes, prompt pins, lineage not surfaced | See RFC §4–§5. |
 | No test suite | Verification is build + lint + manual until a plan step adds tests. |
 

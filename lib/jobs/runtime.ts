@@ -263,6 +263,7 @@ export class JobRuntime {
         jobId: job.id,
         at: Date.now(),
         seen: this.isProjectOnScreen(job.projectId),
+        warnings: outcome.warnings,
       });
     } else {
       jobStore.dispatch({

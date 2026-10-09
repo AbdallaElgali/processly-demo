@@ -1,10 +1,12 @@
 'use client';
 
-import { Alert, Box, Button, Chip, LinearProgress, Stack, Typography } from '@mui/material';
+import { useState } from 'react';
+import { Alert, Box, Button, LinearProgress, Stack, Typography } from '@mui/material';
 import { useProjectActivity } from '@/lib/jobs/hooks';
 import { jobRuntime } from '@/lib/jobs/runtime';
 import { jobStore } from '@/lib/jobs/store';
 import type { Job } from '@/lib/jobs/types';
+import { RunTimeline } from '@/components/extract/RunTimeline';
 
 const PHASE_LABEL: Record<string, string> = {
   queued: 'Queued',
@@ -25,9 +27,40 @@ const KIND_LABEL: Record<Job['kind'], string> = {
 };
 
 /**
+ * One action button that disables itself for the moment its own async call
+ * is in flight (CLAUDE.md 8.4's "loading" state), so a second click cannot
+ * fire a second cancel/run-again/dismiss while the first is still resolving.
+ */
+function BusyButton({ onClick, children }: { onClick: () => Promise<void> | void; children: React.ReactNode }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <Button
+      size="small"
+      color="inherit"
+      disabled={busy}
+      loading={busy}
+      onClick={async () => {
+        setBusy(true);
+        try {
+          await onClick();
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      {children}
+    </Button>
+  );
+}
+
+/**
  * Shows this project's background work, inside this project (CLAUDE.md 8.1):
  * loading appears where the work is, never as a full-screen spinner or an
  * app-wide disabled state.
+ *
+ * A running extraction or correction gets the full `RunTimeline` (RFC §3); an
+ * upload has no pipeline to show, so it keeps a plain phase line and progress
+ * bar.
  */
 export function JobBanner({ projectId }: { projectId: string | null }) {
   const activity = useProjectActivity(projectId);
@@ -46,30 +79,19 @@ export function JobBanner({ projectId }: { projectId: string | null }) {
         <Alert
           severity="info"
           icon={false}
-          action={
-            <Button size="small" color="inherit" onClick={() => jobRuntime.cancel(running.id)}>
-              Stop
-            </Button>
-          }
+          action={<BusyButton onClick={() => jobRuntime.cancel(running.id)}>Stop</BusyButton>}
           sx={{ mb: 1 }}
         >
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
-            <Typography variant="body2" fontWeight={600}>
-              {KIND_LABEL[running.kind]}: {PHASE_LABEL[running.phase] ?? running.phase}
-            </Typography>
-            {running.progress.categoriesDone.map((c) => (
-              <Chip key={c} size="small" label={c} sx={{ height: 20 }} />
-            ))}
-          </Stack>
-          <LinearProgress sx={{ borderRadius: 1 }} />
-          {running.warnings.map((w, i) => (
-            // Warnings are non-terminal and must not look like errors (RFC 3).
-            <Typography key={i} variant="caption" sx={{ display: 'block', mt: 0.5 }}>
-              {w.status === 'routing_truncated'
-                ? `Cap reached: ${w.kept} of ${w.total_tagged} assignments kept.`
-                : (w.message ?? w.status)}
-            </Typography>
-          ))}
+          {running.kind === 'upload' ? (
+            <>
+              <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5 }}>
+                {KIND_LABEL[running.kind]}: {PHASE_LABEL[running.phase] ?? running.phase}
+              </Typography>
+              <LinearProgress sx={{ borderRadius: 1 }} />
+            </>
+          ) : (
+            <RunTimeline job={running} />
+          )}
         </Alert>
       )}
 
@@ -77,11 +99,7 @@ export function JobBanner({ projectId }: { projectId: string | null }) {
         <Alert
           severity="info"
           icon={false}
-          action={
-            <Button size="small" color="inherit" onClick={() => jobRuntime.cancel(queued.job.id)}>
-              Cancel
-            </Button>
-          }
+          action={<BusyButton onClick={() => jobRuntime.cancel(queued.job.id)}>Cancel</BusyButton>}
           sx={{ mb: 1 }}
         >
           {KIND_LABEL[queued.job.kind]} queued, position {queued.position}.
@@ -94,12 +112,8 @@ export function JobBanner({ projectId }: { projectId: string | null }) {
           sx={{ mb: 1 }}
           action={
             <Stack direction="row" spacing={1}>
-              <Button size="small" color="inherit" onClick={() => void jobRuntime.runAgain(interrupted.id)}>
-                Run again
-              </Button>
-              <Button size="small" color="inherit" onClick={() => void jobRuntime.dismiss(interrupted.id)}>
-                Dismiss
-              </Button>
+              <BusyButton onClick={() => jobRuntime.runAgain(interrupted.id)}>Run again</BusyButton>
+              <BusyButton onClick={() => jobRuntime.dismiss(interrupted.id)}>Dismiss</BusyButton>
             </Stack>
           }
         >

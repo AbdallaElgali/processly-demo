@@ -68,6 +68,14 @@ export interface Job {
   progress: JobProgress;
   error?: string;
 
+  /**
+   * Per-file upload failures (`RunOutcome.warnings` from `runUpload`): the job
+   * still completed, since at least one file landed, but these specific files
+   * did not. Only uploads ever set this; extraction/correction warnings are
+   * `warnings` above instead.
+   */
+  uploadWarnings?: string[];
+
   /** False until the results have been seen in that project (CLAUDE.md 8.1). */
   seen: boolean;
 
@@ -81,7 +89,7 @@ export type JobAction =
   | { type: 'enqueue'; job: Job }
   | { type: 'start'; jobId: string; tabId: string; at: number }
   | { type: 'event'; jobId: string; event: SseEvent }
-  | { type: 'complete'; jobId: string; at: number; seen: boolean }
+  | { type: 'complete'; jobId: string; at: number; seen: boolean; warnings?: string[] }
   | { type: 'fail'; jobId: string; at: number; error: string }
   | { type: 'interrupt'; jobId: string; at: number }
   | { type: 'cancel'; jobId: string; at: number }

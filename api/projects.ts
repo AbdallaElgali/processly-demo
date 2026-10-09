@@ -181,6 +181,21 @@ export const apiApproveProjectParameters = async (projectId: string): Promise<{ 
   return response.json();
 };
 
+/**
+ * GET /projects/{id}/extraction-runs -- every extraction attempt, newest
+ * first (the backend already orders it that way). `extractionType` is an
+ * optional query filter, e.g. `ITERATIVE` for just correction attempts.
+ */
+export const apiGetExtractionRuns = async (
+  projectId: string,
+  extractionType?: string,
+): Promise<import('./types/projects').ExtractionRun[]> => {
+  const query = extractionType ? `?extraction_type=${encodeURIComponent(extractionType)}` : '';
+  const response = await fetch(`${API_BASE_URL}/${projectId}/extraction-runs${query}`);
+  if (!response.ok) throw new Error(await response.text());
+  return response.json();
+};
+
 export const apiUpdateProjectParameter = async (project_parameter_id: string, parameterData: updateProjectParameter): Promise<void> => {
   // The trailing slash matters: the route is declared as
   // PATCH /projects/project-parameter/{id}/ and FastAPI answers 307 without
