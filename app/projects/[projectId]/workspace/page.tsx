@@ -5,7 +5,7 @@ import '@/hooks/url-polyfill';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { Box, Button, Divider, IconButton, Skeleton, Stack, Tooltip, Typography } from '@mui/material';
+import { Box, Button, Divider, Skeleton, Stack, Tooltip, Typography } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
@@ -13,7 +13,6 @@ import DoneAllIcon from '@mui/icons-material/DoneAll';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
-import KeyboardOutlinedIcon from '@mui/icons-material/KeyboardOutlined';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useParameterManager } from '@/hooks/ParameterManager';
@@ -29,8 +28,7 @@ import { JobStatusLine } from '@/components/workspace/JobStatusLine';
 import { DocumentTabs } from '@/components/workspace/DocumentTabs';
 import { DocumentViewport } from '@/components/workspace/DocumentViewport';
 import { SourceBar } from '@/components/workspace/SourceBar';
-import { ShortcutSheet } from '@/components/workspace/ShortcutSheet';
-import { documentFiles } from '@/lib/documents/fileStore';
+import { documentFiles, isSpreadsheetDocument } from '@/lib/documents/fileStore';
 import { useDocumentFiles } from '@/lib/documents/hooks';
 import { FrontendBatteryFileExport, missingExportKeys } from '@/static/battery-template';
 import type { InputField, SpecificationSource } from '@/types';
@@ -126,7 +124,6 @@ export default function WorkspacePage() {
   // ---- documents (AM12) -------------------------------------------------
   const viewer = useDocumentWorkspace(projectId, documents);
   const files = useDocumentFiles();
-  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   const fieldsRef = useRef(fields);
   useEffect(() => {
@@ -139,37 +136,24 @@ export default function WorkspacePage() {
     [jump],
   );
 
-  // `,` `.` documents, `N` / Shift+N sources, `?` the shortcut sheet. Never
-  // while typing, in a menu or dialog, or with a modifier (ShortcutSheet
-  // explains the choice of keys).
-  const { step, cycle } = viewer;
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return;
-      const t = e.target as HTMLElement | null;
-      if (t && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName))) return;
-      if (t?.closest('[role="menu"], [role="dialog"], [role="listbox"]')) return;
-      if (e.key === '.') step(1);
-      else if (e.key === ',') step(-1);
-      else if (e.key === 'n') cycle(1);
-      else if (e.key === 'N') cycle(-1);
-      else if (e.key === '?') setShortcutsOpen(true);
-      else return;
-      e.preventDefault();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [step, cycle]);
+  const isSpreadsheet = useCallback(
+    (id: string | null | undefined) => {
+      const doc = id ? documents.find((d) => d.id === id) : undefined;
+      return !!doc && isSpreadsheetDocument(doc);
+    },
+    [documents],
+  );
 
   const tableHandlers = useMemo(
     () => ({
       onJumpToSource,
+      isSpreadsheet,
       onSelectCandidate: handleSwitchSpecification,
       onEdit: handleFieldChange,
       onFlag: (id: string, flagged: boolean, reason?: string | null) => void handleFlag(id, flagged, reason),
       onFlagAndRetry: (id: string, reason: string) => void handleFlagAndRetry(id, reason),
     }),
-    [onJumpToSource, handleSwitchSpecification, handleFieldChange, handleFlag, handleFlagAndRetry],
+    [onJumpToSource, isSpreadsheet, handleSwitchSpecification, handleFieldChange, handleFlag, handleFlagAndRetry],
   );
 
   // ---- upload & analyze -------------------------------------------------
@@ -345,11 +329,6 @@ export default function WorkspacePage() {
 
         <Box sx={{ flex: 1 }} />
 
-        <Tooltip title="Keyboard shortcuts (?)">
-          <IconButton size="small" aria-label="Keyboard shortcuts" onClick={() => setShortcutsOpen(true)} sx={{ color: 'text.secondary' }}>
-            <KeyboardOutlinedIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
         <Button size="small" component={Link} href={`/projects/${projectId}/audit`} startIcon={<HistoryOutlinedIcon />} sx={{ color: 'text.secondary' }}>
           Runs
         </Button>
@@ -421,6 +400,7 @@ export default function WorkspacePage() {
                 files={files}
                 uploadsInFlight={inFlightUploads}
                 onRetry={(doc) => documentFiles.retry(projectId, doc)}
+                onReload={(doc) => documentFiles.reload(projectId, doc)}
               />
             </>
           }
@@ -452,8 +432,6 @@ export default function WorkspacePage() {
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>PDF and Excel (.xlsx, .xlsm)</Typography>
         </Box>
       )}
-
-      <ShortcutSheet open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
 
       <ConfirmDialog
         open={exportCheck !== null}

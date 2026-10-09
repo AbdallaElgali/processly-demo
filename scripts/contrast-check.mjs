@@ -125,6 +125,14 @@ CONTRAST_PAIRS.push(
   // A highlighted cell keeps document text on the highlight fill over a white page.
   ['document: text on highlight fill over page', t.document.text, flatten(t.document.highlightFill, t.document.page), 4.5],
   ['document: highlight stroke on highlight fill over page', t.document.highlightStroke, flatten(t.document.highlightFill, t.document.page), 3],
+  // Excel grid (step 9b).
+  ['document: header text on header cell', t.document.headerText, t.document.headerCell, 4.5],
+  ['document: header text on active header', t.document.headerText, t.document.headerActive, 4.5],
+  ['document: selection stroke on page (non-text)', t.document.selectionStroke, t.document.page, 3],
+  ['document: selection stroke on highlight fill (non-text)', t.document.selectionStroke, flatten(t.document.highlightFill, t.document.page), 3],
+  ['document: text on value-match fill over page', t.document.text, flatten(t.document.matchFill, t.document.page), 4.5],
+  ['document: highlight stroke on value-match fill (non-text)', t.document.highlightStroke, flatten(t.document.matchFill, t.document.page), 3],
+  ['document: hidden mark on header cell (non-text)', t.document.hiddenMark, t.document.headerCell, 3],
 );
 
 /** Pre-composite a translucent colour over an opaque one and return hex. */

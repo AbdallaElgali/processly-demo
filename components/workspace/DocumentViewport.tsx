@@ -42,6 +42,7 @@ export function DocumentViewport({
   files,
   uploadsInFlight,
   onRetry,
+  onReload,
 }: {
   projectId: string;
   documents: ProjectDocument[];
@@ -51,6 +52,8 @@ export function DocumentViewport({
   files: ReadonlyMap<string, DocFileState>;
   uploadsInFlight: boolean;
   onRetry: (doc: ProjectDocument) => void;
+  /** Fetch a loaded document again, when the viewer could not read it. */
+  onReload: (doc: ProjectDocument) => void;
 }) {
   if (!activeId) {
     return (
@@ -83,7 +86,14 @@ export function DocumentViewport({
           >
             {file.status === 'ready' && file.url && file.mime ? (
               <ViewerErrorBoundary name={doc.name}>
-                <DocumentRouter projectId={projectId} documentId={id} fileUrl={file.url} mime={file.mime} highlight={highlights[id] ?? null} />
+                <DocumentRouter
+                  projectId={projectId}
+                  documentId={id}
+                  fileUrl={file.url}
+                  mime={file.mime}
+                  highlight={highlights[id] ?? null}
+                  onReload={() => onReload(doc)}
+                />
               </ViewerErrorBoundary>
             ) : file.status === 'unavailable' ? (
               <SourceUnavailable name={doc.name} onRetry={() => onRetry(doc)} />

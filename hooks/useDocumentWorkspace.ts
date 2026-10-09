@@ -7,7 +7,7 @@ import type { ViewerHighlight } from '@/components/DocumentViewer/types';
 import { projectDataStore } from '@/lib/project-data/store';
 import { documentFiles } from '@/lib/documents/fileStore';
 import { KEEP_MOUNTED } from '@/lib/documents/config';
-import { adjacentId, touchRecent } from '@/lib/documents/prefetch';
+import { touchRecent } from '@/lib/documents/prefetch';
 import { anchorKey, fieldAnchors, type SourceAnchor } from '@/lib/review/anchors';
 
 /** The source the user jumped to, and the parameter's other anchors (1 of N). */
@@ -81,18 +81,11 @@ export function useDocumentWorkspace(projectId: string, documents: ProjectDocume
     [projectId, mountedIds],
   );
 
-  const step = useCallback(
-    (dir: 1 | -1) => {
-      const next = adjacentId(ids, activeId, dir);
-      if (next) select(next);
-    },
-    [ids, activeId, select],
-  );
-
   // ---- sources ------------------------------------------------------------
   const goTo = useCallback(
     (nav: SourceNav) => {
-      const source = nav.anchors[nav.index]?.source;
+      const anchor = nav.anchors[nav.index];
+      const source = anchor?.source;
       if (!source) return;
       // No document id (older rows): highlight whatever is open, as before.
       const target = source.documentId ? (ids.includes(source.documentId) ? source.documentId : null) : activeId;
@@ -103,7 +96,7 @@ export function useDocumentWorkspace(projectId: string, documents: ProjectDocume
       setState((s) => ({
         ...s,
         nav: next,
-        highlights: target ? { ...s.highlights, [target]: { source, nonce: n } } : s.highlights,
+        highlights: target ? { ...s.highlights, [target]: { source, nonce: n, value: anchor.value } } : s.highlights,
       }));
     },
     [ids, activeId, select],
@@ -115,7 +108,7 @@ export function useDocumentWorkspace(projectId: string, documents: ProjectDocume
       const key = anchorKey(source);
       let index = anchors.findIndex((a) => a.key === key);
       if (index === -1) {
-        anchors = [{ key, source, specId: '', selected: false }, ...anchors];
+        anchors = [{ key, source, specId: '', selected: false, value: null }, ...anchors];
         index = 0;
       }
       goTo({ fieldId: field?.id ?? null, label: field?.label ?? null, anchors, index, missingDocument: false });
@@ -140,7 +133,6 @@ export function useDocumentWorkspace(projectId: string, documents: ProjectDocume
     highlights: current.highlights,
     nav: current.nav,
     select,
-    step,
     jump,
     cycle,
     clearSource,

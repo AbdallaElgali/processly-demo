@@ -61,6 +61,16 @@ export interface DocumentTokens {
   highlightFill: string;
   highlightDim: string;
   highlightPageOutline: string;
+  /** Excel grid: column letters and row numbers. */
+  headerText: string;
+  /** Excel grid: the header of the selected cell's row and column. */
+  headerActive: string;
+  /** Excel grid: the selected cell's outline (distinct from the source highlight). */
+  selectionStroke: string;
+  /** Excel grid: cells inside the source table whose value matches the candidate. */
+  matchFill: string;
+  /** Excel grid: marks a row or column the workbook hides. */
+  hiddenMark: string;
 }
 
 export interface ModeTokens {

@@ -8,6 +8,7 @@ import { fetchProjects } from './actions';
 import { projectsIndex } from './projects-index';
 import { projectDataStore } from './store';
 import { documentFiles } from '@/lib/documents/fileStore';
+import { clearWorkbookCache } from '@/lib/excel/cache';
 
 /**
  * Replaces ProjectProvider.
@@ -36,6 +37,7 @@ export function ProjectDataProvider({ children }: { children: ReactNode }) {
       jobStore.abortAll();
       projectDataStore.reset();
       documentFiles.reset();
+      clearWorkbookCache();
       projectsIndex.reset();
       return;
     }

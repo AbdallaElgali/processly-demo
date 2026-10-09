@@ -19,12 +19,3 @@ export function touchRecent(list: string[], id: string, max: number): string[] {
   if (list[0] === id) return list;
   return [id, ...list.filter((x) => x !== id)].slice(0, Math.max(1, max));
 }
-
-/** The next or previous id, wrapping around. `null` when there is nothing to move to. */
-export function adjacentId(ids: string[], activeId: string | null, dir: 1 | -1): string | null {
-  if (ids.length === 0) return null;
-  const i = activeId ? ids.indexOf(activeId) : -1;
-  if (i === -1) return ids[dir === 1 ? 0 : ids.length - 1];
-  if (ids.length === 1) return null;
-  return ids[(i + dir + ids.length) % ids.length];
-}

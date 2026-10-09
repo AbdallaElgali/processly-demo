@@ -274,3 +274,26 @@ Library choice: evaluate building the grid on the existing parser (SheetJS) with
 
 - Every UI step's history note includes a short **"How it looks"** section: what was checked visually, in which mode and at which widths.
 - The owner reviews the Workspace visually after steps 8 and 9 before the next step starts.
+---
+
+# Part 3 (owner decision with the step 9b brief, 2026-10-10)
+
+## AM19. No custom keyboard shortcuts
+
+**Owner decision:** the app has no custom keyboard shortcuts. Standard keyboard accessibility stays (CLAUDE.md §8.4): Tab and Shift+Tab, Enter and Space, Escape closes overlays, arrow keys in lists, menus, tabs and tables, and arrow-key cell movement in the Excel grid. No new shortcuts are added.
+
+**Removed in step 9b:**
+
+| Removed | Was |
+|---|---|
+| `,` `.` | previous / next document (step 9, AM12) |
+| `N` / `Shift+N` | next / previous source anchor (step 9) |
+| `S` | show the focused row's value in the document (step 8, plan-A §6.4) |
+| `?` and the `ShortcutSheet` dialog, with its toolbar button | step 9 |
+| `+` `−` `0` on the focused PDF page area | step 9 zoom keys; not in the owner's list but the same kind, so removed with them. The zoom buttons stay. |
+
+**Superseded:** the "Keyboard" bullet of AM12 (next/previous document keys and the `?` sheet); the shortcut column of plan-A §6.4's `ParameterTable` row (`f`, `a`, `s`, `[`/`]`, `?`) and the "shortcuts help `?`" in the Review header; RFC §5b.4's "keyboard-first review" now means standard keyboard operation, not shortcuts.
+
+**What replaces them:** the same actions stay reachable without a pointer through normal focus order. Documents are tabs (arrow keys inside the tab list), source anchors have the ‹ › buttons in the source bar, and "show in document" is the candidate's button in the row detail (↓ to the row, Enter to open it, Tab to the button).
+
+**Still open (ask before changing):** the `/` key that focuses `SearchField` (step 5, used on the projects list) is also a custom shortcut. It predates step 9 and was not in the list, so it is unchanged.

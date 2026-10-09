@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ProjectDocument } from '@/api/types/projects';
 import type { InputField, Specification, SpecificationSource } from '@/types';
 import { bboxToPageRect } from './pdfGeometry';
-import { adjacentId, mayPrefetch, touchRecent } from './prefetch';
+import { mayPrefetch, touchRecent } from './prefetch';
 import { DocumentFileStore, documentMime } from './fileStore';
 import { fieldAnchors } from '@/lib/review/anchors';
 
@@ -78,16 +78,6 @@ describe('prefetch budget and recents (AM12)', () => {
     expect(c).toEqual(['w', 'z', 'y']);
     expect(touchRecent(c, 'w', 3)).toBe(c);
     expect(touchRecent(c, 'y', 3)).toEqual(['y', 'w', 'z']);
-  });
-
-  it('moves to the next and previous document, wrapping', () => {
-    const ids = ['a', 'b', 'c'];
-    expect(adjacentId(ids, 'a', 1)).toBe('b');
-    expect(adjacentId(ids, 'c', 1)).toBe('a');
-    expect(adjacentId(ids, 'a', -1)).toBe('c');
-    expect(adjacentId(ids, null, -1)).toBe('c');
-    expect(adjacentId(['a'], 'a', 1)).toBeNull();
-    expect(adjacentId([], null, 1)).toBeNull();
   });
 });
 
@@ -170,6 +160,21 @@ describe('DocumentFileStore (D7, AM12)', () => {
     store.focusProject('P3');
     expect(store.get('a').status).toBe('idle');
     expect(revoked).toEqual(['blob:a']);
+  });
+
+  it('reload fetches a loaded document again and revokes the old URL (unreadable workbook)', async () => {
+    const { store, fetched, revoked } = makeStore();
+    store.focusProject('P');
+    store.ensure('P', doc('a'));
+    await settle();
+    store.retry('P', doc('a'));
+    await settle();
+    expect(fetched).toEqual(['a']);
+    store.reload('P', doc('a'));
+    await settle();
+    expect(fetched).toEqual(['a', 'a']);
+    expect(revoked).toEqual(['blob:a']);
+    expect(store.get('a').status).toBe('ready');
   });
 
   it('reset drops every file', async () => {

@@ -8,6 +8,8 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import FindInPageOutlinedIcon from '@mui/icons-material/FindInPageOutlined';
 import CheckIcon from '@mui/icons-material/Check';
 import ReplayIcon from '@mui/icons-material/Replay';
+import { cellRef } from '@/lib/excel/address';
+import { boxRangeLabel } from '@/lib/excel/highlight';
 import type { InputField, Specification, SpecificationSource } from '@/types';
 import type { RowState } from '@/lib/review/rowState';
 import { hasValue } from '@/lib/review/rowState';
@@ -27,6 +29,8 @@ export interface ParameterRowHandlers {
   onEdit: (fieldId: string, value: string, unit: string) => void;
   onFlag: (fieldId: string, flagged: boolean, reason?: string | null) => void;
   onFlagAndRetry: (fieldId: string, reason: string) => void;
+  /** True when the document is a workbook, so locations read as sheet and cell range. */
+  isSpreadsheet: (documentId: string | null | undefined) => boolean;
 }
 
 /** Shared column template, so headers (none today) and rows can never drift. */
@@ -35,25 +39,24 @@ export const ROW_COLUMNS = '28px minmax(180px, 1.6fr) minmax(130px, 1.1fr) 112px
 const hasLocation = (s: SpecificationSource | null | undefined) =>
   !!s && (s.pageNumber !== null || s.boundingBox !== null || s.cellCoordinates !== null || !!s.documentId);
 
-function columnLetters(col: number): string {
-  let n = col;
-  let out = '';
-  while (n > 0) {
-    const r = (n - 1) % 26;
-    out = String.fromCharCode(65 + r) + out;
-    n = Math.floor((n - 1) / 26);
-  }
-  return out;
-}
-
-/** "Page 4", "Sheet Data · C12", or null; the backend writes {-1,-1} for an unresolved cell. */
-export function locationLabel(s: SpecificationSource | null | undefined): string | null {
+/**
+ * "Page 4" for a PDF; "Sheet 3 · B10:D15" or "Sheet 3 · C12" for a workbook,
+ * where the backend's box is a cell range (lib/excel/highlight.ts). Null when
+ * there is no location. The backend writes {-1,-1} for an unresolved cell.
+ */
+export function locationLabel(s: SpecificationSource | null | undefined, spreadsheet = false): string | null {
   if (!s) return null;
   const cell = s.cellCoordinates;
   if (cell && cell.row > 0 && cell.column > 0) {
-    return `${s.tableName ? `${s.tableName} · ` : ''}${columnLetters(cell.column)}${cell.row}`;
+    const at = cellRef({ r: cell.row - 1, c: cell.column - 1 });
+    return s.pageNumber !== null && s.pageNumber !== undefined ? `Sheet ${s.pageNumber} · ${at}` : at;
   }
-  if (s.pageNumber !== null && s.pageNumber !== undefined) return `${s.tableName ? `${s.tableName} · ` : 'Page '}${s.pageNumber}`;
+  if (spreadsheet) {
+    const range = boxRangeLabel(s.boundingBox);
+    if (s.pageNumber === null || s.pageNumber === undefined) return range;
+    return `Sheet ${s.pageNumber}${range ? ` · ${range}` : ''}`;
+  }
+  if (s.pageNumber !== null && s.pageNumber !== undefined) return `Page ${s.pageNumber}`;
   return null;
 }
 
@@ -177,7 +180,7 @@ function ParameterRowImpl({
 
         <Box onClick={(e) => e.stopPropagation()}>
           {canJump && source && (
-            <Tooltip title={anchorCount > 1 ? `Show in document (S) · ${anchorCount} sources, N cycles` : 'Show in document (S)'}>
+            <Tooltip title={anchorCount > 1 ? `Show in document · ${anchorCount} sources, use the arrows above the viewer to cycle` : 'Show in document'}>
               <IconButton
                 size="small"
                 tabIndex={-1}
@@ -246,6 +249,7 @@ function RowDetail({
           selectedId={selectedId}
           onSelect={(specId) => handlers.onSelectCandidate(field.id, specId)}
           onJump={(src) => handlers.onJumpToSource(src, field.id)}
+          isSpreadsheet={handlers.isSpreadsheet}
           disabled={correcting}
         />
         {state.selected?.source?.textSnippet && (
@@ -341,12 +345,14 @@ function CandidateList({
   selectedId,
   onSelect,
   onJump,
+  isSpreadsheet,
   disabled,
 }: {
   field: InputField;
   selectedId: string | undefined;
   onSelect: (specId: string) => void;
   onJump: (source: SpecificationSource) => void;
+  isSpreadsheet: (documentId: string | null | undefined) => boolean;
   disabled: boolean;
 }) {
   if (field.specifications.length === 0) {
@@ -363,7 +369,7 @@ function CandidateList({
         const selected = s.id === selectedId;
         const valued = hasValue(s);
         const reason = valued ? null : matchReasonCode(s.extractionLogic);
-        const where = locationLabel(s.source);
+        const where = locationLabel(s.source, isSpreadsheet(s.source?.documentId));
         return (
           <Stack
             key={s.id}

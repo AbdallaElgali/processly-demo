@@ -42,6 +42,10 @@ export function documentMime(doc: Pick<ProjectDocument, 'name' | 'type'>, blobTy
   return blobType || 'application/octet-stream';
 }
 
+export function isSpreadsheetDocument(doc: Pick<ProjectDocument, 'name' | 'type'>): boolean {
+  return documentMime(doc) === XLSX_MIME;
+}
+
 export function isPdfDocument(doc: Pick<ProjectDocument, 'name' | 'type'>): boolean {
   return documentMime(doc) === PDF_MIME;
 }
@@ -129,6 +133,19 @@ export class DocumentFileStore {
   retry(projectId: string, doc: ProjectDocument) {
     const s = this.get(doc.id);
     if (s.status === 'loading' || s.status === 'ready') return;
+    void this.load(projectId, doc);
+  }
+
+  /**
+   * Fetches a document again even though it loaded, e.g. when the viewer
+   * could not read the bytes it got. The old object URL is revoked and its
+   * bytes no longer count against the prefetch budget.
+   */
+  reload(projectId: string, doc: ProjectDocument) {
+    const s = this.get(doc.id);
+    if (s.status === 'loading') return;
+    if (s.url) this.deps.revokeUrl(s.url);
+    if (s.bytes) this.bytes.set(projectId, Math.max(0, (this.bytes.get(projectId) ?? 0) - s.bytes));
     void this.load(projectId, doc);
   }
 

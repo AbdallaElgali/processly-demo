@@ -51,6 +51,18 @@ export interface DocumentViewState {
   pageOffset?: number;
   /** Excel: the sheet that was open. */
   sheet?: string;
+  /** Excel: scroll position and selected cell per sheet name, so each sheet keeps its place. */
+  sheets?: Record<string, ExcelSheetView>;
+  /** The last highlight nonce the viewer scrolled to, so a remount does not jump again. */
+  handledNonce?: number;
+}
+
+export interface ExcelSheetView {
+  top: number;
+  left: number;
+  /** 0-based selected cell. */
+  r: number;
+  c: number;
 }
 
 type Listener = () => void;

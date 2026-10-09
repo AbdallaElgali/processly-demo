@@ -256,20 +256,6 @@ export function PdfViewer({ fileUrl, projectId, documentId, highlight }: PdfView
     return bottom >= viewport.top - viewport.height && top <= viewport.top + viewport.height * 2;
   };
 
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.metaKey || e.ctrlKey || e.altKey) return;
-    if (e.key === '+' || e.key === '=') {
-      e.preventDefault();
-      zoomStep(1);
-    } else if (e.key === '-') {
-      e.preventDefault();
-      zoomStep(-1);
-    } else if (e.key === '0') {
-      e.preventDefault();
-      changeScale(1);
-    }
-  };
-
   const iconSx = { color: 'text.secondary' } as const;
 
   return (
@@ -372,10 +358,9 @@ export function PdfViewer({ fileUrl, projectId, documentId, highlight }: PdfView
       <Box
         ref={scrollRef}
         onScroll={onScroll}
-        onKeyDown={onKeyDown}
         tabIndex={0}
         role="region"
-        aria-label="Document pages. Plus and minus zoom, 0 fits the width."
+        aria-label="Document pages"
         sx={{ flex: 1, minHeight: 0, overflow: 'auto', position: 'relative', outlineOffset: -2 }}
       >
         {loadError ? (

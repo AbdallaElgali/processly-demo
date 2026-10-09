@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Box, FormControlLabel, Skeleton, Stack, Switch, Tooltip, Typography } from '@mui/material';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import type { InputField, SpecificationSource } from '@/types';
+import type { InputField } from '@/types';
 import type { CanonicalParameter } from '@/api/templates';
 import type { Job } from '@/lib/jobs/types';
 import { groupFields, normalizeCategoryKey, type ResolvedCategory } from '@/lib/categories';
@@ -41,8 +41,8 @@ function liveState(category: ResolvedCategory, job: Job | undefined): LiveState 
  *
  * Grouped by category from data, with every known category present (an empty
  * End of life block is visible, not hidden). Keyboard: Up/Down move between
- * rows, Home/End jump, Enter or Space opens the detail, Esc closes it, S shows
- * the selected value in the document.
+ * rows, Home/End jump, Enter or Space opens the detail, Esc closes it
+ * (standard keyboard operation only; no custom shortcuts, AM19).
  */
 export function ParameterTable({
   projectId,
@@ -152,17 +152,6 @@ export function ParameterTable({
           toggle(activeKey);
         }
         break;
-      case 's':
-      case 'S': {
-        if (e.metaKey || e.ctrlKey || e.altKey) return;
-        const row = groups.flatMap((g) => g.rows).find((r) => r.field.id === activeKey);
-        const source = row?.state.selected?.source;
-        if (source) {
-          e.preventDefault();
-          handlers.onJumpToSource(source as SpecificationSource, activeKey);
-        }
-        break;
-      }
     }
   };
 

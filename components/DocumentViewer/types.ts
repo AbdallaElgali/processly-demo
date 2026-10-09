@@ -8,4 +8,6 @@ import type { SpecificationSource } from '@/types';
 export interface ViewerHighlight {
   source: SpecificationSource;
   nonce: number;
+  /** The candidate's value. The Excel viewer marks matching cells inside the source table. */
+  value?: string | null;
 }

@@ -13,6 +13,8 @@ interface DocumentRouterProps {
   fileUrl: string;
   mime: string;
   highlight: ViewerHighlight | null;
+  /** Fetch the file again (the spreadsheet viewer offers it when the bytes cannot be read). */
+  onReload?: () => void;
 }
 
 /**
@@ -20,7 +22,7 @@ interface DocumentRouterProps {
  * new file always gets a fresh viewer (and a fresh pdf.js worker document)
  * rather than inheriting the previous file's state.
  */
-function DocumentRouterImpl({ projectId, documentId, fileUrl, mime, highlight }: DocumentRouterProps) {
+function DocumentRouterImpl({ projectId, documentId, fileUrl, mime, highlight, onReload }: DocumentRouterProps) {
   const type = mime.toLowerCase();
 
   if (type.includes('pdf')) {
@@ -28,7 +30,7 @@ function DocumentRouterImpl({ projectId, documentId, fileUrl, mime, highlight }:
   }
 
   if (type.includes('spreadsheet') || type.includes('excel') || type.includes('sheet') || type.includes('csv')) {
-    return <ExcelViewer key={fileUrl} excelDocument={fileUrl} activeHighlight={highlight?.source ?? null} />;
+    return <ExcelViewer key={fileUrl} fileUrl={fileUrl} projectId={projectId} documentId={documentId} highlight={highlight} onReload={onReload} />;
   }
 
   return (

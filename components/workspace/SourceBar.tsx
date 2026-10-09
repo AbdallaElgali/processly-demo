@@ -10,11 +10,12 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import type { ProjectDocument } from '@/api/types/projects';
 import type { SourceNav } from '@/hooks/useDocumentWorkspace';
 import { locationLabel } from './ParameterRow';
+import { isSpreadsheetDocument } from '@/lib/documents/fileStore';
 
 /**
  * The source the user jumped to, above the viewer (plan-A §8 "Source 1 of 2 ·
  * Page 4"). Shared by the PDF and Excel viewers, so anchor navigation and the
- * recorded source text work the same for both. N and Shift+N cycle the
+ * recorded source text work the same for both. The arrows cycle the
  * parameter's anchors, which may be on different pages or documents (CFC).
  */
 export function SourceBar({
@@ -36,7 +37,8 @@ export function SourceBar({
   if (!source) return null;
   const total = nav.anchors.length;
   const docName = source.documentId ? documents.find((d) => d.id === source.documentId)?.name : null;
-  const where = [locationLabel(source), docName && source.documentId !== activeId ? docName : null].filter(Boolean).join(' · ');
+  const doc = source.documentId ? documents.find((d) => d.id === source.documentId) : undefined;
+  const where = [locationLabel(source, !!doc && isSpreadsheetDocument(doc)), docName && source.documentId !== activeId ? docName : null].filter(Boolean).join(' · ');
   const snippet = source.textSnippet?.trim();
 
   return (
@@ -61,7 +63,7 @@ export function SourceBar({
         <Box sx={{ flex: 1 }} />
         {total > 1 && (
           <Stack direction="row" alignItems="center" spacing={0.25} sx={{ flexShrink: 0 }}>
-            <Tooltip title="Previous source (Shift+N)">
+            <Tooltip title="Previous source">
               <IconButton size="small" aria-label="Previous source" onClick={() => onCycle(-1)} sx={{ color: 'text.secondary' }}>
                 <ChevronLeftIcon fontSize="small" />
               </IconButton>
@@ -69,7 +71,7 @@ export function SourceBar({
             <Typography variant="body2" sx={{ color: 'text.primary', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }} aria-label={`Source ${nav.index + 1} of ${total}`}>
               {nav.index + 1} of {total}
             </Typography>
-            <Tooltip title="Next source (N)">
+            <Tooltip title="Next source">
               <IconButton size="small" aria-label="Next source" onClick={() => onCycle(1)} sx={{ color: 'text.secondary' }}>
                 <ChevronRightIcon fontSize="small" />
               </IconButton>

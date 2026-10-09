@@ -13,6 +13,8 @@ export interface SourceAnchor {
   /** The spec this anchor came from (the first one, when several share a location). */
   specId: string;
   selected: boolean;
+  /** That spec's value, so a spreadsheet viewer can find the cell inside a table-sized source. */
+  value: string | null;
 }
 
 /** True when the source points at something the viewer can show. */
@@ -44,7 +46,7 @@ export function fieldAnchors(field: InputField): SourceAnchor[] {
     const key = anchorKey(spec.source);
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push({ key, source: spec.source, specId: spec.id, selected: spec.id === field.selectedSpecId });
+    out.push({ key, source: spec.source, specId: spec.id, selected: spec.id === field.selectedSpecId, value: spec.value ?? null });
   }
   return out;
 }
