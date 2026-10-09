@@ -1,8 +1,8 @@
 'use client';
 
-import { memo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import {
-  Box, Button, CircularProgress, Collapse, IconButton, Stack, TextField, Tooltip, Typography,
+  Badge, Box, Button, CircularProgress, Collapse, IconButton, Stack, TextField, Tooltip, Typography,
 } from '@mui/material';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import FindInPageOutlinedIcon from '@mui/icons-material/FindInPageOutlined';
@@ -13,6 +13,7 @@ import type { RowState } from '@/lib/review/rowState';
 import { hasValue } from '@/lib/review/rowState';
 import { matchReasonCode } from '@/lib/review/reasonCodes';
 import { formatDisplayValue } from '@/lib/review/format';
+import { fieldAnchors } from '@/lib/review/anchors';
 import { ConfidenceIndicator, QualifierTags, SecondaryFacts, StateBadge } from './indicators';
 import { ValueCell } from './ValueCell';
 import type { Density } from '@/components/ui/DensityToggle';
@@ -20,7 +21,8 @@ import type { Density } from '@/components/ui/DensityToggle';
 export interface ParameterRowHandlers {
   onToggle: (fieldId: string) => void;
   onFocusRow: (fieldId: string) => void;
-  onJumpToSource: (source: SpecificationSource) => void;
+  /** `fieldId` lets the viewer offer the parameter's other anchors (1 of N). */
+  onJumpToSource: (source: SpecificationSource, fieldId?: string) => void;
   onSelectCandidate: (fieldId: string, specId: string) => void;
   onEdit: (fieldId: string, value: string, unit: string) => void;
   onFlag: (fieldId: string, flagged: boolean, reason?: string | null) => void;
@@ -84,6 +86,7 @@ function ParameterRowImpl({
   const label = field.parameter_alias || field.label || field.id;
   const source = spec?.source ?? null;
   const canJump = hasLocation(source);
+  const anchorCount = useMemo(() => fieldAnchors(field).length, [field]);
 
   return (
     <Box
@@ -174,9 +177,20 @@ function ParameterRowImpl({
 
         <Box onClick={(e) => e.stopPropagation()}>
           {canJump && source && (
-            <Tooltip title="Show in document (S)">
-              <IconButton size="small" tabIndex={-1} aria-label="Show in document" onClick={() => handlers.onJumpToSource(source)}>
-                <FindInPageOutlinedIcon fontSize="small" />
+            <Tooltip title={anchorCount > 1 ? `Show in document (S) · ${anchorCount} sources, N cycles` : 'Show in document (S)'}>
+              <IconButton
+                size="small"
+                tabIndex={-1}
+                aria-label={anchorCount > 1 ? `Show in document, ${anchorCount} sources` : 'Show in document'}
+                onClick={() => handlers.onJumpToSource(source, field.id)}
+              >
+                <Badge
+                  badgeContent={anchorCount > 1 ? anchorCount : 0}
+                  overlap="circular"
+                  sx={{ '& .MuiBadge-badge': { fontSize: 10, height: 15, minWidth: 15, px: 0.4, bgcolor: 'surface.raised', color: 'text.primary', border: 1, borderColor: 'border.strong' } }}
+                >
+                  <FindInPageOutlinedIcon fontSize="small" />
+                </Badge>
               </IconButton>
             </Tooltip>
           )}
@@ -231,7 +245,7 @@ function RowDetail({
           field={field}
           selectedId={selectedId}
           onSelect={(specId) => handlers.onSelectCandidate(field.id, specId)}
-          onJump={handlers.onJumpToSource}
+          onJump={(src) => handlers.onJumpToSource(src, field.id)}
           disabled={correcting}
         />
         {state.selected?.source?.textSnippet && (

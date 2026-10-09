@@ -7,6 +7,7 @@ import { jobStore } from '@/lib/jobs/store';
 import { fetchProjects } from './actions';
 import { projectsIndex } from './projects-index';
 import { projectDataStore } from './store';
+import { documentFiles } from '@/lib/documents/fileStore';
 
 /**
  * Replaces ProjectProvider.
@@ -34,6 +35,7 @@ export function ProjectDataProvider({ children }: { children: ReactNode }) {
       // Sign-out: stop everything in flight and clear the caches.
       jobStore.abortAll();
       projectDataStore.reset();
+      documentFiles.reset();
       projectsIndex.reset();
       return;
     }

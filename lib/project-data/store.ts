@@ -39,6 +39,20 @@ export const emptyProjectState = (projectId: string): ProjectState => ({
   error: null,
 });
 
+/**
+ * Where the user was in one document (AM12): restored when they come back to
+ * it, even after its viewer was unmounted. PDF positions are a page plus a
+ * fraction of that page, so they survive a zoom or a resized pane.
+ */
+export interface DocumentViewState {
+  scale?: number;
+  page?: number;
+  /** 0-1 offset of the viewport's top within `page`. */
+  pageOffset?: number;
+  /** Excel: the sheet that was open. */
+  sheet?: string;
+}
+
 type Listener = () => void;
 
 export class ProjectDataStore {
@@ -56,6 +70,16 @@ export class ProjectDataStore {
   private listeners = new Set<Listener>();
   /** Bumped on every change so useSyncExternalStore sees a new snapshot. */
   private version = 0;
+  /**
+   * Per-document view state, keyed by projectId then documentId.
+   *
+   * Deliberately NOT reactive: it is written on every scroll frame and read
+   * only when a viewer mounts, so emitting would re-render every subscriber of
+   * this store for nothing. Kept out of ProjectState for the same reason.
+   */
+  private views = new Map<string, Map<string, DocumentViewState>>();
+  /** The document last open in each project's viewer. Not reactive either. */
+  private activeDocs = new Map<string, string>();
 
   subscribe = (listener: Listener): (() => void) => {
     this.listeners.add(listener);
@@ -187,10 +211,33 @@ export class ProjectDataStore {
     this.update(projectId, (prev) => ({ ...prev, liveSpecs: null }));
   }
 
+  getDocumentView(projectId: string, documentId: string): DocumentViewState | undefined {
+    return this.views.get(projectId)?.get(documentId);
+  }
+
+  setDocumentView(projectId: string, documentId: string, patch: DocumentViewState) {
+    let perProject = this.views.get(projectId);
+    if (!perProject) {
+      perProject = new Map();
+      this.views.set(projectId, perProject);
+    }
+    perProject.set(documentId, { ...perProject.get(documentId), ...patch });
+  }
+
+  getActiveDocument(projectId: string): string | undefined {
+    return this.activeDocs.get(projectId);
+  }
+
+  setActiveDocument(projectId: string, documentId: string) {
+    this.activeDocs.set(projectId, documentId);
+  }
+
   /** Drops cached state, e.g. on sign-out, so another user cannot see it. */
   reset() {
     this.states.clear();
     this.blanks.clear();
+    this.views.clear();
+    this.activeDocs.clear();
     this.emit();
   }
 }

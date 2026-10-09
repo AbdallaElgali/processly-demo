@@ -5,8 +5,7 @@ import '@/hooks/url-polyfill';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import dynamic from 'next/dynamic';
-import { Box, Button, Divider, Skeleton, Stack, Tooltip, Typography } from '@mui/material';
+import { Box, Button, Divider, IconButton, Skeleton, Stack, Tooltip, Typography } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
@@ -14,21 +13,25 @@ import DoneAllIcon from '@mui/icons-material/DoneAll';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
-import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import KeyboardOutlinedIcon from '@mui/icons-material/KeyboardOutlined';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useParameterManager } from '@/hooks/ParameterManager';
-import { useDocumentManager } from '@/hooks/DocumentManager';
+import { useDocumentWorkspace } from '@/hooks/useDocumentWorkspace';
 import { useCanonicalParameters } from '@/hooks/useCanonicalParameters';
 import { useLocalStorageFlag } from '@/hooks/useLocalStorageFlag';
 import { Dropzone } from '@/components/ui/Dropzone';
 import { SplitPane } from '@/components/ui/SplitPane';
-import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { toast } from '@/components/ui/Toast';
 import { ParameterTable } from '@/components/workspace/ParameterTable';
 import { JobStatusLine } from '@/components/workspace/JobStatusLine';
 import { DocumentTabs } from '@/components/workspace/DocumentTabs';
+import { DocumentViewport } from '@/components/workspace/DocumentViewport';
+import { SourceBar } from '@/components/workspace/SourceBar';
+import { ShortcutSheet } from '@/components/workspace/ShortcutSheet';
+import { documentFiles } from '@/lib/documents/fileStore';
+import { useDocumentFiles } from '@/lib/documents/hooks';
 import { FrontendBatteryFileExport, missingExportKeys } from '@/static/battery-template';
 import type { InputField, SpecificationSource } from '@/types';
 import { inputFieldToParameterInput, mapFieldsToSpecs } from '@/lib/parameter-adapter';
@@ -36,11 +39,6 @@ import { approveProject, saveParameters } from '@/lib/project-data/actions';
 import { useCanStart, useJobTray, useJobs, useProjectActivity, useProjectData } from '@/lib/jobs/hooks';
 import { JOB_CAP } from '@/lib/jobs/config';
 import { createJob, jobRuntime } from '@/lib/jobs/runtime';
-
-const DocumentRouter = dynamic(
-  () => import('@/components/DocumentViewer/DocumentRouter').then((m) => m.MemoizedDocumentRouter),
-  { ssr: false, loading: () => <Skeleton variant="rectangular" height="100%" /> },
-);
 
 const ACCEPT = '.pdf,.xlsx,.xlsm';
 const COMPACT_KEY = 'bda.workspace.compact';
@@ -125,20 +123,43 @@ export default function WorkspacePage() {
     [handleFlag, fields, projectId],
   );
 
-  // ---- documents --------------------------------------------------------
-  const {
-    activeDoc, activeFileId, activeSource, hydrateFiles, handleJumpToSource, handleSelectFile, clearFiles,
-  } = useDocumentManager(projectId);
+  // ---- documents (AM12) -------------------------------------------------
+  const viewer = useDocumentWorkspace(projectId, documents);
+  const files = useDocumentFiles();
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
+  const fieldsRef = useRef(fields);
   useEffect(() => {
-    clearFiles();
-  }, [projectId, clearFiles]);
+    fieldsRef.current = fields;
+  }, [fields]);
+  const { jump } = viewer;
+  // Reads fields through a ref so the table's handlers stay stable while values change.
+  const onJumpToSource = useCallback(
+    (s: SpecificationSource, fieldId?: string) => jump(s, fieldId ? fieldsRef.current.find((f) => f.id === fieldId) : undefined),
+    [jump],
+  );
 
+  // `,` `.` documents, `N` / Shift+N sources, `?` the shortcut sheet. Never
+  // while typing, in a menu or dialog, or with a modifier (ShortcutSheet
+  // explains the choice of keys).
+  const { step, cycle } = viewer;
   useEffect(() => {
-    if (documents.length) void hydrateFiles(documents);
-  }, [documents, hydrateFiles]);
-
-  const onJumpToSource = useCallback((s: SpecificationSource) => handleJumpToSource(s), [handleJumpToSource]);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName))) return;
+      if (t?.closest('[role="menu"], [role="dialog"], [role="listbox"]')) return;
+      if (e.key === '.') step(1);
+      else if (e.key === ',') step(-1);
+      else if (e.key === 'n') cycle(1);
+      else if (e.key === 'N') cycle(-1);
+      else if (e.key === '?') setShortcutsOpen(true);
+      else return;
+      e.preventDefault();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [step, cycle]);
 
   const tableHandlers = useMemo(
     () => ({
@@ -324,6 +345,11 @@ export default function WorkspacePage() {
 
         <Box sx={{ flex: 1 }} />
 
+        <Tooltip title="Keyboard shortcuts (?)">
+          <IconButton size="small" aria-label="Keyboard shortcuts" onClick={() => setShortcutsOpen(true)} sx={{ color: 'text.secondary' }}>
+            <KeyboardOutlinedIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
         <Button size="small" component={Link} href={`/projects/${projectId}/audit`} startIcon={<HistoryOutlinedIcon />} sx={{ color: 'text.secondary' }}>
           Runs
         </Button>
@@ -375,25 +401,27 @@ export default function WorkspacePage() {
           }
           right={
             <>
-              <DocumentTabs documents={documents} activeId={activeFileId} onSelect={handleSelectFile} uploadJobs={uploadJobs} />
-              {/* The document surface stays light in both modes (8.3). The viewer's own
-                  chrome moves onto tokens in step 9 (AM13). */}
-              <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', bgcolor: 'document.canvas' }}>
-                {activeDoc ? (
-                  <DocumentRouter fileUrl={activeDoc.fileUrl} fileType={activeDoc.fileType} activeHighlight={activeSource} />
-                ) : (
-                  <Box sx={{ flex: 1, bgcolor: 'surface.canvas', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {documents.length > 0 ? (
-                      <Stack spacing={1} alignItems="center" sx={{ width: '60%' }}>
-                        <Skeleton variant="rounded" width="100%" height={240} />
-                        <Typography variant="caption" sx={{ color: 'text.muted' }}>Loading document…</Typography>
-                      </Stack>
-                    ) : (
-                      <EmptyState icon={DescriptionOutlinedIcon} title="Upload in progress" description="The document appears here once the upload finishes." />
-                    )}
-                  </Box>
-                )}
-              </Box>
+              <DocumentTabs documents={documents} activeId={viewer.activeId} onSelect={viewer.select} uploadJobs={uploadJobs} files={files} />
+              {viewer.nav && (
+                <SourceBar
+                  key={`${viewer.nav.fieldId}-${viewer.nav.index}`}
+                  nav={viewer.nav}
+                  documents={documents}
+                  activeId={viewer.activeId}
+                  onCycle={viewer.cycle}
+                  onClose={viewer.clearSource}
+                />
+              )}
+              <DocumentViewport
+                projectId={projectId}
+                documents={documents}
+                activeId={viewer.activeId}
+                mountedIds={viewer.mountedIds}
+                highlights={viewer.highlights}
+                files={files}
+                uploadsInFlight={inFlightUploads}
+                onRetry={(doc) => documentFiles.retry(projectId, doc)}
+              />
             </>
           }
         />
@@ -424,6 +452,8 @@ export default function WorkspacePage() {
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>PDF and Excel (.xlsx, .xlsm)</Typography>
         </Box>
       )}
+
+      <ShortcutSheet open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
 
       <ConfirmDialog
         open={exportCheck !== null}

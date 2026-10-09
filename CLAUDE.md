@@ -70,8 +70,12 @@ npm run check:contrast  # Assert the WCAG ratios of theme/tokens.json (must pass
 ```
 
 `npm test` covers the pure logic only — the job scheduler's cap/priority/FIFO
-rules, the job reducer, the SSE-to-phase mapping, and the per-project data
-guarantee. UI is verified in the browser and the dev gallery, not here.
+rules, the job reducer, the SSE-to-phase mapping, the per-project data
+guarantee, the review rules, and (step 9) PDF highlight geometry, source
+anchors and the document prefetch store.
+
+`npm run dev` and `npm run build` first copy the pdf.js worker, CMaps and fonts
+into `public/pdfjs/` (`predev`/`prebuild`); the folder is gitignored. UI is verified in the browser and the dev gallery, not here.
 
 "Verification" means build + lint + test, plus a manual check described in the history note. The unit tests cover pure logic only, so a step that changes behaviour still has to be exercised in the browser and the result recorded.
 
@@ -131,7 +135,7 @@ There is **no `refining` status** — an earlier version of this list claimed on
 **`workspace` is the real working screen**; Audit shows the live Runs table above a placeholder; Overview, Parameters, Prompts and Settings are still `ScreenPlaceholder`s naming the step that builds them and the routes they will call.
 
 ### Workspace (`app/projects/[projectId]/workspace/`, step 8, AM11/AM14)
-Extract and Review are one screen. **Toolbar:** Add documents (file picker) · Analyze (blind, or iterative when rows are flagged; gated by `useCanStart`) · `JobStatusLine` (the project's job as one line; click opens the full `JobBanner` with `RunTimeline` in a popover) · Runs (→ Audit) · Save · Approve · Export .battery. **Body**, full-bleed: with no documents, the whole body is the `Dropzone`; otherwise a `SplitPane` (`components/ui/SplitPane.tsx`, ratio persisted, keyboard separator) with `ParameterTable` left and `DocumentTabs` + the existing `DocumentRouter` viewer right. Dropping files anywhere on the screen shows a full-area overlay and uploads. `components/workspace/` holds `ParameterTable`, `ParameterRow` (row + detail: candidates, value edit, flag form), `ValueCell`, `indicators.tsx` (`QualifierTags`, `ConfidenceIndicator`, `StateBadge`, `SecondaryFacts`), `JobStatusLine`, `DocumentTabs`, `RunTimeline`, `RunsTab`.
+Extract and Review are one screen. **Toolbar:** Add documents (file picker) · Analyze (blind, or iterative when rows are flagged; gated by `useCanStart`) · `JobStatusLine` (the project's job as one line; click opens the full `JobBanner` with `RunTimeline` in a popover) · Runs (→ Audit) · Save · Approve · Export .battery. **Body**, full-bleed: with no documents, the whole body is the `Dropzone`; otherwise a `SplitPane` (`components/ui/SplitPane.tsx`, ratio persisted, keyboard separator) with `ParameterTable` left and the viewer side right: `DocumentTabs`, `SourceBar` (when a source is shown) and `DocumentViewport` (see Document viewers below). Dropping files anywhere on the screen shows a full-area overlay and uploads. `components/workspace/` holds `ParameterTable`, `ParameterRow` (row + detail: candidates, value edit, flag form), `ValueCell`, `indicators.tsx` (`QualifierTags`, `ConfidenceIndicator`, `StateBadge`, `SecondaryFacts`), `JobStatusLine`, `DocumentTabs`, `DocumentViewport`, `SourceBar`, `ShortcutSheet` (`?`), `RunTimeline`, `RunsTab`.
 - **Pure review logic** in `lib/review/` (unit-tested in `review.test.ts`, `export.test.ts`): `rowState.ts` (AM1 precedence, one primary state per row, secondary facts; `requires_review` is never "Bounds"), `reasonCodes.ts` (the four backend strings copied from `BDA/src/engine/reason_codes.py`, prefix match only, AM6), `format.ts` (display rounding to 6 significant digits, AM10; Save never sends the rounded value), `domain.ts` (qualifier tags from the key, C-rate vs absolute, discharge sign, unit-differs), `confidence.ts` (`CONFIDENCE_HIGH = 85` on the UI's 0-100 scale).
 - `lib/categories.ts` — category resolution (D5/AM9: case- and separator-insensitive matching against the known Voltage/Current/Temperature/Capacity/End_Of_Life set, unknown categories humanised and appended, `Other` last) and `groupFields` (every known category always returned, even empty; unknown and Other only when non-empty). Category live state during a run (extracting / updated / workers failed) is drawn in the table's category headers; the step-7 `CategoryCards` and `DocumentsTable` are gone.
 - `static/battery-template.ts` — `.battery` export with its own `BATTERY_EXPORT_KEYS` map (D8) and `missingExportKeys` (the pre-export check). Writes discharge currents with their stored sign; it never negates them.
@@ -158,7 +162,7 @@ Added in step 2a-i and wired into the app in 2a-ii. **This replaced `ProjectCont
 
 ### State management (custom hooks, no Redux/Zustand)
 - **`hooks/ParameterManager.tsx`**: a thin set of handlers over `ProjectDataStore`. `fields` live in the store, keyed by `projectId`; the hook does not own them. Merging a run's results into a project's fields is `ProjectDataStore.applySpecs`.
-- **`hooks/DocumentManager.tsx`**: uploaded files as blob URLs in memory, the active file, and the `activeSource` highlight target. `handleJumpToSource` switches the active file and sets the highlight. Documents come from the project's cached details; step 9 makes the fetch lazy per D7.
+- **`hooks/useDocumentWorkspace.ts`** (step 9, replaced `DocumentManager`): the open document (remembered per project), the last `KEEP_MOUNTED` viewed documents, one highlight per document (with a `nonce`, so a viewer scrolls once per jump), and the "source 1 of N" navigation built by `lib/review/anchors.ts` (distinct locations across a parameter's candidates, selected first). Jumping to a source in another document switches to it; the document left keeps its place.
 - **`hooks/useHasMounted.ts`, `hooks/useLocalStorageFlag.ts`**: `useSyncExternalStore` helpers for post-hydration state and remembered boolean preferences, so neither needs `setState` inside an effect.
 
 ### Data model (`types/index.ts`)
@@ -167,10 +171,14 @@ Added in step 2a-i and wired into the app in 2a-ii. **This replaced `ProjectCont
 - `Specification` also carries `expectedUnit`, `extractionLogic` (the model's written rationale, or a reason code on a null candidate) and `calculationLogic`, mapped in `lib/parameter-adapter.ts`.
 - There is no hardcoded parameter list any more (`SCHEMA_GROUPS` was deleted in step 8); labels come from `parameter_alias`, categories from `groupFields`.
 
-### Document viewers (`components/DocumentViewer/`)
-`DocumentRouter` delegates by MIME type to:
-- `PdfViewer`: `react-pdf`, renders pages, highlights bounding boxes
-- `ExcelViewer`: `xlsx`, parses the workbook, highlights cells by row/column or bounding box
+### Document viewers (`components/DocumentViewer/`, `lib/documents/`, step 9)
+- **Files, per document (D7):** `lib/documents/fileStore.ts` fetches `GET /documents/{doc_id}/file` (`api/documents.ts`) one document at a time. 404/410 → `unavailable` (`SourceUnavailable`: "Source unavailable, values preserved", with Check again); other failures → `error` with Retry. Opening a document fetches it at once; the rest are prefetched in tab order, `PREFETCH_CONCURRENCY` at a time, within `PREFETCH_BUDGET_BYTES` per project (the first `PREFETCH_MIN_DOCS` always). Only the last `MAX_CACHED_PROJECTS` projects keep their blobs; sign-out resets the store. All constants in `lib/documents/config.ts`.
+- **Viewport (AM12):** `components/workspace/DocumentViewport.tsx` stacks the mounted viewers, hidden with `visibility: hidden` + `inert` (keeps size and scroll), **rendered in tab order** — reordering them by recency moved live pdf.js canvases and crashed react-pdf. Each viewer sits in a `ViewerErrorBoundary`.
+- **View state:** `ProjectDataStore.getDocumentView/setDocumentView` (page, offset within the page, zoom, sheet) and `get/setActiveDocument`, keyed by project and document. Deliberately not reactive (written per scroll frame, read on mount). In memory only: a full page reload starts fresh.
+- `DocumentRouter` delegates by MIME type to:
+  - `PdfViewer`: `react-pdf`, chrome on tokens (AM13), virtualised pages (real sizes up front, canvases only near the viewport), page input and prev/next, zoom steps (+/−/0 when focused), full screen. Highlights through `lib/documents/pdfGeometry.ts` (`bboxToPageRect`: OpenDataLoader's bottom-left-origin points, MediaBox offset, /Rotate; calibrated on the CFC and DAM test PDFs in step 9); a page with no usable box gets the labelled "Approximate location: page N" outline. Worker, CMaps and standard fonts are served from `public/pdfjs/` (gitignored, copied by `scripts/copy-pdf-assets.mjs` in `predev`/`prebuild`).
+  - `ExcelViewer`: `xlsx`, parses the workbook, highlights cells by row/column or bounding box. On tokens since step 9; **rebuilt in step 9b (AM16)**.
+- `SourceBar` (above the viewer, both file types): parameter, location, the recorded source text, "N of M" with N / Shift+N, and an "alternative" tag when the anchor is not the selected candidate's. Keys: `,` `.` previous/next document, listed in `ShortcutSheet`.
 
 These are the most valuable existing components. Reuse and extend them rather than rewriting.
 

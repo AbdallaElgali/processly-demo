@@ -174,3 +174,27 @@ describe('subscriptions', () => {
     expect(store.get('A').fields).toHaveLength(0);
   });
 });
+
+describe('per-document view state (AM12)', () => {
+  it('is kept per project and per document, merged on write, and silent', () => {
+    let calls = 0;
+    store.subscribe(() => { calls += 1; });
+    store.setDocumentView('A', 'doc1', { scale: 1.4, page: 3 });
+    store.setDocumentView('A', 'doc1', { pageOffset: 0.5 });
+    store.setDocumentView('B', 'doc1', { page: 9 });
+    expect(store.getDocumentView('A', 'doc1')).toEqual({ scale: 1.4, page: 3, pageOffset: 0.5 });
+    expect(store.getDocumentView('B', 'doc1')).toEqual({ page: 9 });
+    expect(store.getDocumentView('A', 'doc2')).toBeUndefined();
+    expect(calls).toBe(0);
+  });
+
+  it('remembers the open document per project and forgets everything on reset', () => {
+    store.setActiveDocument('A', 'doc2');
+    store.setDocumentView('A', 'doc2', { page: 2 });
+    expect(store.getActiveDocument('A')).toBe('doc2');
+    expect(store.getActiveDocument('B')).toBeUndefined();
+    store.reset();
+    expect(store.getActiveDocument('A')).toBeUndefined();
+    expect(store.getDocumentView('A', 'doc2')).toBeUndefined();
+  });
+});

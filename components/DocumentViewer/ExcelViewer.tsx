@@ -1,18 +1,17 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { 
-  Box, CircularProgress, Table, TableBody, TableCell, TableContainer, TableHead,
-  TableRow, Paper, Typography, Tabs, Tab, IconButton, Divider, Tooltip
+import {
+  Box, Skeleton, Table, TableBody, TableCell, TableContainer, TableHead,
+  TableRow, Typography, Tabs, Tab, IconButton, Divider, Tooltip
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
-import FormatQuoteIcon from '@mui/icons-material/FormatQuote';
 import * as XLSX from 'xlsx';
-import { colors } from '@/theme/colors';
+import { ErrorState } from '@/components/ui/ErrorState';
 import { ActiveHighlight } from '@/types';
 
 interface ExcelViewerProps {
@@ -60,8 +59,7 @@ export const ExcelViewer = ({ excelDocument, activeHighlight }: ExcelViewerProps
         if (wb.SheetNames.length > 0 && !activeHighlight?.pageNumber) {
           setActiveSheet(wb.SheetNames[0]);
         }
-      } catch (err) {
-        console.error('Error parsing Excel:', err);
+      } catch {
         setError('Failed to load spreadsheet data.');
       } finally {
         setLoading(false);
@@ -153,9 +151,7 @@ export const ExcelViewer = ({ excelDocument, activeHighlight }: ExcelViewerProps
 
   const toggleFullScreen = () => {
     if (!document.fullscreenElement) {
-      containerRef.current?.requestFullscreen().catch(err => {
-        console.error(`Error attempting to enable fullscreen: ${err.message}`);
-      });
+      containerRef.current?.requestFullscreen().catch(() => undefined);
     } else {
       document.exitFullscreen();
     }
@@ -180,18 +176,26 @@ export const ExcelViewer = ({ excelDocument, activeHighlight }: ExcelViewerProps
     return { sheetData: normalizedData, colHeaders: headers };
   }, [workbook, activeSheet]);
 
-  if (loading) return <Box sx={{ display: 'flex', height: '100%', justifyContent: 'center', alignItems: 'center' }}><CircularProgress /></Box>;
-  if (error) return <Typography color="error" sx={{ p: 3 }}>{error}</Typography>;
+  // Step 9 moves this viewer onto tokens only (AM13); its rebuild is step 9b (AM16).
+  // Chrome follows the theme; the grid is the document and stays light (8.3).
+  if (loading) {
+    return (
+      <Box sx={{ height: '100%', p: 2, bgcolor: 'document.canvas' }} aria-busy="true" aria-label="Loading spreadsheet">
+        <Skeleton variant="rectangular" height="100%" sx={{ bgcolor: 'document.page' }} />
+      </Box>
+    );
+  }
+  if (error) return <Box sx={{ height: '100%', bgcolor: 'surface.canvas' }}><ErrorState title="This spreadsheet could not be read" description={error} /></Box>;
 
   return (
-    <Box ref={containerRef} sx={{ height: '100%', width: '100%', bgcolor: colors.surface, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <Box ref={containerRef} sx={{ height: '100%', width: '100%', bgcolor: 'document.canvas', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       
       {/* TOOLBAR */}
-      <Box sx={{ p: 1, bgcolor: colors.surface, borderBottom: `1px solid ${colors.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+      <Box sx={{ px: 1, minHeight: 40, bgcolor: 'surface.panel', borderBottom: 1, borderColor: 'border.subtle', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, color: 'text.primary', '& .MuiIconButton-root': { color: 'text.secondary' } }}>
         <Tooltip title="Zoom Out">
           <IconButton onClick={() => setScale(p => Math.max(p - 0.2, 0.5))} size="small"><RemoveIcon /></IconButton>
         </Tooltip>
-        <Typography variant="body2" sx={{ minWidth: '45px', textAlign: 'center', fontWeight: 'bold' }}>{Math.round(scale * 100)}%</Typography>
+        <Typography variant="body2" sx={{ minWidth: '45px', textAlign: 'center', fontWeight: 600, color: 'text.primary', fontVariantNumeric: 'tabular-nums' }}>{Math.round(scale * 100)}%</Typography>
         <Tooltip title="Zoom In">
           <IconButton onClick={() => setScale(p => Math.min(p + 0.2, 3.0))} size="small"><AddIcon /></IconButton>
         </Tooltip>
@@ -208,22 +212,22 @@ export const ExcelViewer = ({ excelDocument, activeHighlight }: ExcelViewerProps
       </Box>
 
       {/* EXCEL GRID */}
-      <TableContainer component={Paper} sx={{ flex: 1, overflow: 'auto', bgcolor: colors.surface, borderRadius: 0 }}>
+      <TableContainer sx={{ flex: 1, overflow: 'auto', bgcolor: 'document.page' }}>
         {/* We apply CSS zoom to the table to scale the grid while keeping standard DOM behavior */}
         <Table stickyHeader size="small" sx={{ minWidth: 'max-content', borderCollapse: 'collapse', zoom: scale }}>
           
           <TableHead>
             <TableRow>
-              <TableCell sx={{ bgcolor: 'action.hover', borderRight: `1px solid ${colors.border}`, borderBottom: `2px solid ${colors.border}`, position: 'sticky', top: 0, left: 0, zIndex: 4 }} />
+              <TableCell sx={{ bgcolor: 'document.headerCell', borderRight: 1, borderBottom: 2, borderColor: 'document.gridLine', position: 'sticky', top: 0, left: 0, zIndex: 4 }} />
               {colHeaders.map((header, index) => {
                  const isColHighlighted = highlightRange && (index + 1) >= highlightRange.c1 && (index + 1) <= highlightRange.c2;
                  return (
                   <TableCell 
                     key={index} align="center"
                     sx={{ 
-                      bgcolor: isColHighlighted ? 'rgba(25, 118, 210, 0.1)' : 'action.hover', 
-                      color: isColHighlighted ? colors.primary : 'text.secondary', 
-                      fontWeight: 'bold', borderRight: `1px solid ${colors.border}`, borderBottom: `2px solid ${colors.border}`, minWidth: 80,
+                      bgcolor: isColHighlighted ? 'document.highlightFill' : 'document.headerCell',
+                      color: isColHighlighted ? 'document.highlightStroke' : 'document.text',
+                      fontWeight: 'bold', borderRight: 1, borderBottom: 2, borderColor: 'document.gridLine', minWidth: 80,
                       position: 'sticky', top: 0, zIndex: 3
                     }}
                   >
@@ -240,12 +244,12 @@ export const ExcelViewer = ({ excelDocument, activeHighlight }: ExcelViewerProps
               const isRowInHighlight = highlightRange && currentUIrow >= highlightRange.r1 && currentUIrow <= highlightRange.r2;
 
               return (
-              <TableRow key={rowIndex} hover>
+              <TableRow key={rowIndex}>
                 <TableCell 
                   sx={{ 
-                    bgcolor: isRowInHighlight ? 'rgba(25, 118, 210, 0.1)' : 'action.hover', 
-                    color: isRowInHighlight ? colors.primary : 'text.secondary', 
-                    fontWeight: 'bold', borderRight: `2px solid ${colors.border}`, borderBottom: `1px solid ${colors.border}`,
+                    bgcolor: isRowInHighlight ? 'document.highlightFill' : 'document.headerCell',
+                    color: isRowInHighlight ? 'document.highlightStroke' : 'document.text',
+                    fontWeight: 'bold', borderRight: 2, borderBottom: 1, borderColor: 'document.gridLine',
                     position: 'sticky', left: 0, zIndex: 2, textAlign: 'center', minWidth: 50
                   }}
                 >
@@ -268,19 +272,21 @@ export const ExcelViewer = ({ excelDocument, activeHighlight }: ExcelViewerProps
                     key={colIndex} 
                     ref={isTopLeft ? highlightedCellRef : null}
                     sx={{ 
-                      borderRight: `1px solid ${colors.border}`,
-                      borderBottom: `1px solid ${colors.border}`,
-                      color: 'text.primary',
+                      borderRight: 1,
+                      borderBottom: 1,
+                      borderColor: 'document.gridLine',
+                      color: 'document.text',
+                      bgcolor: 'document.page',
                       whiteSpace: 'nowrap', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis',
                       
                       ...(isHighlightedCell && {
-                        bgcolor: 'rgba(25, 118, 210, 0.15)',
-                        color: colors.primary,
+                        bgcolor: 'document.highlightFill',
+                        color: 'document.highlightStroke',
                         fontWeight: '600',
-                        ...(isTopEdge && { borderTop: `2px solid ${colors.primary} !important` }),
-                        ...(isBottomEdge && { borderBottom: `2px solid ${colors.primary} !important` }),
-                        ...(isLeftEdge && { borderLeft: `2px solid ${colors.primary} !important` }),
-                        ...(isRightEdge && { borderRight: `2px solid ${colors.primary} !important` })
+                        ...(isTopEdge && { borderTop: (t) => `2px solid ${t.vars.palette.document.highlightStroke} !important` }),
+                        ...(isBottomEdge && { borderBottom: (t) => `2px solid ${t.vars.palette.document.highlightStroke} !important` }),
+                        ...(isLeftEdge && { borderLeft: (t) => `2px solid ${t.vars.palette.document.highlightStroke} !important` }),
+                        ...(isRightEdge && { borderRight: (t) => `2px solid ${t.vars.palette.document.highlightStroke} !important` })
                       })
                     }}
                     title={String(cell)}
@@ -296,28 +302,13 @@ export const ExcelViewer = ({ excelDocument, activeHighlight }: ExcelViewerProps
 
       {/* TABS */}
       {workbook && workbook.SheetNames.length > 1 && (
-        <Box sx={{ borderTop: `1px solid ${colors.border}`, bgcolor: 'background.paper' }}>
+        <Box sx={{ borderTop: 1, borderColor: 'border.subtle', bgcolor: 'surface.panel' }}>
           <Tabs value={activeSheet} onChange={(e, v) => setActiveSheet(v)} variant="scrollable" scrollButtons="auto" sx={{ minHeight: 40 }}>
             {workbook.SheetNames.map(sheet => (
-              <Tab key={sheet} label={sheet} value={sheet} sx={{ minHeight: 40, textTransform: 'none', fontWeight: activeSheet === sheet ? 'bold' : 'normal', borderRight: `1px solid ${colors.border}` }} />
+              <Tab key={sheet} label={sheet} value={sheet} sx={{ minHeight: 40, textTransform: 'none', fontWeight: activeSheet === sheet ? 'bold' : 'normal', borderRight: 1, borderColor: 'border.subtle' }} />
             ))}
           </Tabs>
         </Box>
-      )}
-
-      {/* TEXT SNIPPET BOX */}
-      {activeHighlight?.textSnippet && (
-        <Paper elevation={6} sx={{ p: 2, borderTop: `1px solid ${colors.border}`, bgcolor: colors.surface, zIndex: 20 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: colors.primary }}>
-            <FormatQuoteIcon fontSize="small" />
-            <Typography variant="caption" fontWeight="bold" sx={{ textTransform: 'uppercase' }}>
-              Matched Text (Sheet: {activeSheet})
-            </Typography>
-          </Box>
-          <Typography variant="body2" sx={{ pl: 3.5, fontStyle: 'italic', color: 'text.secondary', borderLeft: `2px solid ${colors.border}`, ml: 0.5, py: 0.5 }}>
-            &quot;{activeHighlight.textSnippet}&quot;
-          </Typography>
-        </Paper>
       )}
 
     </Box>

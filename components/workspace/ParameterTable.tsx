@@ -159,7 +159,7 @@ export function ParameterTable({
         const source = row?.state.selected?.source;
         if (source) {
           e.preventDefault();
-          handlers.onJumpToSource(source as SpecificationSource);
+          handlers.onJumpToSource(source as SpecificationSource, activeKey);
         }
         break;
       }
