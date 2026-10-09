@@ -7,7 +7,11 @@ import {
 } from '@mui/material';
 import { InsertDriveFile as InsertDriveFileIcon, PersonAdd as PersonAddIcon, Add as AddIcon } from '@mui/icons-material';
 import { colors } from '@/theme/colors';
-import { useProject } from '@/contexts/ProjectContext';
+import { useProjectsIndex } from '@/lib/project-data/provider';
+import { projectsIndex } from '@/lib/project-data/projects-index';
+import { addContributor, createProject, loadProjectDetails } from '@/lib/project-data/actions';
+import { useProjectData } from '@/lib/jobs/hooks';
+import { useAuth } from '@/contexts/AuthContext';
 import { ProjectDocument } from '@/api/projects';
 import { BaseSidebar } from './BaseSideBar';
 import { useCustomers } from '@/hooks/Customers'; // Make sure this path matches your setup
@@ -18,10 +22,9 @@ interface BDASidebarProps {
 }
 
 export const Sidebar = ({ currentFileId, onSelectFile }: BDASidebarProps) => {
-  const { 
-    projects, currentProject, loadProjectDetails, 
-    addContributor, createNewProject, isLoading 
-  } = useProject();
+  const { projects, activeProjectId, loading: isLoading } = useProjectsIndex();
+  const { user } = useAuth();
+  const currentProject = useProjectData(activeProjectId)?.details ?? null;
 
   const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
   
@@ -58,6 +61,7 @@ export const Sidebar = ({ currentFileId, onSelectFile }: BDASidebarProps) => {
       setExpandedProjectId(null);
     } else {
       setExpandedProjectId(projectId);
+      projectsIndex.setActive(projectId);
       if (currentProject?.id !== projectId) await loadProjectDetails(projectId);
     }
   };
@@ -84,7 +88,8 @@ export const Sidebar = ({ currentFileId, onSelectFile }: BDASidebarProps) => {
     }
     setCreateProjectError(null);
     try {
-      const newProject = await createNewProject({ 
+      const newProject = await createProject({
+        user_id: user?.id ?? '', 
         alias_id: newProjectTitle.trim(), 
         description: newProjectDesc.trim(),
         customer_id: selectedCustomerId,
@@ -99,6 +104,7 @@ export const Sidebar = ({ currentFileId, onSelectFile }: BDASidebarProps) => {
       
       if (newProject?.id) {
         setExpandedProjectId(newProject.id);
+        projectsIndex.setActive(newProject.id);
         await loadProjectDetails(newProject.id);
       }
     } catch (error: unknown) {
@@ -129,7 +135,7 @@ export const Sidebar = ({ currentFileId, onSelectFile }: BDASidebarProps) => {
   const activeFiles = currentProject?.documents || [];
   const formattedProjects = projects.map(p => ({
     id: p.id,
-    primaryText: p.alias_id || p.name || 'Untitled Project'
+    primaryText: p.alias_id || 'Untitled Project'
   }));
 
   return (

@@ -5,7 +5,7 @@ import { AppRouterCacheProvider } from '@mui/material-nextjs/v16-appRouter';
 import './globals.css';
 
 import { AuthProvider } from '@/contexts/AuthContext';
-import { ProjectProvider } from '@/contexts/ProjectContext';
+import { ProjectDataProvider } from '@/lib/project-data/provider';
 import { ThemeRegistry } from '@/theme/ThemeRegistry';
 
 // One font for the whole app. latin-ext carries the umlauts and eszett in the
@@ -47,7 +47,7 @@ export default function RootLayout({
         <AppRouterCacheProvider>
           <ThemeRegistry>
             <AuthProvider>
-              <ProjectProvider>{children}</ProjectProvider>
+              <ProjectDataProvider>{children}</ProjectDataProvider>
             </AuthProvider>
           </ThemeRegistry>
         </AppRouterCacheProvider>

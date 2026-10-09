@@ -1,93 +1,77 @@
 import { flagParameter, unFlagParameter } from '@/api/parameters';
-import { apiSaveProjectParameters, type ParameterInput } from '@/api/projects';
 
 /**
- * Raising a human flag (contract fix H1).
+ * Raising and clearing a human flag (contract fix H1).
  *
- * The bug this replaces: `AIFlagRequest.ai_metric_candidate_id` is a REQUIRED
- * string on the backend, but the old `handleFlag` passed
- * `activeSpec?.candidateId ?? null` and wrapped the call in a `catch` that only
- * logged. For a human-entered value -- a parameter with no AI candidate --
- * every flag produced a 422 and was silently discarded. The row looked flagged
+ * The bug this replaces: `AIFlagRequest.ai_metric_candidate_id` is required,
+ * but the old `handleFlag` passed `activeSpec?.candidateId ?? null` and wrapped
+ * the call in a `catch` that only logged. For a parameter with no AI candidate
+ * every flag produced a 422 and was silently discarded; the row looked flagged
  * until the next reload.
  *
- * Two paths, chosen by whether a candidate exists:
+ * Why there is no fallback for the no-candidate case
+ * --------------------------------------------------
+ * A flag is a row in `ai_parameter_flags`, and that table requires BOTH a
+ * candidate and an extraction run:
  *
- *   candidate present -> POST /flagging/ai-flag-parameter, which opens a real
- *     ai_parameter_flags ticket and returns its id. That id is what lets a
- *     later correction chain onto this flag via `parent_flag_id`.
+ *   ai_metric_candidate_id uuid NOT NULL
+ *   extraction_run_id      uuid NOT NULL
  *
- *   no candidate -> there is nothing to attach a ticket to, so the flag is
- *     persisted on the parameter row itself through
- *     PUT /projects/{id}/parameters, which accepts inline flag/flag_reason/
- *     flagger_id. The flag survives a reload; it simply has no ticket, so no
- *     chain depth and no correction target. That is the honest representation
- *     of the backend's model, not a workaround.
+ * `project_parameters` has no `human_flagged` column at all -- the field the
+ * API returns is derived from a LATERAL join on open flags. And
+ * `save_project_parameters_batch_db` writes only final_value, final_unit,
+ * is_human_modified, selected_candidate_id and review_action: it accepts the
+ * `flag` fields in its request schema and then ignores them.
  *
- * Neither path swallows a failure: callers surface it.
+ * So a parameter that has never been extracted CANNOT be flagged by any route
+ * the backend exposes today. Rather than fail silently, this refuses with an
+ * explanation the reviewer can act on. Lifting the restriction is a backend
+ * change, recorded for Task B.
  */
+export class FlagNotSupportedError extends Error {
+  constructor() {
+    super(
+      'This parameter has no extracted value yet, so there is nothing to flag. ' +
+        'Run an analysis first, then flag the value it produces.',
+    );
+    this.name = 'FlagNotSupportedError';
+  }
+}
+
 export interface RaiseFlagInput {
-  projectId: string;
-  userId: string;
   /** project_parameters.id */
   projectParameterId: string;
-  /** The selected candidate, or null for a human-entered value. */
+  userId: string;
+  /** The selected candidate. Null means the parameter has never been extracted. */
   candidateId: string | null;
   /** Chains onto an existing flag when re-flagging. */
   parentFlagId: string | null;
   reason: string;
-  /**
-   * The parameter row as it should be saved on the no-candidate path. Built by
-   * `inputFieldToParameterInput`; its `flag` fields are overwritten here so a
-   * caller cannot accidentally save an unflagged row.
-   */
-  fallbackRow: ParameterInput;
 }
 
 export interface RaiseFlagResult {
-  /** The ticket id, or null when the flag lives only on the parameter row. */
-  flagId: string | null;
-  path: 'ticket' | 'parameter-row';
+  flagId: string;
 }
 
 export async function raiseHumanFlag(input: RaiseFlagInput): Promise<RaiseFlagResult> {
-  if (input.candidateId) {
-    const flagId = await flagParameter(
-      input.userId,
-      input.projectParameterId,
-      input.candidateId,
-      input.parentFlagId,
-      input.reason,
-    );
-    return { flagId, path: 'ticket' };
-  }
+  if (!input.candidateId) throw new FlagNotSupportedError();
 
-  await apiSaveProjectParameters(input.projectId, [
-    {
-      ...input.fallbackRow,
-      flag: true,
-      flag_reason: input.reason,
-      flagger_id: input.userId,
-    },
-  ]);
-  return { flagId: null, path: 'parameter-row' };
+  const flagId = await flagParameter(
+    input.userId,
+    input.projectParameterId,
+    input.candidateId,
+    input.parentFlagId,
+    input.reason,
+  );
+  return { flagId };
 }
 
-export interface ClearFlagInput {
-  projectId: string;
-  /** The ticket to resolve, or null when the flag lives on the parameter row. */
-  activeFlagId: string | null;
-  fallbackRow: ParameterInput;
-}
-
-/** Mirror of raiseHumanFlag: clears whichever representation was used. */
-export async function clearHumanFlag(input: ClearFlagInput): Promise<void> {
-  if (input.activeFlagId) {
-    await unFlagParameter(input.activeFlagId, null, 'DISMISSED');
-    return;
-  }
-
-  await apiSaveProjectParameters(input.projectId, [
-    { ...input.fallbackRow, flag: false, flag_reason: null, flagger_id: null },
-  ]);
+/**
+ * Resolves the flag ticket. With no ticket there is nothing to clear, which is
+ * a legitimate no-op: without a ticket the parameter was never flagged in the
+ * backend's eyes either.
+ */
+export async function clearHumanFlag(activeFlagId: string | null): Promise<void> {
+  if (!activeFlagId) return;
+  await unFlagParameter(activeFlagId, null, 'DISMISSED');
 }

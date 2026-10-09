@@ -84,7 +84,14 @@ The contract is `claude-notes/context/openapi.json`. Key routes in the current b
 | `/extraction-templates/...` | Templates and the canonical parameter dictionary |
 | Prompt registry routes | Slots, versions, assignments, `/projects/{id}/prompt-pins`, `/prompt-resolution`, `/extraction-runs` |
 
-**SSE statuses the backend can emit:** `error`, `routing_truncated`, `routing_complete`, `no_frames_tagged`, `category_extraction_fallback`, `workers_complete`, `category_workers_failed`, `partial`, `complete` (plus `partial_correction` / `refining` on correction paths). Only `error` and `complete` are terminal.
+**SSE statuses the backend can emit.** The authoritative list is `lib/jobs/sse-types.ts`, which was read off the backend's own emitters (`BDA/src/engine/orchestrator.py`, `src/api_routes/extract_specs.py`); keep the two in step.
+
+- Blind extraction and iterative correction (`POST /specs/stream-specs`): `error`, `routing_truncated`, `routing_complete`, `no_frames_tagged`, `category_extraction_fallback`, `workers_complete`, `category_workers_failed`, `partial`, `complete`, plus `partial_correction` on the iterative path.
+- Single-parameter correction (`POST /specs/stream-parameter`): additionally `targeting` and `ready_to_save`.
+
+Only `error` and `complete` are terminal. `routing_truncated`, `no_frames_tagged`, `category_extraction_fallback` and `category_workers_failed` are **warnings**: non-terminal, and they must never be rendered as failures.
+
+There is **no `refining` status** — an earlier version of this list claimed one, and the old `api/analyze-document.ts` had a branch for it, but nothing in the current backend emits it. Unknown statuses are forwarded and ignored rather than throwing, so a status added later degrades to "no visible phase change".
 
 **There is no real authentication.** `/auth` identifies users by a caller-supplied username. Do not build UI that implies permissions are enforced.
 
@@ -107,11 +114,15 @@ The contract is `claude-notes/context/openapi.json`. Key routes in the current b
 A drag handle between the parameter panel and viewer calls `useResizer` to manage the viewer width.
 
 ### Background work and per-project data (`lib/jobs/`, `lib/project-data/`)
-Added in step 2a-i. Not yet wired into the UI — that is step 2a-ii.
+Added in step 2a-i and wired into the app in 2a-ii. **This replaced `ProjectContext`**, which is deleted, along with `useAnalyze`, `useAnalyzeParameter`, `api/analyze-document.ts` and `api/analyze-parameter.ts`.
 
 - **`lib/project-data/store.ts`** — `ProjectState` keyed by `projectId` (details, fields, liveSpecs, per-operation loading, error). **This is the fix for the D11 bug**: results are applied to `store.get(job.projectId)`, so a run that outlives a project switch can no longer write one project's candidates into another's rows. Regression-tested.
 - **`lib/jobs/`** — `types.ts` (Job, payloads, actions), `reducer.ts` (pure), `ordering.ts` (cap, correction-priority, FIFO, one parameter-writing job per project), `sse-types.ts` (hand-written SSE contract + phase mapping), `sse.ts` (reader with `AbortController`), `runners.ts`, `store.ts` (observable + abort registry), `hooks.ts` (`useSyncExternalStore` selectors), `config.ts` (`JOB_CAP = 3`).
-- Cross-tab coordination, lease-free liveness via Web Locks (AM2), and queue persistence land in step 2b.
+- **`lib/jobs/runtime.ts`** — starts queued jobs when a slot frees and applies each outcome to its own project. In-tab for now.
+- **`lib/project-data/`** — `projects-index.ts` (the user's project list plus the selected project; step 3 moves selection into the URL per D4), `actions.ts` (the operations ProjectContext used to own, each scoped to one project), `provider.tsx` (loads projects for the signed-in user, clears every cache on sign-out).
+- Cross-tab coordination, lease-free liveness via Web Locks (AM2), and queue persistence land in step 2b. Until then a queued upload's files live in memory and do not survive a refresh.
+
+**A flag requires an AI candidate.** `ai_parameter_flags` has `ai_metric_candidate_id uuid NOT NULL` and `extraction_run_id uuid NOT NULL`, `project_parameters` has no `human_flagged` column (the API field is derived from a join on open flags), and the batch parameter save ignores the `flag` fields its request schema accepts. A parameter that has never been extracted therefore cannot be flagged by any current route; the UI refuses with an explanation instead of failing silently.
 
 ### State management (custom hooks, no Redux/Zustand)
 - **`hooks/ParameterManager.tsx`**: manages `fields: InputField[]`. Fields are pre-populated from `SCHEMA_GROUPS` in `types/index.ts`. After analysis, `handlePopulateExtractedData` replaces specs and auto-selects the highest-confidence one per field.

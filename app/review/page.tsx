@@ -17,7 +17,9 @@ import MenuIcon from '@mui/icons-material/Menu';
 import FlagIcon from '@mui/icons-material/Flag';
 
 import { useAuth } from '@/contexts/AuthContext';
-import { useProject } from '@/contexts/ProjectContext';
+import { useProjectsIndex } from '@/lib/project-data/provider';
+import { loadProjectDetails, saveParameters } from '@/lib/project-data/actions';
+import { useProjectData } from '@/lib/jobs/hooks';
 import { useResizer } from '@/hooks/Resizer';
 import { useHasMounted } from '@/hooks/useHasMounted';
 import { useParameterManager } from '@/hooks/ParameterManager';
@@ -43,12 +45,13 @@ const DocumentRouter = dynamic(
 
 export default function ReviewPage() {
   const { user, logout, isLoading: authLoading } = useAuth();
-  const { projects, currentProject, isLoading: projectsLoading, loadProjectDetails, saveParametersSilent } = useProject();
+  const { projects, activeProjectId: selectedProjectId, loading: projectsLoading } = useProjectsIndex();
   const router = useRouter();
 
   const hasMounted = useHasMounted();
 
-  const activeProjectId = currentProject?.id || null;
+  const activeProjectId = selectedProjectId;
+  const currentProject = useProjectData(activeProjectId)?.details ?? null;
   const prevProjectIdRef = useRef<string | null>(null);
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -58,14 +61,15 @@ export default function ReviewPage() {
   // Persist flag changes immediately — review mode has no Save button.
   const persistFields = useCallback(async (fieldsToPersist: InputField[]) => {
     if (!activeProjectId) return;
-    await saveParametersSilent(
+    await saveParameters(
       activeProjectId,
-      fieldsToPersist.map(f => inputFieldToParameterInput(f, user?.id ?? null))
+      fieldsToPersist.map(f => inputFieldToParameterInput(f, user?.id ?? null)),
+      { silent: true },
     );
-  }, [activeProjectId, saveParametersSilent, user?.id]);
+  }, [activeProjectId, user?.id]);
 
   const {
-    fields, handleFlag, hydrateFieldsFromDB, resetFields,
+    fields, handleFlag,
     handleFieldChange, handleRemoveField, handleSwitchSpecification,
   } = useParameterManager({ persist: persistFields, projectId: activeProjectId });
   const {
@@ -80,27 +84,23 @@ export default function ReviewPage() {
 
   // 2. Auto-load First Project
   useEffect(() => {
-    if (hasMounted && projects.length > 0 && !currentProject && !projectsLoading) {
-      loadProjectDetails(projects[0].id);
+    if (hasMounted && activeProjectId && !currentProject) {
+      void loadProjectDetails(activeProjectId);
     }
-  }, [hasMounted, projects, currentProject, projectsLoading, loadProjectDetails]);
+  }, [hasMounted, activeProjectId, currentProject]);
 
-  // 3. Handle Project Switching & Hydration
+  // 3. Handle project switching. Parameters are no longer hydrated here: they
+  // live in ProjectDataStore, filled by loadProjectDetails, so this only has to
+  // deal with the document blobs it owns.
   useEffect(() => {
     if (!currentProject) return;
-    const isNewProject = currentProject.id !== prevProjectIdRef.current;
-    if (isNewProject) {
-      clearFiles();
-      resetFields();
-      prevProjectIdRef.current = currentProject.id;
-      if (currentProject.documents && currentProject.documents.length > 0) {
-        hydrateFiles(currentProject.documents);
-      }
-      if (currentProject.parameters) {
-        hydrateFieldsFromDB(currentProject.parameters);
-      }
+    if (currentProject.id === prevProjectIdRef.current) return;
+    prevProjectIdRef.current = currentProject.id;
+    clearFiles();
+    if (currentProject.documents && currentProject.documents.length > 0) {
+      void hydrateFiles(currentProject.documents);
     }
-  }, [currentProject, clearFiles, resetFields, hydrateFiles, hydrateFieldsFromDB]);
+  }, [currentProject, clearFiles, hydrateFiles]);
 
   if (!hasMounted) return null;
 
@@ -128,7 +128,9 @@ export default function ReviewPage() {
     );
   }
 
-  const projectName = currentProject?.alias_id || currentProject?.title || currentProject?.name || '';
+  // `title` and `name` were optional fields on the old loose Project type that
+  // the backend never returns; alias_id is the real display name.
+  const projectName = currentProject?.alias_id || '';
 
   // Count flagged fields for the toolbar badge
   const flaggedCount = fields.filter(f => f.isFlagged).length;

@@ -29,7 +29,11 @@ import {
   Add as AddIcon,
 } from '@mui/icons-material';
 import { colors } from '@/theme/colors';
-import { useProject } from '@/contexts/ProjectContext';
+import { useProjectsIndex } from '@/lib/project-data/provider';
+import { projectsIndex } from '@/lib/project-data/projects-index';
+import { addContributor, createProject, loadProjectDetails } from '@/lib/project-data/actions';
+import { useProjectData } from '@/lib/jobs/hooks';
+import { useAuth } from '@/contexts/AuthContext';
 import { ProjectDocument } from '@/api/projects';
 import { useCustomers } from '@/hooks/Customers';
 
@@ -39,14 +43,9 @@ interface SidebarProps {
 }
 
 export const Sidebar = ({ currentFileId, onSelectFile }: SidebarProps) => {
-  const { 
-    projects, 
-    currentProject, 
-    loadProjectDetails, 
-    addContributor, 
-    createNewProject,
-    isLoading 
-  } = useProject();
+  const { projects, activeProjectId, loading: isLoading } = useProjectsIndex();
+  const { user } = useAuth();
+  const currentProject = useProjectData(activeProjectId)?.details ?? null;
 
   const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
   
@@ -80,6 +79,7 @@ export const Sidebar = ({ currentFileId, onSelectFile }: SidebarProps) => {
       setExpandedProjectId(null);
     } else {
       setExpandedProjectId(projectId);
+      projectsIndex.setActive(projectId);
       if (currentProject?.id !== projectId) {
         await loadProjectDetails(projectId);
       }
@@ -110,7 +110,8 @@ export const Sidebar = ({ currentFileId, onSelectFile }: SidebarProps) => {
     }
     setCreateProjectError(null);
     try {
-      const newProject = await createNewProject({
+      const newProject = await createProject({
+        user_id: user?.id ?? '',
         alias_id: newProjectTitle.trim(),
         description: newProjectDesc.trim(),
         customer_id: selectedCustomerId,
@@ -126,6 +127,7 @@ export const Sidebar = ({ currentFileId, onSelectFile }: SidebarProps) => {
       
       if (newProject?.id) {
         setExpandedProjectId(newProject.id);
+        projectsIndex.setActive(newProject.id);
         await loadProjectDetails(newProject.id);
       }
     } catch (error: unknown) {
@@ -197,7 +199,7 @@ export const Sidebar = ({ currentFileId, onSelectFile }: SidebarProps) => {
                   </ListItemIcon>
                   
                   <ListItemText 
-                    primary={project.alias_id || project.name || 'Untitled Project'} 
+                    primary={project.alias_id || 'Untitled Project'} 
                     primaryTypographyProps={{ 
                       variant: 'body2', 
                       color: isLoadedProject ? 'white' : colors.textSecondary,
