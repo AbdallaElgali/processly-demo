@@ -39,9 +39,12 @@ Every session that changes anything (code, plan, or docs) writes one note to `cl
 |---|---|
 | `fe_rfc.md` | RFC-FE-01, the target design: information architecture, run-timeline state machine, Review screen rules, backend contract gaps, delivery plan. **The source of truth for what we are building.** |
 | `openapi.json` | Snapshot of the FastAPI backend's OpenAPI schema. **The source of truth for the API contract.** SSE event payloads are NOT in it; take them from the RFC §3 and the SSE table in the backend summary. Ignore `/system/reset-database`. |
-| `*.png` | Mindee reference screenshots. Visual **inspiration only**: take layout, density, navigation structure, the dropzone, the split-pane review pattern, and the guided-tour idea. **Do not** copy Mindee's logo, branding, red accent color, or exact styling. |
+| `Backend_summary_9-10-2026.md` | Full description of the backend as of 2026-10-09: pipeline, SSE contract table, reason codes, flagging mechanisms, data model. Use it where `openapi.json` is untyped. |
+| `*.png` | Mindee reference screenshots, dark mode and light mode. Visual **inspiration only**: take layout, density, navigation structure, the dropzone, the split-pane review pattern, the guided-tour idea, and how each mode handles surfaces and contrast. **Do not** copy Mindee's logo, branding, red accent color, or exact styling. |
 
-Plans and exploration findings go to `claude-notes/plans/`.
+**Deferred (do not build yet):** command palette / global keyboard launcher.
+
+Plans and exploration findings go to `claude-notes/plans/`. When a `<plan>-amendments.md` file exists next to a plan, **it takes precedence over the plan** where they disagree.
 
 ---
 
@@ -131,7 +134,9 @@ A UUID is generated client-side via `uuidv4()` on mount and passed to every API 
 |---|---|
 | Endpoints in `api/` are outdated (`/files/upload-document/`, `/specs/extract-specs/`, `/chat`) | The backend now uses `/files/upload-documents/`, `/specs/stream-specs`, `/specs/stream-parameter`. `/chat` is not in the current backend. |
 | Client-generated project UUID | The backend has a real `projects` table with customers, templates, and parameters. Projects must be created and listed through `/projects`, not invented client-side. |
-| `SCHEMA_GROUPS` is hardcoded with 4 categories | The backend schema is dynamic per project and has a 5th category, `END_OF_LIFE`. Parameter lists must come from the project, not a constant. |
+| `SCHEMA_GROUPS` is hardcoded with 4 categories (no End of Life) | The backend schema is dynamic per project and has a 5th category, `END_OF_LIFE`. Parameter lists and categories must come from the project, not a constant. See §8.2. |
+| Loading state is global | Pressing Analyze or uploading blocks the whole app, so the user cannot switch projects. See §8.1. |
+| Dark mode only | Light mode is required. See §8.3. |
 | Only 5 SSE statuses handled | The new pipeline statuses (routing, fallback, workers, category failures) are silently ignored. |
 | Flags, reason codes, prompt pins, lineage not surfaced | See RFC §4–§5. |
 | No test suite | Verification is build + lint + manual until a plan step adds tests. |
@@ -146,3 +151,62 @@ A UUID is generated client-side via `uuidv4()` on mount and passed to every API 
 - Show the **min/typ/max qualifier** as a visible tag.
 - **Auto-flags** (out-of-bounds, raised by the backend) and **human flags** (raised by a reviewer) must look different.
 - A parameter with no value always has one of the backend's 4 reason codes; show it, never a blank.
+
+---
+
+## 8. Cross-cutting requirements (apply to every screen)
+
+### 8.1 Work is scoped to a project, never to the app
+- Long-running work (upload, analysis, extraction, correction) belongs to **one project**. It must never block navigation, other projects, or the rest of the UI.
+- Job state lives in an **app-level store keyed by `projectId`** (and `runId` once the backend provides it), above the route tree. A job keeps running when the user navigates away from its project, because the component that started it is not its owner.
+- Loading is shown **where the work is**: a per-project activity badge in the projects list/sidebar, and progress inside that project's Extract screen. No full-screen spinners, no app-wide disabled states.
+- One project may not start a second extraction while one is running (disable that project's Analyze button only).
+- **Concurrency cap: at most 3 active jobs app-wide** (uploads and extractions both count; make the number one config constant). Browsers allow only about 6 connections per origin, and the app still needs connections for normal navigation.
+- **Opening projects is never capped.** At the cap, the user can still open, browse and review any project. Only *starting* new work is affected: the new job is **queued**, shown in that project as "Queued, position N" with a cancel action, and starts automatically when a slot frees up (first in, first out).
+- **Completion never navigates.** When a job finishes, its results go into that project's data (the backend saves them on `complete`) and the project's cached data is refreshed in the background. The user stays where they are. The sidebar/project list shows a "new results" badge on that project, plus at most a small non-blocking notification with an optional "Open" action. The results are seen when the user returns to the project.
+- Failures follow the same rule: an error badge on the project, details inside it, no interruption elsewhere.
+- **The cap is per browser, not per tab.** All tabs share one cap and one queue. Coordinate through browser storage plus a cross-tab channel (e.g. BroadcastChannel or Web Locks); exactly one tab owns each running job.
+- **The queue survives a page refresh.** Persist queued jobs locally. Queued *uploads* include their files, which cannot go in localStorage; store the blobs in IndexedDB (the existing Dexie setup in `lib/db.ts` is a candidate) and delete them once the upload succeeds or is cancelled.
+- **Running jobs do not silently restart.** A job that was running when its tab closed or refreshed is shown as "Interrupted" with a "Run again" action. Re-running costs LLM tokens and creates a new extraction run, so it is always the user's choice.
+
+### 8.2 Categories are data, not code
+- Never hardcode the category list. Group parameters by each parameter's `category` from the project's parameter list.
+- Known categories today: `VOLTAGE`, `CURRENT`, `TEMPERATURE`, `CAPACITY`, `END_OF_LIFE`. Use a display-order and label map for these, and **append any unknown category** at the end with a humanised label instead of dropping it.
+- An empty category still renders (with its reason-code rows), so missing End of Life values are visible.
+
+### 8.3 Dark and light mode
+- Both modes are first-class. Every token has a dark and a light value; no component may import a raw color.
+- Default to the OS preference. The **main control is in Settings** (Light / Dark / System); a **quick toggle** also sits in the shell header. Persist the choice to the backend's user settings (`theme`) when a user is known, otherwise locally.
+- Document viewers: PDF pages and spreadsheet cells stay light (they are the document), so **highlight colors must meet contrast on a white page in both modes**.
+- Status colors (confidence, auto-flag, human-flag, reason-code chips) must be distinguishable in both modes and never rely on color alone (add an icon or label).
+
+- **Correction runs** (`/specs/stream-parameter`) count toward the cap but **jump the queue**: a queued correction starts before any queued upload or extraction.
+- **Cancel** is only promised for *queued* jobs. A running stream may be aborted client-side, but the backend may keep working or save nothing, so the UI must not claim the run was undone.
+
+### 8.4 Component quality bar
+Every interactive component must have, before a step is considered done:
+- Hover, focus-visible, pressed, disabled, and loading states
+- Keyboard operability (Tab order, Enter/Space, Escape closes overlays, arrow keys in lists and tables)
+- Skeletons for loading content instead of spinners where layout is known; meaningful empty and error states with a next action
+- Motion that is short (≤ 200 ms), purposeful, and disabled under `prefers-reduced-motion`
+- Verified in both light and dark mode at desktop and laptop widths
+
+---
+
+## 9. Decisions log (Task A, 2026-10-09)
+
+Settled after `claude-notes/plans/explore-A.md`. Follow these; do not re-open them without asking.
+
+| # | Topic | Decision |
+|---|---|---|
+| D1 | Accent colour | Keep brand cyan `#00AAB9` as the accent hue, with **two shades**: the brand shade for fills and surfaces, and a darker cyan for text, links and focus rings in light mode so they pass WCAG AA contrast on white. Dark mode picks its own readable shade. One accent only; no purple secondary. |
+| D2 | Styling system | **Remove Tailwind.** MUI v7 is the only styling system; one `ThemeProvider` in `app/layout.tsx`. |
+| D3 | User registration | **In scope.** Rebuild it as a proper form: `username` plus a `department` dropdown with exactly `Zelle`, `Module`, `Pack`. Send only fields in `UserRegistration`. It is not "Settings"; Settings is the theme/contributors screen. |
+| D4 | Routing | URL-based project routes: `/projects` (list) and `/projects/[projectId]/(overview\|extract\|review\|parameters\|prompts\|audit\|settings)`. `/bda` and `/review` are retired. `/admin` stays outside the project nav, labelled as unauthenticated. |
+| D5 | Parameter categories | Until the backend adds `category` to the project payload (Task B), group by joining project parameters to `GET /extraction-templates/parameters` (`CanonicalParameter.category`) on the parameter key. This uses a real backend field, so it is not inventing data. Unmatched parameters go to an "Other" group, never dropped. |
+| D6 | Customer in breadcrumb | Use the customer from the project payload if present; otherwise join `GET /customers/` by `customer_id`. If neither resolves, show the project alone. |
+| D7 | Source file for the viewer | Fetch only the active document, via `GET /documents/{doc_id}/file`. Treat 404 and 410 alike as "Source unavailable, values preserved". |
+| D8 | `.battery` export | Keep it, as an Export action in the Review header. It is a fixed downstream format, so it keeps its own **explicit key map** (independent of categories and of the removed `SCHEMA_GROUPS`), and it lists any required key that has no value before exporting. |
+| D9 | Interrupted runs | Confirmed from the backend: results are saved only when the stream reaches `complete`. An interrupted run has saved nothing. |
+| D10 | Response types | Most `openapi.json` responses are untyped. Hand-write response types for the routes Task A uses, each with a comment naming the route, and mark them for replacement by generated types in Task B. |
+| D11 | Live data-corruption bug | A running analysis currently writes into whichever project is on screen (shared `fields[]`). The job-store step must key **data**, not just loading flags, by `projectId`, and its history note must state that this bug is fixed. |

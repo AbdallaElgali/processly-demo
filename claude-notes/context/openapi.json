@@ -819,49 +819,6 @@
         }
       }
     },
-    "/system/reset-database": {
-      "delete": {
-        "tags": [
-          "System Setup"
-        ],
-        "summary": "Reset Database",
-        "description": "\u26a0\ufe0f DANGER: Completely wipes all data from the database.\nRetains the table structures, indexes, and custom types.",
-        "operationId": "reset_database_system_reset_database_delete",
-        "parameters": [
-          {
-            "name": "confirm-reset",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "description": "Must pass 'I_KNOW_WHAT_I_AM_DOING' to execute",
-              "title": "Confirm-Reset"
-            },
-            "description": "Must pass 'I_KNOW_WHAT_I_AM_DOING' to execute"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/audit/projects": {
       "get": {
         "tags": [
