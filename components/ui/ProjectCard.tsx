@@ -1,9 +1,11 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
-import { Card, CardActionArea, Stack, Typography } from '@mui/material';
+import { Card, CardActionArea, Skeleton, Stack, Typography } from '@mui/material';
 import { JobBadge, activityBadge } from '@/components/jobs/JobBadge';
-import { useProjectActivity } from '@/lib/jobs/hooks';
+import { useProjectActivity, useProjectData } from '@/lib/jobs/hooks';
+import { requestProjectCounts } from '@/lib/project-data/lazyDetails';
 import { StatusChip } from './StatusChip';
 import type { ProjectBase } from '@/api/types/projects';
 
@@ -12,9 +14,10 @@ import type { ProjectBase } from '@/api/types/projects';
  * subscribes to only its own project's activity (CLAUDE.md 8.1) — a running
  * job on one project never re-renders the rest of the grid.
  *
- * Counts (documents, parameters) are deliberately absent: they need
- * `GET /projects/{id}` per card, which step 6 adds as a lazy, capped fetch so
- * the list never waits on it.
+ * Counts (documents, parameters with a value) come from `GET /projects/{id}`,
+ * queued through `requestProjectCounts` -- a capped background fetch so a
+ * long list never opens dozens of connections at once, and the grid itself
+ * never waits on it (a skeleton line stands in until the project is cached).
  */
 export function ProjectCard({
   project,
@@ -25,6 +28,11 @@ export function ProjectCard({
 }) {
   const activity = useProjectActivity(project.id);
   const badge = activityBadge(activity);
+  const data = useProjectData(project.id);
+
+  useEffect(() => {
+    requestProjectCounts(project.id);
+  }, [project.id]);
 
   return (
     <Card
@@ -54,6 +62,20 @@ export function ProjectCard({
             {project.created_at ? new Date(project.created_at).toLocaleDateString() : ''}
           </Typography>
         </Stack>
+
+        {data?.details ? (
+          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 1 }}>
+            {data.details.documents.length} document{data.details.documents.length === 1 ? '' : 's'} ·{' '}
+            {data.details.parameters.filter((p) => p.final_value !== null).length}/
+            {data.details.parameters.length} parameters
+          </Typography>
+        ) : data?.error ? (
+          <Typography variant="caption" sx={{ color: 'text.muted', display: 'block', mt: 1 }}>
+            Counts unavailable
+          </Typography>
+        ) : (
+          <Skeleton variant="text" width={140} sx={{ mt: 1 }} />
+        )}
       </CardActionArea>
     </Card>
   );

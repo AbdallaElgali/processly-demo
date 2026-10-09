@@ -15,6 +15,13 @@ const STATUS_STYLE: Record<ProjectStatus, { bg: string; fg: string; label: strin
   APPROVED: { bg: 'status.successBg', fg: 'status.success', label: 'Approved' },
 };
 
+/** Display order, reused by the Projects list status filter chips. */
+export const PROJECT_STATUS_ORDER: ProjectStatus[] = ['NEW', 'PENDING_REVIEW', 'IN_REVIEW', 'APPROVED'];
+
+export function projectStatusLabel(status: ProjectStatus): string {
+  return STATUS_STYLE[status]?.label ?? status;
+}
+
 export function StatusChip({ status, size = 'small' }: { status: ProjectStatus; size?: 'small' | 'medium' }) {
   const style = STATUS_STYLE[status] ?? STATUS_STYLE.NEW;
   return (

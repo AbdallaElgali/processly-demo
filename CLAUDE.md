@@ -251,6 +251,7 @@ Every interactive component must have, before a step is considered done:
 - Skeletons for loading content instead of spinners where layout is known; meaningful empty and error states with a next action
 - Motion that is short (≤ 200 ms), purposeful, and disabled under `prefers-reduced-motion`
 - Verified in both light and dark mode at desktop and laptop widths
+- Every step that adds or changes UI must open the affected screens in the browser and confirm the console has no errors or warnings. The `useSyncExternalStore` "getSnapshot should be cached" class of bug is invisible to build, lint and test; stores and hooks must return cached references for unchanged state.
 
 ---
 

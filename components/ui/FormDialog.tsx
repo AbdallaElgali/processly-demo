@@ -57,7 +57,11 @@ export function FormDialog({
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose} disabled={busy} color="inherit">
+        {/* type="button" matters here: the dialog's Paper IS the form (see
+            slotProps.paper above), and a <button> with no type attribute
+            defaults to "submit" inside a form -- Cancel would otherwise also
+            fire onSubmit. */}
+        <Button type="button" onClick={onClose} disabled={busy} color="inherit">
           {cancelLabel}
         </Button>
         <Button type="submit" variant="contained" disabled={submitDisabled || busy} loading={busy}>

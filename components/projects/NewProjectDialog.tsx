@@ -2,18 +2,19 @@
 
 import { useEffect, useState } from 'react';
 import {
-  Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle,
-  FormControl, InputLabel, MenuItem, Select, Stack, TextField,
+  Box, Button, FormControl, InputLabel, MenuItem, Select, TextField,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCustomers } from '@/hooks/Customers';
 import { getUserTemplates, type ExtractionTemplateBase } from '@/api/templates';
 import { createProject } from '@/lib/project-data/actions';
+import { FormDialog } from '@/components/ui/FormDialog';
 
 /**
  * Creating a project. Replaces the two near-identical dialogs that lived in
- * BDASideBar and NoProjectsScreen.
+ * BDASideBar and NoProjectsScreen, and (step 6) is built on the shared
+ * `FormDialog` shell rather than its own `Dialog` markup.
  *
  * Only fields ProjectCreateInput declares are sent. The old form also
  * collected a customer "full name", which CustomerCreate has no field for, so
@@ -100,73 +101,69 @@ export function NewProjectDialog({
   };
 
   return (
-    <Dialog open={open} onClose={busy ? undefined : onClose} fullWidth maxWidth="sm">
-      <DialogTitle>New project</DialogTitle>
-      <DialogContent>
-        <Stack spacing={2.5} sx={{ mt: 1 }}>
-          {error && <Alert severity="error">{error}</Alert>}
+    <FormDialog
+      open={open}
+      onClose={onClose}
+      title="New project"
+      error={error}
+      onSubmit={() => void handleCreate()}
+      submitLabel="Create project"
+      submitDisabled={!alias.trim()}
+      busy={busy}
+    >
+      <TextField
+        autoFocus required label="Project name" value={alias} fullWidth
+        onChange={(e) => setAlias(e.target.value)}
+        helperText="Shown in the sidebar and the breadcrumb."
+      />
 
+      {addingCustomer ? (
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
           <TextField
-            autoFocus required label="Project name" value={alias} fullWidth
-            onChange={(e) => setAlias(e.target.value)}
-            helperText="Shown in the sidebar and the breadcrumb."
+            autoFocus label="New customer" value={newCustomer} fullWidth size="small"
+            onChange={(e) => setNewCustomer(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void handleAddCustomer(); } }}
           />
-
-          {addingCustomer ? (
-            <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
-              <TextField
-                autoFocus label="New customer" value={newCustomer} fullWidth size="small"
-                onChange={(e) => setNewCustomer(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void handleAddCustomer(); } }}
-              />
-              <Button onClick={handleAddCustomer} disabled={!newCustomer.trim() || busy}>Add</Button>
-              <Button onClick={() => setAddingCustomer(false)} color="inherit">Cancel</Button>
-            </Box>
-          ) : (
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <FormControl fullWidth>
-                <InputLabel id="customer-label">Customer</InputLabel>
-                <Select
-                  labelId="customer-label" label="Customer" value={customerId}
-                  onChange={(e) => setCustomerId(e.target.value)}
-                >
-                  {customers.map((c) => (
-                    <MenuItem key={c.id} value={c.id}>{c.alias_name}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <Button startIcon={<AddIcon />} onClick={() => setAddingCustomer(true)} sx={{ flexShrink: 0 }}>
-                New
-              </Button>
-            </Box>
-          )}
-
+          <Button type="button" onClick={() => void handleAddCustomer()} disabled={!newCustomer.trim() || busy}>Add</Button>
+          <Button type="button" onClick={() => setAddingCustomer(false)} color="inherit">Cancel</Button>
+        </Box>
+      ) : (
+        <Box sx={{ display: 'flex', gap: 1 }}>
           <FormControl fullWidth>
-            <InputLabel id="template-label">Template</InputLabel>
+            <InputLabel id="customer-label">Customer</InputLabel>
             <Select
-              labelId="template-label" label="Template" value={templateId}
-              onChange={(e) => setTemplateId(e.target.value)}
+              labelId="customer-label" label="Customer" value={customerId}
+              onChange={(e) => setCustomerId(e.target.value)}
             >
-              {templates.map((t) => (
-                <MenuItem key={t.id} value={t.id}>
-                  {t.name}{t.is_system_default ? ' (default)' : ''}
-                </MenuItem>
+              {customers.map((c) => (
+                <MenuItem key={c.id} value={c.id}>{c.alias_name}</MenuItem>
               ))}
             </Select>
           </FormControl>
+          <Button type="button" startIcon={<AddIcon />} onClick={() => setAddingCustomer(true)} sx={{ flexShrink: 0 }}>
+            New
+          </Button>
+        </Box>
+      )}
 
-          <TextField
-            label="Description" value={description} fullWidth multiline rows={2}
-            onChange={(e) => setDescription(e.target.value)}
-          />
-        </Stack>
-      </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose} disabled={busy} color="inherit">Cancel</Button>
-        <Button onClick={handleCreate} variant="contained" disabled={!alias.trim() || busy} loading={busy}>
-          Create project
-        </Button>
-      </DialogActions>
-    </Dialog>
+      <FormControl fullWidth>
+        <InputLabel id="template-label">Template</InputLabel>
+        <Select
+          labelId="template-label" label="Template" value={templateId}
+          onChange={(e) => setTemplateId(e.target.value)}
+        >
+          {templates.map((t) => (
+            <MenuItem key={t.id} value={t.id}>
+              {t.name}{t.is_system_default ? ' (default)' : ''}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+
+      <TextField
+        label="Description" value={description} fullWidth multiline rows={2}
+        onChange={(e) => setDescription(e.target.value)}
+      />
+    </FormDialog>
   );
 }
