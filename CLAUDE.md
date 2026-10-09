@@ -205,7 +205,10 @@ A UUID is generated client-side via `uuidv4()` on mount and passed to every API 
 
 ### 8.2 Categories are data, not code
 - Never hardcode the category list. Group parameters by each parameter's `category` from the project's parameter list.
-- Known categories today: `VOLTAGE`, `CURRENT`, `TEMPERATURE`, `CAPACITY`, `END_OF_LIFE`. Use a display-order and label map for these, and **append any unknown category** at the end with a humanised label instead of dropping it.
+- **The backend returns Title_Case**, confirmed against `GET /extraction-templates/parameters`: `Voltage`, `Current`, `Temperature`, `Capacity`, `End_Of_Life` — not the `UPPER_SNAKE` an earlier version of this section assumed.
+- **Matching against the known-category map is case-insensitive and treats `_` and a space as the same character.** So `End_Of_Life`, `END_OF_LIFE` and `end of life` all resolve to the same entry. Matching on the raw string would drop every known category into the "unknown" bucket the moment the backend changed case.
+- **Labels come from the map, never from the raw string**, so display is stable no matter which spelling the backend sends.
+- Use the map for display order too, and **append any unknown category** at the end with a humanised label instead of dropping it.
 - An empty category still renders (with its reason-code rows), so missing End of Life values are visible.
 
 ### 8.3 Dark and light mode

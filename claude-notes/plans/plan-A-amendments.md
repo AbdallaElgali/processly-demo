@@ -96,6 +96,31 @@ Step 3 builds `AppHeader`, `ProjectRail`, `Breadcrumb`, `ThemeToggle` and `JobBa
 
 ---
 
+## AM9. Category matching is case- and separator-insensitive
+
+**Problem.** plan-A §5 and CLAUDE.md §8.2 assumed the backend's categories were `VOLTAGE` … `END_OF_LIFE`. Step 2a-ii checked `GET /extraction-templates/parameters` against the running backend: the real values are **`Voltage`, `Current`, `Temperature`, `Capacity`, `End_Of_Life`**. Matching the raw string against the known-category map would put every one of them in the "unknown" bucket and append them in alphabetical order at the end — the opposite of the intended grouping.
+
+**Change.**
+
+- Normalise before matching: lower-case, and treat `_` and a space as the same character. `End_Of_Life`, `END_OF_LIFE` and `end of life` all resolve to the same entry.
+- **Labels always come from the map**, never from the raw backend string, so display does not change if the backend's casing does.
+- Display order comes from the map; genuinely unknown categories keep their humanised raw label and are appended at the end.
+- **Unit-tested in step 8** (extends the `groupFields` tests AM3 already requires): each known category matched in all three spellings, an unknown category appended with a humanised label, a known-but-empty category still rendered.
+
+---
+
+## AM10. Numeric values are rounded for display only
+
+**Problem.** `final_value` comes back serialised from a Postgres `Decimal`, so a stored 2.3 arrives as `2.29999999999999982…` (Task B item B11). Rendering it raw is unreadable; rounding it in the data would corrupt what the next Save writes back.
+
+**Change.**
+
+- Round **for display only**: at most **6 significant digits**, with trailing zeros stripped (`2.3`, not `2.300000`). Applies anywhere a number is shown — the parameter table, candidate chips, lineage, the Overview.
+- **The value sent back on Save is never the rounded one.** Saving an untouched row must round-trip the original value unchanged; only a value the engineer actually edited changes.
+- Unit-tested with the rounding helper in step 8.
+
+---
+
 ## AM8. Items for Task B (record, do not work around)
 
 Found by plan-A §11. Task A uses the placeholders and stopgaps already in the plan; these go to the backend in Task B:
@@ -110,3 +135,6 @@ Found by plan-A §11. Task A uses the placeholders and stopgaps already in the p
 | B6 | `review_action` enum has no `PENDING`; confirm how "not yet reviewed" should be represented. |
 | B7 | `GET /documents/{doc_id}/file` returns 404 for both missing metadata and missing file; RFC §5 P1 proposes 410 for expired storage. |
 | B8 | No route lists a project's members, and none lists open flags across a project (both are placeholders in Task A). |
+| B9 | **A parameter with no AI candidate cannot be flagged at all.** `ai_parameter_flags` requires `ai_metric_candidate_id uuid NOT NULL` and `extraction_run_id uuid NOT NULL`; `project_parameters` has no `human_flagged` column (the API field is derived from a LATERAL join on open flags); and `save_project_parameters_batch_db` ignores the `flag` / `flag_reason` / `flagger_id` fields its own request schema accepts. Task A refuses the action with an explanation (found in step 2a-ii, which also corrects plan-A §7's claim that the batch save supports inline flag/unflag). Fix by making those two columns nullable, or by having the batch save honour the flag fields. |
+| B10 | `POST /projects/{id}/approve` sets every parameter's `review_action` to `ACCEPTED` but leaves `projects.status` at `NEW`. Decide which of the two the Overview and the project list should show, and update the other. |
+| B11 | `final_value` is serialised from a Postgres `Decimal` as a long float (`2.29999999999999982…`). AM10 rounds for display, but the backend should return a clean value. |
