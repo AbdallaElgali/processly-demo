@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { Box, Chip, IconButton, ToggleButtonGroup, ToggleButton, Typography } from '@mui/material';
-import SettingsIcon from '@mui/icons-material/Settings';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import FeedbackIcon from '@mui/icons-material/Feedback';
 
@@ -10,7 +9,6 @@ import { colors } from '@/theme/colors';
 import { useAdminData } from '@/hooks/AdminData';
 import { AdminSidebar } from '@/components/ProjectsSideBar/AdminSideBar';
 import { AppHeader } from '@/components/shell/AppHeader';
-import { SettingsModal } from '@/components/SettingsModal';
 
 import GlobalOverview from './components/GlobalOverview';
 import ProjectSummary from './components/ProjectSummary';
@@ -35,7 +33,6 @@ export default function AdminPage() {
     feedbacks // Pulling feedbacks from your hook
   } = adminData;
 
-  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   
   // State to toggle between views
   const [activeTab, setActiveTab] = useState<'projects' | 'feedback'>('projects');
@@ -77,10 +74,6 @@ export default function AdminPage() {
                   Feedback
                 </ToggleButton>
               </ToggleButtonGroup>
-
-              <IconButton onClick={() => setIsSettingsOpen(true)} aria-label="Open settings">
-                <SettingsIcon fontSize="small" />
-              </IconButton>
             </Box>
           }
         />
@@ -132,10 +125,6 @@ export default function AdminPage() {
           )}
 
         </Box>
-        <SettingsModal 
-          open={isSettingsOpen} 
-          onClose={() => setIsSettingsOpen(false)} 
-        />
     </Box>
   );
 }

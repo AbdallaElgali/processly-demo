@@ -66,7 +66,7 @@ export function NewProjectDialog({
     setBusy(true);
     setError(null);
     try {
-      const created = await createNewCustomer(newCustomer.trim(), '');
+      const created = await createNewCustomer(newCustomer.trim());
       if (created) setCustomerId(created.id);
       setNewCustomer('');
       setAddingCustomer(false);

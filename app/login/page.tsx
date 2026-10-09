@@ -1,72 +1,98 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Box, Paper, Typography, TextField, Button } from '@mui/material';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Alert, Box, Button, Paper, Stack, TextField, Typography } from '@mui/material';
 import { useAuth } from '@/contexts/AuthContext';
-import { colors } from '@/theme/colors';
 
-export default function LoginPage() {
-  const [username, setUsername] = useState('');
-  const [error, setError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+function LoginForm() {
+  const params = useSearchParams();
+  // Prefilled when arriving from /register, so a new user does not retype it.
+  const [username, setUsername] = useState(params.get('username') ?? '');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const { login, user } = useAuth();
   const router = useRouter();
 
-  // Redirect if already logged in
   useEffect(() => {
-    if (user) {
-      router.push('/bda');
-    }
+    if (user) router.replace('/projects');
   }, [user, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
-    setError('');
-
+    if (!username.trim()) return;
+    setBusy(true);
+    setError(null);
     try {
-      await login(username);
-      router.push('/bda');
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      await login(username.trim());
+      router.replace('/projects');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Sign in failed.');
     } finally {
-      setIsSubmitting(false);
+      setBusy(false);
     }
   };
 
   return (
-    <Box sx={{ display: 'flex', height: '100dvh', alignItems: 'center', justifyContent: 'center', bgcolor: colors.background }}>
-        <Paper elevation={3} sx={{ p: 5, display: 'flex', flexDirection: 'column', width: '100%', maxWidth: 400, bgcolor: colors.surface }}>
-          <Typography variant="h5" sx={{ mb: 1, fontWeight: 'bold', textAlign: 'center' }}>
-            Voltavision BDA
-          </Typography>
-          <Typography variant="body2" sx={{ mb: 4, color: 'text.secondary', textAlign: 'center' }}>
-            Enter your engineer ID to continue
-          </Typography>
+    <Paper
+      variant="outlined"
+      sx={{ p: 4, width: '100%', maxWidth: 420, bgcolor: 'surface.panel', borderColor: 'border.subtle' }}
+    >
+      <Typography variant="h5" sx={{ color: 'text.primary', mb: 0.5 }}>
+        Voltavision <Box component="span" sx={{ color: 'accent.text' }}>BDA</Box>
+      </Typography>
+      <Typography variant="body2" sx={{ color: 'text.secondary', mb: 3 }}>
+        Battery Document Analysis. Sign in with your username.
+      </Typography>
 
-          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <TextField
-              label="Username"
-              variant="outlined"
-              fullWidth
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              error={!!error}
-              helperText={error}
-              disabled={isSubmitting}
-            />
-            <Button 
-              type="submit" 
-              variant="contained" 
-              size="large" 
-              disabled={isSubmitting || !username.trim()}
-              sx={{ mt: 2, bgcolor: colors.primary, '&:hover': { bgcolor: colors.secondary } }}
-            >
-              {isSubmitting ? 'Logging in...' : 'Log In'}
-            </Button>
-          </form>
-        </Paper>
+      <form onSubmit={handleLogin} noValidate>
+        <Stack spacing={2.5}>
+          {error && <Alert severity="error">{error}</Alert>}
+
+          <TextField
+            label="Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            autoFocus
+            fullWidth
+            required
+            disabled={busy}
+            autoComplete="username"
+          />
+
+          <Button type="submit" variant="contained" size="large" disabled={busy || !username.trim()} loading={busy}>
+            Sign in
+          </Button>
+
+          <Typography variant="body2" sx={{ color: 'text.secondary', textAlign: 'center' }}>
+            No account yet?{' '}
+            <Box component={Link} href="/register" sx={{ color: 'accent.text', fontWeight: 600 }}>
+              Register
+            </Box>
+          </Typography>
+        </Stack>
+      </form>
+    </Paper>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Box
+      sx={{
+        minHeight: '100dvh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        p: 3,
+        bgcolor: 'surface.canvas',
+      }}
+    >
+      {/* useSearchParams needs a Suspense boundary to prerender this route. */}
+      <Suspense fallback={null}>
+        <LoginForm />
+      </Suspense>
     </Box>
   );
 }

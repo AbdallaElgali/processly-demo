@@ -48,15 +48,20 @@ export interface CanonicalParameter {
     expected_unit: string | null;
 }
 
+/**
+ * Mirrors the ExtractionTemplateBase schema exactly. `updated_at` was declared
+ * here but the backend never returns it, so any code trusting it read
+ * undefined; the nullable fields are now typed as nullable rather than merely
+ * optional.
+ */
 export interface ExtractionTemplateBase {
     id: string;
     name: string;
-    user_id?: string;
-    customer_id?: string;
+    user_id: string | null;
+    customer_id: string | null;
     is_system_default: boolean;
     is_global: boolean;
-    created_at: string; // ISO Date string
-    updated_at: string; // ISO Date string
+    created_at: string;
 }
 
 export interface TemplateRule {

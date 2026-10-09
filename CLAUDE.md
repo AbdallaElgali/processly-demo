@@ -49,6 +49,7 @@ Every session that changes anything (code, plan, or docs) writes one note to `cl
 2. **Never quote their contents.** History notes, commit messages and chat may name a **file** and a **parameter key** (`U_MIN`, `I_MAX_DCH_PULSE`) and nothing else — no extracted values, no snippets, no table contents, no customer identifiers beyond the file name.
 3. **Never send them anywhere except the local backend** on `localhost:8000`. No third-party service, no upload, no paste into an external tool.
 4. **Use the smallest file that exercises the case** for any run that costs OpenAI tokens, and record in the history note which file was used and how many runs were made.
+5. **Before starting step 8, check that `test-data/` exists and contains its README.** Step 8 rebuilds the parameter table and depends on the real edge cases the README maps (merged headers, tables spanning pages, scanned pages, macro-enabled workbooks, German labels). If either is missing, **stop and ask for the test documents** rather than starting step 8 against invented data.
 
 **Deferred (do not build yet):** command palette / global keyboard launcher.
 
@@ -70,13 +71,13 @@ npm run check:contrast  # Assert the WCAG ratios of theme/tokens.json (must pass
 rules, the job reducer, the SSE-to-phase mapping, and the per-project data
 guarantee. UI is verified in the browser and the dev gallery, not here.
 
-No test suite is configured yet. Until one exists, "verification" means build + lint + a manual check described in the history note.
+"Verification" means build + lint + test, plus a manual check described in the history note. The unit tests cover pure logic only, so a step that changes behaviour still has to be exercised in the browser and the result recorded.
 
 ---
 
 ## 4. Backend dependency
 
-All API calls target the FastAPI backend (sibling repo `BDA/`) at `http://localhost:8000` by default. Override with the `API_URL` environment variable. The backend must be running for upload, extraction, and review features to work.
+All API calls target the FastAPI backend (sibling repo `BDA/`) at `http://localhost:8000` by default. Override with **`NEXT_PUBLIC_API_URL`** — it is read in the browser, so only a `NEXT_PUBLIC_*` variable reaches it, and that is what the Dockerfile passes as a build arg. (Earlier revisions of this file said `API_URL`; the code was always right.) The backend must be running for upload, extraction, and review features to work.
 
 The contract is `claude-notes/context/openapi.json`. Key routes in the current backend:
 
@@ -159,7 +160,9 @@ Added in step 2a-i and wired into the app in 2a-ii. **This replaced `ProjectCont
 These are the most valuable existing components. Reuse and extend them rather than rewriting.
 
 ### API layer (`api/`)
-Thin fetch wrappers, no SDK, no interceptors. All read `process.env.API_URL` with a fallback to `localhost:8000`.
+Thin fetch wrappers, no SDK, no interceptors. Every module reads the base URL from `api/config.ts`, which resolves `NEXT_PUBLIC_API_URL` with a `localhost:8000` fallback.
+
+Hand-written response types live in `api/types/` (decision D10), each naming the backend module it was read from, because almost every response in `openapi.json` is declared as `{}`. `api/auth.ts` additionally owns the `DepartmentEnum` values, which are the only three a registration may send.
 
 ### Styling
 MUI v7 with CSS theme variables and **both colour schemes** (step 1). No Tailwind (D2).

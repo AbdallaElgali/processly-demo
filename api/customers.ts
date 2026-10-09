@@ -26,7 +26,15 @@ export const fetch_customers = async(): Promise<Customer[] | void> => {
     }
 }
 
-export const create_customer = async (alias_name: string, name: string): Promise<void> => {
+/**
+ * POST /customers/.
+ *
+ * CustomerCreate declares only `alias_name`. The old signature also took a
+ * `name` and sent it, which the backend ignored -- so the "full name" the
+ * create-project dialog collected was silently discarded. The parameter is
+ * gone rather than kept as a lie.
+ */
+export const create_customer = async (alias_name: string): Promise<void> => {
     try { 
         const response = await fetch(API_BASE_URL + '/', {
             method: 'POST',
@@ -34,7 +42,7 @@ export const create_customer = async (alias_name: string, name: string): Promise
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ alias_name, name })
+            body: JSON.stringify({ alias_name })
         });
         
         // FIXED: Check if the response was successful (catches 400/500 backend errors)

@@ -25,10 +25,10 @@ export const useCustomers = () => {
   }, []);
 
   // Create a new customer and refresh the list
-  const createNewCustomer = useCallback(async (alias: string, name: string) => {
+  const createNewCustomer = useCallback(async (alias: string) => {
     setError(null);
     try {
-      await create_customer(alias, name);
+      await create_customer(alias);
       
       // Refetch the list to include the newly created customer
       const updatedData = await fetch_customers();

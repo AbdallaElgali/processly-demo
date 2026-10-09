@@ -182,7 +182,10 @@ export const apiApproveProjectParameters = async (projectId: string): Promise<{ 
 };
 
 export const apiUpdateProjectParameter = async (project_parameter_id: string, parameterData: updateProjectParameter): Promise<void> => {
-  const response = await fetch(`${API_BASE_URL}/project-parameter/${project_parameter_id}`, {
+  // The trailing slash matters: the route is declared as
+  // PATCH /projects/project-parameter/{id}/ and FastAPI answers 307 without
+  // it. A redirected PATCH can lose its method or its body under CORS.
+  const response = await fetch(`${API_BASE_URL}/project-parameter/${project_parameter_id}/`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(parameterData),
