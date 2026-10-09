@@ -166,8 +166,8 @@ export class FrontendBatteryFileExport {
       // Current parameters
       { name: this.getFieldName(fields, 'I_MAX_CHA_PULSE', 'I_MAX_CHA_30S_DB'), value: iMaxChaPulse ?? placeholder, unit: 'A', valueType: 'battery_const', color: 'Gray' },
       { name: this.getFieldName(fields, 'I_MAX_CHA_CONTINUOUS', 'I_MAX_CHA_CONTINUOUS_DB'), value: iMaxChaCont ?? placeholder, unit: 'A', valueType: 'battery_const', color: 'Gray' },
-      { name: this.getFieldName(fields, 'I_MAX_DCH_PULSE', 'I_MAX_DCH_30S_DB'), value: iMaxDchPulse ? -iMaxDchPulse : -placeholder, unit: 'A', valueType: 'battery_const', color: 'Gray' },
-      { name: this.getFieldName(fields, 'I_MAX_DCH_CONTINUOUS', 'I_MAX_DCH_CONTINUOUS_DB'), value: iMaxDchCont ? -iMaxDchCont : -placeholder, unit: 'A', valueType: 'battery_const', color: 'Gray' },
+      { name: this.getFieldName(fields, 'I_MAX_DCH_PULSE', 'I_MAX_DCH_30S_DB'), value: iMaxDchPulse ?? placeholder, unit: 'A', valueType: 'battery_const', color: 'Gray' }, // * 
+      { name: this.getFieldName(fields, 'I_MAX_DCH_CONTINUOUS', 'I_MAX_DCH_CONTINUOUS_DB'), value: iMaxDchCont ?? placeholder, unit: 'A', valueType: 'battery_const', color: 'Gray' }, // * 
 
       // Package count & Charge throughput
       { name: 'PACKAGE_COUNT_DB', value: 0, valueType: 'battery_variable', color: 'Maroon' },
