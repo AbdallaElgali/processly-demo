@@ -7,7 +7,7 @@ import { StatusChip, projectStatusLabel } from '@/components/ui/StatusChip';
 import { toast } from '@/components/ui/Toast';
 import { changeProjectStatus } from '@/lib/project-data/actions';
 import { errorMessage } from '@/lib/errors';
-import { PROJECT_STATUSES, isProjectStatus } from '@/lib/overview/status';
+import { PROJECT_STATUSES, STATUS_CHANGE_AVAILABLE, STATUS_CHANGE_UNAVAILABLE, isProjectStatus } from '@/lib/overview/status';
 import type { ProjectStatus } from '@/api/types/projects';
 import { Card } from './Card';
 
@@ -45,6 +45,12 @@ export function StatusCard({ projectId, status }: { projectId: string; status: P
       <Stack direction="row" alignItems="center" spacing={1}>
         <StatusChip status={status} size="medium" />
       </Stack>
+      {!STATUS_CHANGE_AVAILABLE && (
+        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+          {STATUS_CHANGE_UNAVAILABLE}
+        </Typography>
+      )}
+      {STATUS_CHANGE_AVAILABLE && (
       <Stack component="form" onSubmit={submit} spacing={1.5} noValidate>
         <TextField
           select
@@ -70,6 +76,7 @@ export function StatusCard({ projectId, status }: { projectId: string; status: P
           </Button>
         </Stack>
       </Stack>
+      )}
       <Typography id="status-note" variant="caption" sx={{ color: 'text.muted' }}>
         The status is set by hand. Approving parameters does not change it, and changing it does not approve anything.
       </Typography>

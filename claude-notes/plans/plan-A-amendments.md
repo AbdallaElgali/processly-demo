@@ -148,6 +148,7 @@ Found by plan-A §11. Task A uses the placeholders and stopgaps already in the p
 | B19 | **Project parameter texts cannot be set back to null** (step 11). `PATCH /projects/project-parameter/{id}/` uses `COALESCE($new, old)`, so `null` means "leave as is"; clearing a text leaves `''`. |
 | B20 | **The template routes check no ownership** (step 11). Anyone can delete the system default or another user's template, or upsert rules into it. Task A refuses in the UI only (`templateAccess`). |
 | B21 | **After a correction, `GET /projects/{id}` returns only the newest run's candidates for that parameter** (found in the pre-step 11 real correction run, added on the owner's instruction). The older candidates are no longer in the project payload and exist only in the lineage (`/audit/.../lineage`), so the review UI cannot offer "go back to the previous candidate". Decide in Task B whether the payload should keep earlier candidates. |
+| B22 | **`POST /projects/update-project-status` is a no-op** (found in step 12, added on the owner's instruction). The route answers 200 `{"message":"Project status updated successfully"}` but its body (`BDA/src/api_routes/projects.py`) never calls `update_project_status` (which exists in `src/db/projects.py` and is correct), so nothing is written. It also accepts any string for `new_status`. Task A hides the Overview's status-change control behind `STATUS_CHANGE_AVAILABLE` (`lib/overview/status.ts`) and shows the status read-only until this is fixed. |
 ---
 
 # Part 2 (owner feedback after step 7, 2026-10-09)

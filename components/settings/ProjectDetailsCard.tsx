@@ -33,7 +33,7 @@ function useTemplateName(templateId: string | null, userId: string | null): { lo
 
 /**
  * The project's fixed facts. Read-only: the backend has no route that changes
- * a project's alias or description, and the status is changed on the Overview.
+ * a project's alias or description, and the status change is switched off (B22).
  */
 export function ProjectDetailsCard({ details, userId }: { details: FullProjectDetails; userId: string | null }) {
   const template = useTemplateName(details.source_template_id, userId);
@@ -59,7 +59,7 @@ export function ProjectDetailsCard({ details, userId }: { details: FullProjectDe
         {details.description || <Typography component="span" variant="body2" sx={{ color: 'text.muted', fontStyle: 'italic' }}>No description.</Typography>}
       </Fact>
       <Typography variant="caption" sx={{ color: 'text.muted' }}>
-        Read-only: the backend has no route to change a project&apos;s name or description. Change the status on the Overview.
+        Read-only: the backend has no route to change a project&apos;s name or description. The status is shown as stored; changing it is off for now (backend B22).
       </Typography>
     </Card>
   );
