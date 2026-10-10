@@ -8,6 +8,7 @@ import { cellKey, charWidthToPx, expandToMerges, parseWorkbook, regionAt } from 
 import { buildAxis, indexAt, moveSelection, spillColumns, visibleRange } from './grid';
 import { boxRangeLabel, matchValue, parseCandidateNumber, resolveExcelTarget, resolveSheet } from './highlight';
 import { DEFAULT_COL_PX, DEFAULT_ROW_PX, MIN_COLS, MIN_ROWS } from './config';
+import { matchNav, stepIndex } from './matchNav';
 
 /** A workbook written by SheetJS itself, read back through the viewer's parser. */
 function book(sheets: Record<string, { aoa: unknown[][]; merges?: string[]; cols?: XLSX.ColInfo[]; rows?: XLSX.RowInfo[] }>, hidden: number[] = []) {
@@ -208,5 +209,30 @@ describe('Excel source highlights', () => {
 
   it('gives a sheet without a region when the source has no box', () => {
     expect(resolveExcelTarget(src({ pageNumber: 1 }), wb)).toMatchObject({ sheetIndex: 0, region: null, matches: [] });
+  });
+});
+
+describe('match navigation (owner decision on 9b)', () => {
+  it('steps through matches and wraps at both ends', () => {
+    expect(stepIndex(0, 1, 3)).toBe(1);
+    expect(stepIndex(2, 1, 3)).toBe(0);
+    expect(stepIndex(0, -1, 3)).toBe(2);
+    expect(stepIndex(0, 1, 0)).toBe(0);
+  });
+
+  it('keeps the same reference for an unchanged count, and clears per document', () => {
+    let calls = 0;
+    const off = matchNav.subscribe(() => calls++);
+    matchNav.set('p', 'd', { nonce: 1, count: 20, truncated: false });
+    const first = matchNav.get('p', 'd');
+    matchNav.set('p', 'd', { nonce: 1, count: 20, truncated: false });
+    expect(matchNav.get('p', 'd')).toBe(first);
+    expect(calls).toBe(1);
+    matchNav.set('p', 'd', { nonce: 2, count: 3, truncated: false });
+    expect(matchNav.get('p', 'd')?.count).toBe(3);
+    matchNav.clear('p', 'd');
+    expect(matchNav.get('p', 'd')).toBeUndefined();
+    expect(calls).toBe(3);
+    off();
   });
 });

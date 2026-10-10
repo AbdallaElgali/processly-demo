@@ -9,6 +9,7 @@ import { documentFiles } from '@/lib/documents/fileStore';
 import { KEEP_MOUNTED } from '@/lib/documents/config';
 import { touchRecent } from '@/lib/documents/prefetch';
 import { anchorKey, fieldAnchors, type SourceAnchor } from '@/lib/review/anchors';
+import { stepIndex } from '@/lib/excel/matchNav';
 
 /** The source the user jumped to, and the parameter's other anchors (1 of N). */
 export interface SourceNav {
@@ -127,6 +128,23 @@ export function useDocumentWorkspace(projectId: string, documents: ProjectDocume
 
   const clearSource = useCallback(() => setState((s) => ({ ...s, nav: null, highlights: {} })), []);
 
+  /**
+   * Moves to the next or previous matching cell of the open document's
+   * highlight (Excel tables, where the backend names no cell). Same nonce: it
+   * is the same jump, so the viewer only moves the selection.
+   */
+  const stepMatch = useCallback(
+    (dir: 1 | -1, count: number) => {
+      if (!activeId || count < 2) return;
+      setState((s) => {
+        const h = s.highlights[activeId];
+        if (!h) return s;
+        return { ...s, highlights: { ...s.highlights, [activeId]: { ...h, matchIndex: stepIndex(h.matchIndex ?? 0, dir, count) } } };
+      });
+    },
+    [activeId],
+  );
+
   return {
     activeId,
     mountedIds,
@@ -136,5 +154,6 @@ export function useDocumentWorkspace(projectId: string, documents: ProjectDocume
     jump,
     cycle,
     clearSource,
+    stepMatch,
   };
 }

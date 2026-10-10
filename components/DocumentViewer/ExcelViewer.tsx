@@ -10,6 +10,7 @@ import { cellRef, type CellPos } from '@/lib/excel/address';
 import { loadWorkbook } from '@/lib/excel/cache';
 import { anchorOf, clampPos } from '@/lib/excel/grid';
 import { resolveExcelTarget, type ExcelTarget } from '@/lib/excel/highlight';
+import { matchNav } from '@/lib/excel/matchNav';
 import { cellKey, regionAt, type WorkbookModel } from '@/lib/excel/workbook';
 import type { ViewerHighlight } from './types';
 import { SheetGrid, type GridJump } from './excel/SheetGrid';
@@ -81,6 +82,8 @@ interface View {
   initialScroll: { top: number; left: number } | null;
   /** Counter for local jumps (name box, "go to source"); negative nonces, never persisted. */
   seq: number;
+  /** The highlight's `matchIndex` last acted on. */
+  match: number;
 }
 
 function firstVisibleSheet(wb: WorkbookModel): number {
@@ -92,11 +95,11 @@ function savedSheet(projectId: string, documentId: string, name: string): ExcelS
   return projectDataStore.getDocumentView(projectId, documentId)?.sheets?.[name];
 }
 
-/** Where a jump lands: the first cell matching the value, else the region's top-left. */
-function jumpFor(target: ExcelTarget, wb: WorkbookModel, nonce: number): { sel: CellPos | null; jump: GridJump | null } {
+/** Where a jump lands: the current matching cell, else the region's top-left. */
+function jumpFor(target: ExcelTarget, wb: WorkbookModel, nonce: number, match = 0): { sel: CellPos | null; jump: GridJump | null } {
   const sheet = wb.sheets[target.sheetIndex];
   if (!target.region) return { sel: null, jump: null };
-  const sel = anchorOf(sheet, target.matches[0] ?? { r: target.region.r1, c: target.region.c1 });
+  const sel = anchorOf(sheet, target.matches[match] ?? target.matches[0] ?? { r: target.region.r1, c: target.region.c1 });
   return { sel, jump: { nonce, focus: regionAt(sheet, sel), region: target.region } };
 }
 
@@ -117,16 +120,22 @@ function WorkbookView({ wb, projectId, documentId, highlight }: { wb: WorkbookMo
       jump: null,
       initialScroll: sv ? { top: sv.top, left: sv.left } : null,
       seq: 0,
+      match: highlight?.matchIndex ?? 0,
     };
   });
 
-  const target = useMemo(() => (highlight ? resolveExcelTarget(highlight.source, wb, highlight.value) : null), [highlight, wb]);
+  // Keyed on what the highlight points at, not on the object: stepping
+  // through matches makes a new highlight with the same source.
+  const hlSource = highlight?.source;
+  const hlValue = highlight?.value;
+  const target = useMemo(() => (hlSource ? resolveExcelTarget(hlSource, wb, hlValue) : null), [hlSource, hlValue, wb]);
+  const matchIndex = highlight?.matchIndex ?? 0;
 
   // A new jump from the parameter table: switch to its sheet and select the
   // matched cell. Adjusted during render, once per nonce (no effect needed).
   if (highlight && highlight.nonce !== view.nonce) {
     if (target) {
-      const { sel, jump } = jumpFor(target, wb, highlight.nonce);
+      const { sel, jump } = jumpFor(target, wb, highlight.nonce, matchIndex);
       const name = wb.sheets[target.sheetIndex].name;
       const fallback = savedSheet(projectId, documentId, name);
       setView({
@@ -136,11 +145,27 @@ function WorkbookView({ wb, projectId, documentId, highlight }: { wb: WorkbookMo
         nonce: highlight.nonce,
         jump,
         initialScroll: fallback ? { top: fallback.top, left: fallback.left } : null,
+        match: matchIndex,
       });
     } else {
-      setView({ ...view, nonce: highlight.nonce });
+      setView({ ...view, nonce: highlight.nonce, match: matchIndex });
     }
+  } else if (highlight && target?.region && matchIndex !== view.match) {
+    // "N of M" in the source bar: move to another matching cell of the same
+    // jump. A local (negative) nonce, so it is never persisted as handled.
+    const { sel, jump } = jumpFor(target, wb, -(view.seq + 1), matchIndex);
+    setView({ ...view, sheet: target.sheetIndex, sel: sel ?? view.sel, seq: view.seq + 1, jump: jump && { ...jump, region: null }, initialScroll: null, match: matchIndex });
   }
+
+  // Publish the match count for the source bar's "N of M".
+  const hlNonce = highlight?.nonce;
+  const matchCount = target?.region ? target.matches.length : 0;
+  const matchTruncated = !!target?.truncated;
+  useEffect(() => {
+    if (hlNonce === undefined) matchNav.clear(projectId, documentId);
+    else matchNav.set(projectId, documentId, { nonce: hlNonce, count: matchCount, truncated: matchTruncated });
+  }, [projectId, documentId, hlNonce, matchCount, matchTruncated]);
+  useEffect(() => () => matchNav.clear(projectId, documentId), [projectId, documentId]);
 
   const sheet = wb.sheets[view.sheet];
   const sel = sheet.kind === 'sheet' ? clampPos(sheet, view.sel) : { r: 0, c: 0 };
@@ -201,7 +226,7 @@ function WorkbookView({ wb, projectId, documentId, highlight }: { wb: WorkbookMo
 
   const goToSource = () => {
     if (!target || !highlight) return;
-    const { sel: s, jump } = jumpFor(target, wb, -(view.seq + 1));
+    const { sel: s, jump } = jumpFor(target, wb, -(view.seq + 1), view.match);
     setView((v) => ({ ...v, sheet: target.sheetIndex, sel: s ?? { r: 0, c: 0 }, seq: v.seq + 1, jump, initialScroll: null }));
   };
 
@@ -236,8 +261,12 @@ function WorkbookView({ wb, projectId, documentId, highlight }: { wb: WorkbookMo
     const one = target.matches.length === 1 && !target.truncated;
     status = {
       text: `${range} · ${target.matches.length === 0 ? 'no match' : `${n} ${one ? 'match' : 'matches'}`}`,
-      detail: `The source names the table ${range}. ${
-        target.matches.length === 0 ? 'No cell in it matches the value.' : `${n} ${one ? 'cell in it matches' : 'cells in it match'} the value and ${one ? 'is' : 'are'} marked.`
+      detail: `The source names the table ${range}, not a cell. ${
+        target.matches.length === 0
+          ? 'No cell in it matches the value.'
+          : one
+            ? 'One cell in it matches the value and is marked.'
+            : `${n} cells in it match the value. The current one is marked strongly, the others lightly; step through them with the arrows above the viewer.`
       }`,
     };
   }
@@ -268,7 +297,7 @@ function WorkbookView({ wb, projectId, documentId, highlight }: { wb: WorkbookMo
             scale={scale}
             selection={sel}
             onSelect={onSelect}
-            highlight={onThisSheet && target ? { region: target.region, matches: target.matches } : null}
+            highlight={onThisSheet && target ? { region: target.region, matches: target.matches, current: target.matches[view.match] ?? target.matches[0] ?? null } : null}
             jump={view.jump}
             onJumpHandled={onJumpHandled}
             initialScroll={view.initialScroll}

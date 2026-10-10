@@ -30,6 +30,7 @@ import { DocumentViewport } from '@/components/workspace/DocumentViewport';
 import { SourceBar } from '@/components/workspace/SourceBar';
 import { documentFiles, isSpreadsheetDocument } from '@/lib/documents/fileStore';
 import { useDocumentFiles } from '@/lib/documents/hooks';
+import { useMatchInfo } from '@/lib/excel/matchNav';
 import { FrontendBatteryFileExport, missingExportKeys } from '@/static/battery-template';
 import type { InputField, SpecificationSource } from '@/types';
 import { inputFieldToParameterInput, mapFieldsToSpecs } from '@/lib/parameter-adapter';
@@ -124,6 +125,10 @@ export default function WorkspacePage() {
   // ---- documents (AM12) -------------------------------------------------
   const viewer = useDocumentWorkspace(projectId, documents);
   const files = useDocumentFiles();
+  // Matching cells of the open workbook's highlight, for the source bar's "Cell N of M".
+  const matchInfo = useMatchInfo(projectId, viewer.activeId);
+  const activeHighlight = viewer.activeId ? viewer.highlights[viewer.activeId] : undefined;
+  const shownMatches = matchInfo && activeHighlight && matchInfo.nonce === activeHighlight.nonce ? matchInfo : undefined;
 
   const fieldsRef = useRef(fields);
   useEffect(() => {
@@ -389,6 +394,9 @@ export default function WorkspacePage() {
                   activeId={viewer.activeId}
                   onCycle={viewer.cycle}
                   onClose={viewer.clearSource}
+                  matches={shownMatches}
+                  matchIndex={activeHighlight?.matchIndex ?? 0}
+                  onStepMatch={(dir) => shownMatches && viewer.stepMatch(dir, shownMatches.count)}
                 />
               )}
               <DocumentViewport

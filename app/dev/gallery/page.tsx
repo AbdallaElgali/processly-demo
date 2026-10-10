@@ -233,7 +233,7 @@ export default function GalleryPage() {
             <Chip label="Chip" />
           </Stack>
           <Typography variant="caption" sx={{ color: 'text.muted', display: 'block', mb: 1 }}>
-            SearchField — Esc clears, and the global &quot;/&quot; shortcut focuses it.
+            SearchField — Esc clears. No key focuses it (AM19: no custom shortcuts).
           </Typography>
           <SearchField value={search} onChange={setSearch} placeholder="Try typing, then press Esc" sx={{ mb: 1 }} />
 

@@ -11,12 +11,17 @@ import type { ProjectDocument } from '@/api/types/projects';
 import type { SourceNav } from '@/hooks/useDocumentWorkspace';
 import { locationLabel } from './ParameterRow';
 import { isSpreadsheetDocument } from '@/lib/documents/fileStore';
+import type { MatchInfo } from '@/lib/excel/matchNav';
 
 /**
  * The source the user jumped to, above the viewer (plan-A §8 "Source 1 of 2 ·
  * Page 4"). Shared by the PDF and Excel viewers, so anchor navigation and the
  * recorded source text work the same for both. The arrows cycle the
  * parameter's anchors, which may be on different pages or documents (CFC).
+ *
+ * A workbook source names a whole table (B14), so when several of its cells
+ * hold the value, a second "N of M" steps through those cells. Buttons only,
+ * no keys (AM19).
  */
 export function SourceBar({
   nav,
@@ -24,12 +29,19 @@ export function SourceBar({
   activeId,
   onCycle,
   onClose,
+  matches,
+  matchIndex = 0,
+  onStepMatch,
 }: {
   nav: SourceNav;
   documents: ProjectDocument[];
   activeId: string | null;
   onCycle: (dir: 1 | -1) => void;
   onClose: () => void;
+  /** Matching cells of the open workbook's highlight, when it is the anchor shown here. */
+  matches?: MatchInfo;
+  matchIndex?: number;
+  onStepMatch?: (dir: 1 | -1) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const anchor = nav.anchors[nav.index];
@@ -61,6 +73,16 @@ export function SourceBar({
           </Tooltip>
         )}
         <Box sx={{ flex: 1 }} />
+        {matches && matches.count > 1 && onStepMatch && (
+          <Stepper
+            label="cell"
+            index={matchIndex}
+            count={matches.count}
+            countLabel={`${matches.count}${matches.truncated ? '+' : ''}`}
+            onStep={onStepMatch}
+            tooltip={`${matches.count}${matches.truncated ? '+' : ''} cells in the source table hold this value. The backend names the table, not the cell, so each is a possible source.`}
+          />
+        )}
         {total > 1 && (
           <Stack direction="row" alignItems="center" spacing={0.25} sx={{ flexShrink: 0 }}>
             <Tooltip title="Previous source">
@@ -109,5 +131,49 @@ export function SourceBar({
         </Box>
       )}
     </Box>
+  );
+}
+
+/** "‹ 3 of 20 ›" for the matching cells of a workbook source. */
+function Stepper({
+  label,
+  index,
+  count,
+  countLabel,
+  onStep,
+  tooltip,
+}: {
+  label: string;
+  index: number;
+  count: number;
+  countLabel: string;
+  onStep: (dir: 1 | -1) => void;
+  tooltip: string;
+}) {
+  return (
+    <Stack
+      direction="row"
+      alignItems="center"
+      spacing={0.25}
+      role="group"
+      aria-label={`Matching ${label}s`}
+      sx={{ flexShrink: 0, pr: 0.75, mr: 0.25, borderRight: 1, borderColor: 'border.subtle' }}
+    >
+      <Tooltip title={`Previous matching ${label}`}>
+        <IconButton size="small" aria-label={`Previous matching ${label}`} onClick={() => onStep(-1)} sx={{ color: 'text.secondary' }}>
+          <ChevronLeftIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title={tooltip}>
+        <Typography variant="body2" sx={{ color: 'text.primary', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }} aria-label={`Matching ${label} ${index + 1} of ${count}`}>
+          {label === 'cell' ? 'Cell ' : ''}{index + 1} of {countLabel}
+        </Typography>
+      </Tooltip>
+      <Tooltip title={`Next matching ${label}`}>
+        <IconButton size="small" aria-label={`Next matching ${label}`} onClick={() => onStep(1)} sx={{ color: 'text.secondary' }}>
+          <ChevronRightIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+    </Stack>
   );
 }

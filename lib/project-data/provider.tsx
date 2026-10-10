@@ -9,6 +9,7 @@ import { projectsIndex } from './projects-index';
 import { projectDataStore } from './store';
 import { documentFiles } from '@/lib/documents/fileStore';
 import { clearWorkbookCache } from '@/lib/excel/cache';
+import { matchNav } from '@/lib/excel/matchNav';
 
 /**
  * Replaces ProjectProvider.
@@ -38,6 +39,7 @@ export function ProjectDataProvider({ children }: { children: ReactNode }) {
       projectDataStore.reset();
       documentFiles.reset();
       clearWorkbookCache();
+      matchNav.reset();
       projectsIndex.reset();
       return;
     }

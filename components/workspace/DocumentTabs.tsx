@@ -185,7 +185,7 @@ export function DocumentTabs({
             }
           }}
         >
-          <SearchField value={query} onChange={setQuery} placeholder="Find a document" shortcut={false} autoFocus fullWidth sx={{ maxWidth: 'none' }} />
+          <SearchField value={query} onChange={setQuery} placeholder="Find a document" autoFocus fullWidth sx={{ maxWidth: 'none' }} />
         </Box>
         {matches.length === 0 && (
           <Typography variant="body2" sx={{ px: 2, py: 1, color: 'text.muted' }}>No document matches “{query}”.</Typography>

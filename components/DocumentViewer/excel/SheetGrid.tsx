@@ -22,6 +22,8 @@ export interface GridJump {
 export interface GridHighlight {
   region: Region | null;
   matches: CellPos[];
+  /** The match marked strongly; the others get a light dashed outline. */
+  current: CellPos | null;
 }
 
 const KEYS: Record<string, Direction> = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
@@ -332,6 +334,7 @@ function SheetGridImpl({
           )}
           {highlight?.matches.map((m) => {
             const rect = regionRect(rows, cols, regionAt(sheet, m));
+            const strong = !!highlight.current && highlight.current.r === m.r && highlight.current.c === m.c;
             return (
               <div
                 aria-hidden
@@ -339,7 +342,9 @@ function SheetGridImpl({
                 style={{
                   position: 'absolute', pointerEvents: 'none', boxSizing: 'border-box',
                   left: rect.left - 1, top: rect.top - 1, width: rect.width + 1, height: rect.height + 1,
-                  background: doc.matchFill, border: `1px solid ${doc.highlightStroke}`, zIndex: 2,
+                  ...(strong
+                    ? { background: doc.matchFill, border: `2px solid ${doc.highlightStroke}`, zIndex: 3 }
+                    : { border: `1px dashed ${doc.highlightStroke}`, zIndex: 2 }),
                 }}
               />
             );

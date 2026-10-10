@@ -10,4 +10,9 @@ export interface ViewerHighlight {
   nonce: number;
   /** The candidate's value. The Excel viewer marks matching cells inside the source table. */
   value?: string | null;
+  /**
+   * Which of the matching cells is current (Excel only; 0 when absent). The
+   * source bar's "N of M" buttons change it without a new jump nonce.
+   */
+  matchIndex?: number;
 }
