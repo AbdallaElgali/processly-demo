@@ -354,7 +354,7 @@ export default function WorkspacePage() {
 
         <Box sx={{ flex: 1 }} />
 
-        <Button size="small" component={Link} href={`/projects/${projectId}/audit`} startIcon={<HistoryOutlinedIcon />} sx={{ color: 'text.secondary' }}>
+        <Button size="small" component={Link} href={`/projects/${projectId}/audit?tab=runs`} startIcon={<HistoryOutlinedIcon />} sx={{ color: 'text.secondary' }}>
           Runs
         </Button>
         <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />

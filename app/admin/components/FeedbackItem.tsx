@@ -39,7 +39,7 @@ export const FeedbackItem: React.FC<Props> = ({ feedback }) => {
           <Typography variant="caption"><strong>Type:</strong> {feedback.feedback_type}</Typography>
           <Typography variant="caption"><strong>User ID:</strong> {feedback.user_id}</Typography>
           <Typography variant="caption">
-            <strong>Date:</strong> {new Date(feedback.created_at).toLocaleDateString()}
+            <strong>Date:</strong> {feedback.created_at ? new Date(feedback.created_at).toLocaleDateString() : 'not recorded'}
           </Typography>
         </Box>
       </CardContent>

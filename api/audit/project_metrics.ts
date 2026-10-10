@@ -11,8 +11,8 @@ export const fetch_project_metrics = async (): Promise<ProjectMetrics[]> => {
 };
 
 
-export const fetch_project_summary = async(project_id: string): Promise<ProjectSummary[]> => {
-    const response = await fetch(`${config.api}/audit/project/${project_id}`);
+export const fetch_project_summary = async(project_id: string, signal?: AbortSignal): Promise<ProjectSummary[]> => {
+    const response = await fetch(`${config.api}/audit/project/${encodeURIComponent(project_id)}`, { signal });
     if (response.status === 200){
         const data = await response.json();
         return data.summary as ProjectSummary[];
@@ -25,9 +25,10 @@ import type { ParameterLineageResponse } from '@/types/audit';
 
 export const fetch_parameter_lineage = async (
   project_id: string, 
-  parameter_key: string
+  parameter_key: string,
+  signal?: AbortSignal,
 ): Promise<ParameterLineageResponse> => {
-  const response = await fetch(`${config.api}/audit/project/${project_id}/parameter/${parameter_key}/lineage`);
+  const response = await fetch(`${config.api}/audit/project/${encodeURIComponent(project_id)}/parameter/${encodeURIComponent(parameter_key)}/lineage`, { signal });
   
   if (response.status === 200) {
     const data = await response.json();

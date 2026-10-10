@@ -18,8 +18,8 @@ export default function FeedbackArea({ feedbacks }: Props) {
       {feedbacks.length === 0 ? (
         <Typography color="text.secondary">No feedback available.</Typography>
       ) : (
-        feedbacks.map((feedback) => (
-          <FeedbackItem key={feedback.id} feedback={feedback} />
+        feedbacks.map((feedback, index) => (
+          <FeedbackItem key={feedback.id ?? index} feedback={feedback} />
         ))
       )}
     </Box>
