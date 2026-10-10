@@ -5,12 +5,8 @@ import { Chip, Stack } from '@mui/material';
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
 import { apiGetExtractionRuns } from '@/api/projects';
 import type { ExtractionRun } from '@/api/types/projects';
+import { RUN_TYPE_LABEL } from '@/lib/overview/status';
 
-const TYPE_LABEL: Record<string, string> = {
-  MAIN_MULTI_AGENT: 'Blind',
-  ITERATIVE: 'Iterative',
-  SINGLE_PARAM: 'Single parameter',
-};
 
 const FILTERS = ['MAIN_MULTI_AGENT', 'ITERATIVE', 'SINGLE_PARAM'] as const;
 
@@ -42,7 +38,7 @@ export function RunsTab({ projectId }: { projectId: string }) {
     {
       key: 'extraction_type',
       label: 'Type',
-      render: (r) => TYPE_LABEL[r.extraction_type] ?? r.extraction_type,
+      render: (r) => RUN_TYPE_LABEL[r.extraction_type] ?? r.extraction_type,
     },
     { key: 'parameters_count', label: 'Parameters', sortable: true, value: (r) => r.parameters_count },
     { key: 'model_name', label: 'Model', value: (r) => r.model_name ?? '—' },
@@ -68,7 +64,7 @@ export function RunsTab({ projectId }: { projectId: string }) {
         {FILTERS.map((f) => (
           <Chip
             key={f}
-            label={TYPE_LABEL[f]}
+            label={RUN_TYPE_LABEL[f]}
             size="small"
             color={filter === f ? 'primary' : 'default'}
             variant={filter === f ? 'filled' : 'outlined'}

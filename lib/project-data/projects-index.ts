@@ -1,4 +1,4 @@
-import type { ProjectBase } from '@/api/types/projects';
+import type { ProjectBase, ProjectStatus } from '@/api/types/projects';
 
 /**
  * The user's project list, plus which project is on screen.
@@ -64,6 +64,11 @@ class ProjectsIndex {
   add(project: ProjectBase) {
     if (this.state.projects.some((p) => p.id === project.id)) return;
     this.update({ projects: [...this.state.projects, project] });
+  }
+
+  updateStatus(projectId: string, status: ProjectStatus) {
+    if (!this.state.projects.some((p) => p.id === projectId && p.status !== status)) return;
+    this.update({ projects: this.state.projects.map((p) => (p.id === projectId ? { ...p, status } : p)) });
   }
 
   setActive(projectId: string | null) {

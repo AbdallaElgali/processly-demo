@@ -62,7 +62,7 @@ function BusyButton({ onClick, children }: { onClick: () => Promise<void> | void
  * upload has no pipeline to show, so it keeps a plain phase line and progress
  * bar.
  */
-export function JobBanner({ projectId }: { projectId: string | null }) {
+export function JobBanner({ projectId, padded = true }: { projectId: string | null; padded?: boolean }) {
   const activity = useProjectActivity(projectId);
 
   const running = activity.running;
@@ -74,7 +74,7 @@ export function JobBanner({ projectId }: { projectId: string | null }) {
   if (!running && !queued && !failed && !interrupted && !unseen) return null;
 
   return (
-    <Box sx={{ px: 3, pt: 2 }}>
+    <Box sx={padded ? { px: 3, pt: 2 } : undefined}>
       {running && (
         <Alert
           severity="info"

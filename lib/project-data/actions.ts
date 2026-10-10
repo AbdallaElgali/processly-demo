@@ -1,5 +1,7 @@
 import {
+  apiAddAuditor,
   apiAddContributor,
+  apiUpdateProjectStatus,
   apiApproveProjectParameters,
   apiCreateProject,
   apiGetProjectDetails,
@@ -11,7 +13,7 @@ import {
   type ProjectCreateInput,
   type updateProjectParameter,
 } from '@/api/projects';
-import type { FullProjectDetails, ProjectBase } from '@/api/types/projects';
+import type { FullProjectDetails, ProjectBase, ProjectStatus } from '@/api/types/projects';
 import type { InputField } from '@/types';
 import { dbParamToInputField, inputFieldToParameterInput } from '@/lib/parameter-adapter';
 import type { ProjectParameter } from '@/api/projects';
@@ -120,6 +122,36 @@ export async function createProject(input: ProjectCreateInput): Promise<ProjectB
 export async function addContributor(projectId: string, username: string): Promise<void> {
   await apiAddContributor(projectId, username);
   await loadProjectDetails(projectId, { background: true });
+}
+
+export async function addAuditor(projectId: string, username: string): Promise<void> {
+  await apiAddAuditor(projectId, username);
+}
+
+/** The backend answered 200 to a status change but the project still has the old status (proposed B22). */
+export class StatusNotAppliedError extends Error {
+  constructor(requested: ProjectStatus, actual: ProjectStatus | undefined) {
+    super(
+      `The backend accepted the request but the status is still ${actual ?? 'unchanged'}, not ${requested}. ` +
+        'Nothing was changed (backend item B22: the route never writes the status).',
+    );
+    this.name = 'StatusNotAppliedError';
+  }
+}
+
+/**
+ * Sets the project's status, then **reads it back** before telling anyone.
+ * `POST /projects/update-project-status` currently answers 200 without ever
+ * writing the status (its route body only builds the response; proposed
+ * backend item B22), so trusting the 200 would show a success that did not
+ * happen. Only a status the backend really reports reaches the project list.
+ * Does NOT touch review state: Approve and the status are separate (B10).
+ */
+export async function changeProjectStatus(projectId: string, status: ProjectStatus): Promise<void> {
+  await apiUpdateProjectStatus(projectId, status);
+  const details = await loadProjectDetails(projectId, { background: true });
+  if (details) projectsIndex.updateStatus(projectId, details.status);
+  if (details?.status !== status) throw new StatusNotAppliedError(status, details?.status);
 }
 
 export async function updateParameterMetadata(

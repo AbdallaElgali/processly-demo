@@ -40,13 +40,12 @@ import {
   rowsToSave, saveAndApprove, saveChanges,
 } from '@/lib/review/actions';
 import { approvalCheck, approveBlockReason } from '@/lib/review/approval';
+import { COMPACT_KEY, REVIEW_FIRST_KEY } from '@/lib/review/preferences';
 import type { RowBusy } from '@/components/workspace/ParameterRow';
 import { JOB_CAP } from '@/lib/jobs/config';
 import { createJob, jobRuntime } from '@/lib/jobs/runtime';
 
 const ACCEPT = '.pdf,.xlsx,.xlsm';
-const COMPACT_KEY = 'bda.workspace.compact';
-const REVIEW_FIRST_KEY = 'bda.workspace.reviewFirst';
 
 /**
  * The Workspace (AM11): extraction and review on one screen, replacing the
