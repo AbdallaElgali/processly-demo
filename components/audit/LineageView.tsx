@@ -6,7 +6,6 @@ import {
 } from '@mui/material';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
-import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
@@ -16,7 +15,7 @@ import { ConfidenceIndicator } from '@/components/workspace/indicators';
 import { useResource } from '@/hooks/useResource';
 import { fetch_parameter_lineage } from '@/api/audit/project_metrics';
 import type { ExtractionRun } from '@/api/types/projects';
-import { buildLineage, flagTypeLabel, type LineageRow } from '@/lib/audit/lineage';
+import { buildLineage, CARRIED_OVER_LABEL, REVIEWER_FLAG_LABEL, type LineageRow } from '@/lib/audit/lineage';
 import { formatDisplayValue } from '@/lib/review/format';
 import { RUN_TYPE_LABEL } from '@/lib/overview/status';
 import type { FlagDetail } from '@/types/audit';
@@ -33,7 +32,7 @@ function FlagCell({ row }: { row: LineageRow }) {
   return (
     <Stack spacing={0.5} alignItems="flex-start">
       <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: 'wrap' }}>
-        <FlagTypeChip flag={flag} />
+        <FlagTypeChip flag={flag} carriedOver={row.flagCarriedOver} />
         <Chip
           size="small"
           icon={flag.status === 'OPEN' ? <FlagOutlinedIcon /> : <CheckCircleOutlineIcon />}
@@ -57,18 +56,18 @@ function FlagCell({ row }: { row: LineageRow }) {
   );
 }
 
-function FlagTypeChip({ flag }: { flag: FlagDetail }) {
-  const label = flagTypeLabel(flag.flagType);
-  const auto = flag.flagType === 'AI_CORRETION';
+function FlagTypeChip({ flag, carriedOver }: { flag: FlagDetail; carriedOver: boolean }) {
   return (
     <Tooltip
-      title={
-        auto
-          ? 'Stored as AI_CORRETION. The backend stores this type for every flag it creates, including flags a person raises, so it does not say who raised this one.'
-          : `Stored as ${flag.flagType ?? 'no type'}`
-      }
+      title={`Every stored flag is raised by a reviewer. The backend's type (${flag.flagType ?? 'none'}) means a flag on an AI value, not one raised by the AI (B23).`}
     >
-      <Chip size="small" variant="outlined" icon={auto ? <SmartToyOutlinedIcon /> : <FlagOutlinedIcon />} label={label} />
+      <Chip
+        size="small"
+        variant="outlined"
+        icon={<FlagOutlinedIcon />}
+        label={carriedOver ? `${REVIEWER_FLAG_LABEL}, ${CARRIED_OVER_LABEL}` : REVIEWER_FLAG_LABEL}
+        sx={{ height: 'auto', '& .MuiChip-label': { whiteSpace: 'normal', py: 0.25 } }}
+      />
     </Tooltip>
   );
 }

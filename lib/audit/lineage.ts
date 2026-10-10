@@ -2,16 +2,23 @@ import type { FlagDetail, ParameterLineageEvent, ParameterLineageResponse, Proje
 import type { ExtractionRun } from '@/api/types/projects';
 
 /**
- * The backend's `flag_type` column is `AI_CORRETION` (sic) or `HUMAN_REVIEW`.
- * Shown as Auto and Human. CAUTION (proposed B23): the backend writes
- * `AI_CORRETION` for every flag it creates, including those a person raises
- * in the Workspace, and never writes `HUMAN_REVIEW`, so "Auto" here does not
- * prove a machine raised the flag.
+ * Every stored flag was raised by a reviewer (`POST /flagging/ai-flag-parameter`).
+ * The backend's `flag_type` `AI_CORRETION` (sic) means "flag on an AI value",
+ * not "raised by the AI", and it is written for every flag (B23), so the type
+ * is not shown as a who. Out-of-bounds warnings are never stored as flags
+ * (they live in `rule_violations`).
  */
-export function flagTypeLabel(type: string | null | undefined): string {
-  if (type === 'AI_CORRETION') return 'Auto';
-  if (type === 'HUMAN_REVIEW') return 'Human';
-  return type ? type : 'Unknown';
+export const REVIEWER_FLAG_LABEL = 'Reviewer flag';
+export const CARRIED_OVER_LABEL = 'carried over after re-extraction';
+
+/**
+ * A flag opened on a correction's new candidate with the same reason as the
+ * flag that candidate resolved: the backend re-raises the flag on the new value.
+ */
+export function isCarriedOver(flag: FlagDetail | null, resolvesFlag: FlagDetail | null): boolean {
+  if (!flag || !resolvesFlag) return false;
+  const a = (flag.flagReason ?? '').trim();
+  return a !== '' && a === (resolvesFlag.flagReason ?? '').trim();
 }
 
 /** Equal as numbers when both parse (2.30 equals 2.3), otherwise as text; null only equals null. */
@@ -35,6 +42,8 @@ export interface LineageRow {
   unitChanged: boolean;
   /** This candidate is the one that resolved an earlier flag (a flag chain). */
   resolvesFlag: { flag: FlagDetail; fromOrdinal: number } | null;
+  /** This candidate's own flag repeats the reason of the flag it resolved (see `isCarriedOver`). */
+  flagCarriedOver: boolean;
   /** The flag on this candidate was resolved by another candidate. */
   resolvedBy: { ordinal: number; runNumber: number | null } | null;
 }
@@ -65,6 +74,7 @@ export function buildLineage(lineage: ParameterLineageResponse, runs: Extraction
     const run = runById.get(event.extractionRunId);
     const resolver = events.find((e) => e.flag?.resolvedByCandidateId === event.candidateId);
     const target = event.flag?.resolvedByCandidateId ? events.find((e) => e.candidateId === event.flag!.resolvedByCandidateId) : undefined;
+    const resolvesFlag = resolver?.flag ? { flag: resolver.flag, fromOrdinal: ordinalOf.get(resolver.candidateId)! } : null;
     return {
       event,
       ordinal: i + 1,
@@ -73,7 +83,8 @@ export function buildLineage(lineage: ParameterLineageResponse, runs: Extraction
       previous,
       valueChange: !previous ? 'first' : sameValue(previous.value, event.value) ? 'same' : 'changed',
       unitChanged: !!previous && (previous.unit ?? '') !== (event.unit ?? ''),
-      resolvesFlag: resolver?.flag ? { flag: resolver.flag, fromOrdinal: ordinalOf.get(resolver.candidateId)! } : null,
+      resolvesFlag,
+      flagCarriedOver: isCarriedOver(event.flag, resolvesFlag?.flag ?? null),
       resolvedBy: target ? { ordinal: ordinalOf.get(target.candidateId)!, runNumber: runNumberOf(target) } : null,
     };
   });

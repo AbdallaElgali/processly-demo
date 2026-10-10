@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ParameterLineageEvent, ParameterLineageResponse, ProjectSummary } from '@/types/audit';
 import type { ExtractionRun } from '@/api/types/projects';
 import type { FeedbackItem } from '@/api/audit/feedback';
-import { buildLineage, filterSummary, flagTypeLabel, sameValue, summaryTotals } from './lineage';
+import { buildLineage, filterSummary, isCarriedOver, REVIEWER_FLAG_LABEL, sameValue, summaryTotals } from './lineage';
 import { collectAllPages, feedbackTotals } from './feedback';
 
 const run = (id: string, n: number): ExtractionRun => ({
@@ -17,12 +17,18 @@ const lineage = (events: ParameterLineageEvent[]): ParameterLineageResponse => (
   parameterKey: 'U_MAX', finalValue: '4.2', reviewAction: 'PENDING', isAiAccepted: true, events,
 });
 
-describe('flagTypeLabel (backend spelling AI_CORRETION)', () => {
-  it('shows the backend types as Auto and Human', () => {
-    expect(flagTypeLabel('AI_CORRETION')).toBe('Auto');
-    expect(flagTypeLabel('HUMAN_REVIEW')).toBe('Human');
-    expect(flagTypeLabel('SOMETHING_NEW')).toBe('SOMETHING_NEW');
-    expect(flagTypeLabel(null)).toBe('Unknown');
+describe('reviewer flags (backend type AI_CORRETION, B23)', () => {
+  const flag = (reason: string | null) => ({ flagId: 'f', flagReason: reason, status: 'OPEN', flagType: 'AI_CORRETION', createdAt: '2026-10-10T09:00:00Z', resolvedByCandidateId: null });
+  it('labels every stored flag as a reviewer flag', () => {
+    expect(REVIEWER_FLAG_LABEL).toBe('Reviewer flag');
+  });
+  it('tells a carried-over flag from the reason it repeats', () => {
+    expect(isCarriedOver(flag('check'), flag('check'))).toBe(true);
+    expect(isCarriedOver(flag(' check '), flag('check'))).toBe(true);
+    expect(isCarriedOver(flag('again'), flag('check'))).toBe(false);
+    expect(isCarriedOver(flag(null), flag(null))).toBe(false);
+    expect(isCarriedOver(flag('check'), null)).toBe(false);
+    expect(isCarriedOver(null, flag('check'))).toBe(false);
   });
 });
 
@@ -61,6 +67,15 @@ describe('buildLineage', () => {
     expect(v.rows.map((r) => r.runNumber)).toEqual([1, 2]);
     expect(v.rows[1].runType).toBe('SINGLE_PARAM');
     expect(buildLineage(chain, null).rows[0].runNumber).toBeNull();
+  });
+
+  it('marks a flag carried over only when it repeats the reason it resolved', () => {
+    expect(buildLineage(chain, runs).rows.map((r) => r.flagCarriedOver)).toEqual([false, false]);
+    const same = lineage([
+      event({ candidateId: 'c1', flag: { flagId: 'f1', flagReason: 'check', status: 'RESOLVED', flagType: 'AI_CORRETION', createdAt: '2026-10-10T08:59:00Z', resolvedByCandidateId: 'c2' } }),
+      event({ candidateId: 'c2', createdAt: '2026-10-10T09:00:00Z', flag: { flagId: 'f2', flagReason: 'check', status: 'OPEN', flagType: 'AI_CORRETION', createdAt: '2026-10-10T09:00:01Z', resolvedByCandidateId: null } }),
+    ]);
+    expect(buildLineage(same, runs).rows.map((r) => r.flagCarriedOver)).toEqual([false, true]);
   });
 
   it('marks what changed against the previous candidate', () => {
