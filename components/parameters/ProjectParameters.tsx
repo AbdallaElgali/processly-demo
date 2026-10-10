@@ -19,7 +19,7 @@ import { useCanonicalParameters } from '@/hooks/useCanonicalParameters';
 import { useProjectActivity, useProjectData } from '@/lib/jobs/hooks';
 import { groupFields, resolveCategory } from '@/lib/categories';
 import { errorMessage } from '@/lib/errors';
-import { matchesQuery, metaOf, parametersNotInProject } from '@/lib/parameters/meta';
+import { matchesQuery, metaOf, parametersNotInProject, REMOVE_PARAMETER_AVAILABLE, REMOVE_PARAMETER_UNAVAILABLE } from '@/lib/parameters/meta';
 import { editParameterMetadata, loadProjectDetails, removeParameter } from '@/lib/project-data/actions';
 import type { CanonicalParameter } from '@/api/templates';
 import type { InputField } from '@/types';
@@ -110,9 +110,15 @@ export function ProjectParameters({ projectId }: { projectId: string }) {
         </Stack>
       </Stack>
 
-      {removalPaused && (
-        <Typography variant="caption" role="status" sx={{ px: 2, py: 0.75, bgcolor: 'status.infoBg', color: 'status.info', fontWeight: 600 }}>
-          Removing is paused while this project&apos;s extraction is queued or running. Editing is still allowed.
+      {REMOVE_PARAMETER_AVAILABLE ? (
+        removalPaused && (
+          <Typography variant="caption" role="status" sx={{ px: 2, py: 0.75, bgcolor: 'status.infoBg', color: 'status.info', fontWeight: 600 }}>
+            Removing is paused while this project&apos;s extraction is queued or running. Editing is still allowed.
+          </Typography>
+        )
+      ) : (
+        <Typography variant="caption" role="note" sx={{ px: 2, py: 0.75, bgcolor: 'status.neutralBg', color: 'status.neutral', fontWeight: 600 }}>
+          {REMOVE_PARAMETER_UNAVAILABLE}
         </Typography>
       )}
 
@@ -319,13 +325,15 @@ function ParameterItem({
             <EditOutlinedIcon fontSize="small" />
           </IconButton>
         </Tooltip>
-        <Tooltip title={removalPaused ? 'Paused while an extraction is queued or running' : 'Remove from this project'}>
-          <span>
-            <IconButton size="small" aria-label={`Remove ${meta.alias}`} onClick={onRemove} disabled={removalPaused} sx={{ '&:hover': { color: 'status.danger' } }}>
-              <DeleteOutlineIcon fontSize="small" />
-            </IconButton>
-          </span>
-        </Tooltip>
+        {REMOVE_PARAMETER_AVAILABLE && (
+          <Tooltip title={removalPaused ? 'Paused while an extraction is queued or running' : 'Remove from this project'}>
+            <span>
+              <IconButton size="small" aria-label={`Remove ${meta.alias}`} onClick={onRemove} disabled={removalPaused} sx={{ '&:hover': { color: 'status.danger' } }}>
+                <DeleteOutlineIcon fontSize="small" />
+              </IconButton>
+            </span>
+          </Tooltip>
+        )}
       </Stack>
     </Box>
   );

@@ -2,6 +2,17 @@ import type { InputField } from '@/types';
 import type { CanonicalParameter } from '@/api/templates';
 import type { updateProjectParameter } from '@/api/projects';
 
+/**
+ * "Remove parameter" is wired end to end (`removeParameter`, the confirmation
+ * in `ProjectParameters`) but hidden: `DELETE .../remove` is a HARD delete
+ * that also cascades away the parameter's extracted candidates and flag
+ * history, which destroys audit trail (backend item B18, owner decision after
+ * step 11). Flip this to `true` when the backend soft-deletes.
+ */
+export const REMOVE_PARAMETER_AVAILABLE = false;
+export const REMOVE_PARAMETER_UNAVAILABLE =
+  'Removing a parameter is turned off for now: the backend deletes it for good, together with its extracted values and flag history (backend item B18). Editing is available.';
+
 /** `project_parameters.parameter_alias` is varchar(50). */
 export const ALIAS_MAX = 50;
 
