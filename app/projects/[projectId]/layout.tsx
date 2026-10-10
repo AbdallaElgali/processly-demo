@@ -15,6 +15,7 @@ import { projectsIndex } from '@/lib/project-data/projects-index';
 import { useProjectsIndex } from '@/lib/project-data/provider';
 import { useCustomers } from '@/hooks/Customers';
 import { ToastHost } from '@/components/ui/Toast';
+import { UnsavedChangesGuard } from '@/components/workspace/UnsavedChangesGuard';
 
 const RAIL_COLLAPSED_KEY = 'bda.rail.collapsed';
 
@@ -75,6 +76,7 @@ export default function ProjectLayout({ children }: { children: ReactNode }) {
       </Box>
       {/* One toast queue for every project screen; job runners and screens both post to it. */}
       <ToastHost />
+      <UnsavedChangesGuard projectId={projectId} />
     </Box>
   );
 }
