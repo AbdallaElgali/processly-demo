@@ -6,19 +6,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { useProjectActivity } from '@/lib/jobs/hooks';
 import { JobBanner } from '@/components/jobs/JobBanner';
-
-const PHASE_LABEL: Record<string, string> = {
-  queued: 'Queued',
-  uploading: 'Uploading',
-  routing: 'Routing sections',
-  routed: 'Sections routed',
-  extracting: 'Extracting',
-  supervising: 'Checking results',
-  done: 'Done',
-  failed: 'Failed',
-};
-
-const KIND: Record<string, string> = { upload: 'Upload', extraction: 'Extraction', correction: 'Correction' };
+import { jobKindLabel, runningJobText } from '@/lib/jobs/label';
 
 type Tone = 'info' | 'warning' | 'danger' | 'success';
 
@@ -46,17 +34,16 @@ export function JobStatusLine({ projectId }: { projectId: string }) {
     tone = 'info';
     pulse = true;
     warnings = running.warnings.length;
-    const label = running.payload.kind === 'correction' ? `Re-extracting ${running.payload.parameterKey}` : KIND[running.kind];
-    text = `${label}: ${PHASE_LABEL[running.phase] ?? running.phase}`;
+    text = runningJobText(running);
   } else if (queued) {
     tone = 'info';
-    text = `${KIND[queued.job.kind]} queued, position ${queued.position}`;
+    text = `${jobKindLabel(queued.job.kind)} queued, position ${queued.position}`;
   } else if (interrupted) {
     tone = 'warning';
-    text = `${KIND[interrupted.kind]} interrupted; nothing was saved`;
+    text = `${jobKindLabel(interrupted.kind)} interrupted; nothing was saved`;
   } else if (failed) {
     tone = 'danger';
-    text = `${KIND[failed.kind]} failed`;
+    text = `${jobKindLabel(failed.kind)} failed`;
   } else if (unseen) {
     tone = 'success';
     text = 'New results are in';
