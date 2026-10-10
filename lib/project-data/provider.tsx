@@ -10,6 +10,7 @@ import { projectDataStore } from './store';
 import { documentFiles } from '@/lib/documents/fileStore';
 import { clearWorkbookCache } from '@/lib/excel/cache';
 import { matchNav } from '@/lib/excel/matchNav';
+import { toast } from '@/components/ui/Toast';
 
 /**
  * Replaces ProjectProvider.
@@ -52,6 +53,21 @@ export function ProjectDataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     jobRuntime.isProjectOnScreen = (projectId) =>
       projectsIndex.getSnapshot().activeProjectId === projectId;
+    // A re-extraction is the one job a reviewer waits on for a single row, so
+    // its end gets a short notice. Other jobs already show in the tray and
+    // the rail badges.
+    jobRuntime.onJobSettled = (job, outcome) => {
+      if (job.payload.kind !== 'correction') return;
+      const key = job.payload.parameterKey;
+      const onScreen = projectsIndex.getSnapshot().activeProjectId === job.projectId;
+      const alias = projectsIndex.getSnapshot().projects.find((p) => p.id === job.projectId)?.alias_id;
+      const where = onScreen || !alias ? key : `${alias} · ${key}`;
+      if (outcome.ok) {
+        toast.show(`${where} re-extracted. Its flag stays open until you accept a value or remove the flag.`, { severity: 'success' });
+      } else if (outcome.error !== 'Cancelled.') {
+        toast.show(`Re-extracting ${where} failed: ${outcome.error ?? 'unknown error'}. Nothing was saved.`, { severity: 'error' });
+      }
+    };
   }, []);
 
   return <>{children}</>;

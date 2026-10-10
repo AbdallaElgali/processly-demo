@@ -13,9 +13,9 @@ import DoneAllIcon from '@mui/icons-material/DoneAll';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 
 import { useAuth } from '@/contexts/AuthContext';
-import { useParameterManager } from '@/hooks/ParameterManager';
 import { useDocumentWorkspace } from '@/hooks/useDocumentWorkspace';
 import { useCanonicalParameters } from '@/hooks/useCanonicalParameters';
 import { useLocalStorageFlag } from '@/hooks/useLocalStorageFlag';
@@ -32,10 +32,15 @@ import { documentFiles, isSpreadsheetDocument } from '@/lib/documents/fileStore'
 import { useDocumentFiles } from '@/lib/documents/hooks';
 import { useMatchInfo } from '@/lib/excel/matchNav';
 import { FrontendBatteryFileExport, missingExportKeys } from '@/static/battery-template';
-import type { InputField, SpecificationSource } from '@/types';
-import { inputFieldToParameterInput, mapFieldsToSpecs } from '@/lib/parameter-adapter';
-import { approveProject, saveParameters } from '@/lib/project-data/actions';
+import type { SpecificationSource } from '@/types';
+import { mapFieldsToSpecs } from '@/lib/parameter-adapter';
 import { useCanStart, useJobTray, useJobs, useProjectActivity, useProjectData } from '@/lib/jobs/hooks';
+import {
+  acceptRow, chooseCandidate, editRowValue, flagAndReextract, flagRow, removeFlag, reextractRow, revertRowValue,
+  rowsToSave, saveAndApprove, saveChanges,
+} from '@/lib/review/actions';
+import { approvalCheck, approveBlockReason } from '@/lib/review/approval';
+import type { RowBusy } from '@/components/workspace/ParameterRow';
 import { JOB_CAP } from '@/lib/jobs/config';
 import { createJob, jobRuntime } from '@/lib/jobs/runtime';
 
@@ -78,49 +83,20 @@ export default function WorkspacePage() {
   const [compact, setCompact] = useLocalStorageFlag(COMPACT_KEY, false);
   const [reviewFirst, setReviewFirst] = useLocalStorageFlag(REVIEW_FIRST_KEY, true);
 
-  const [isSaving, setSaving] = useState(false);
   const [isApproving, setApproving] = useState(false);
+  const [approveOpen, setApproveOpen] = useState(false);
+  const [saveConfirm, setSaveConfirm] = useState<string[] | null>(null);
   const [exportCheck, setExportCheck] = useState<string[] | null>(null);
 
-  // ---- parameters -------------------------------------------------------
-  const persistFields = useCallback(
-    async (next: InputField[]) => {
-      await saveParameters(projectId, next.map((f) => inputFieldToParameterInput(f, user?.id ?? null)), { silent: true });
-    },
-    [projectId, user?.id],
-  );
-
-  const {
-    fields, handleFieldChange, handleSwitchSpecification, handleFlag, flagError, clearFlagError,
-  } = useParameterManager({ persist: persistFields, projectId });
-
-  useEffect(() => {
-    if (!flagError) return;
-    toast.show(flagError, { severity: 'error' });
-    clearFlagError();
-  }, [flagError, clearFlagError]);
-
-  const handleFlagAndRetry = useCallback(
-    async (fieldId: string, reason: string) => {
-      const newFlagId = await handleFlag(fieldId, true, reason);
-      const field = fields.find((f) => f.id === fieldId);
-      // handleFlag reports its own failure; a correction without its flag would
-      // re-extract with nothing to correct against.
-      if (!field || newFlagId === null) return;
-      const scoped = mapFieldsToSpecs([
-        { ...field, isFlagged: true, flagReason: reason, activeFlagId: newFlagId },
-      ]) as Record<string, unknown> | null;
-      void jobRuntime.enqueue(
-        createJob(projectId, {
-          kind: 'correction',
-          parameterKey: field.id,
-          previousMetrics: (scoped?.[field.id] ?? []) as unknown[],
-          userHint: reason,
-        }),
-      );
-    },
-    [handleFlag, fields, projectId],
-  );
+  // ---- parameters and review actions (step 10) --------------------------
+  // The actions live in lib/review/actions.ts, keyed by project, so a flag
+  // still posting when the user leaves lands in the right project.
+  const fields = useMemo(() => projectState?.fields ?? [], [projectState?.fields]);
+  const dirty = projectState?.dirty ?? EMPTY;
+  const acceptedRows = projectState?.accepted ?? EMPTY;
+  const rowOps = projectState?.rowOps;
+  const isSaving = projectState?.loading.save ?? false;
+  const userId = user?.id ?? null;
 
   // ---- documents (AM12) -------------------------------------------------
   const viewer = useDocumentWorkspace(projectId, documents);
@@ -149,16 +125,30 @@ export default function WorkspacePage() {
     [documents],
   );
 
+  const documentName = useCallback(
+    (id: string | null | undefined) => (id ? documents.find((d) => d.id === id)?.name ?? null : null),
+    [documents],
+  );
+
   const tableHandlers = useMemo(
     () => ({
       onJumpToSource,
       isSpreadsheet,
-      onSelectCandidate: handleSwitchSpecification,
-      onEdit: handleFieldChange,
-      onFlag: (id: string, flagged: boolean, reason?: string | null) => void handleFlag(id, flagged, reason),
-      onFlagAndRetry: (id: string, reason: string) => void handleFlagAndRetry(id, reason),
+      documentName,
+      onSelectCandidate: (key: string, specId: string) => void chooseCandidate(projectId, key, specId),
+      onEdit: (key: string, value: string, unit: string) => editRowValue(projectId, key, value, unit),
+      onRevert: (key: string) => revertRowValue(projectId, key),
+      onFlag: (key: string, reason: string) => {
+        if (userId) void flagRow(projectId, key, userId, reason);
+      },
+      onFlagAndReextract: (key: string, reason: string) => {
+        if (userId) void flagAndReextract(projectId, key, userId, reason);
+      },
+      onReextract: (key: string, hint: string) => reextractRow(projectId, key, hint),
+      onRemoveFlag: (key: string) => void removeFlag(projectId, key),
+      onAccept: (key: string) => void acceptRow(projectId, key, userId),
     }),
-    [onJumpToSource, isSpreadsheet, handleSwitchSpecification, handleFieldChange, handleFlag, handleFlagAndRetry],
+    [onJumpToSource, isSpreadsheet, documentName, projectId, userId],
   );
 
   // ---- upload & analyze -------------------------------------------------
@@ -190,25 +180,35 @@ export default function WorkspacePage() {
   const extractionBusy = activity.running?.kind === 'extraction' || activity.queued?.job.kind === 'extraction';
 
   // ---- save / approve / export ------------------------------------------
-  const handleSave = async () => {
-    setSaving(true);
+  // Save sends only the rows with unsaved edits. The backend writes PENDING
+  // on every row it saves (B15), so saving an approved row un-approves it:
+  // that is confirmed first.
+  const runSave = async () => {
+    setSaveConfirm(null);
     try {
-      await saveParameters(projectId, fields.map((f) => inputFieldToParameterInput(f, user?.id ?? null)));
-      toast.show('Saved.', { severity: 'success' });
+      const n = await saveChanges(projectId, userId);
+      toast.show(n === 1 ? 'Saved 1 parameter.' : `Saved ${n} parameters.`, { severity: 'success' });
     } catch (e) {
-      toast.show(e instanceof Error ? e.message : 'Save failed.', { severity: 'error' });
-    } finally {
-      setSaving(false);
+      toast.show(`Save failed: ${e instanceof Error ? e.message : String(e)}. Your edits are still here; try again.`, { severity: 'error' });
     }
+  };
+  const handleSave = () => {
+    // A local edit changes the row's reviewAction, so "was approved" is read
+    // from the loaded project, not from the edited field.
+    const approvedKeys = new Set((details?.parameters ?? []).filter((p) => p.review_action === 'ACCEPTED').map((p) => p.parameter_key));
+    const wereApproved = rowsToSave(projectId).filter((f) => approvedKeys.has(f.id));
+    if (wereApproved.length > 0) setSaveConfirm(wereApproved.map((f) => f.id));
+    else void runSave();
   };
 
   const handleApprove = async () => {
+    setApproveOpen(false);
     setApproving(true);
     try {
-      await approveProject(projectId);
-      toast.show('Parameters approved.', { severity: 'success' });
+      const n = await saveAndApprove(projectId, userId);
+      toast.show(n === 1 ? 'Approved 1 parameter.' : `Approved ${n} parameters.`, { severity: 'success' });
     } catch (e) {
-      toast.show(e instanceof Error ? e.message : 'Approve failed.', { severity: 'error' });
+      toast.show(`Approve failed: ${e instanceof Error ? e.message : String(e)}`, { severity: 'error' });
     } finally {
       setApproving(false);
     }
@@ -243,8 +243,29 @@ export default function WorkspacePage() {
   // ---- derived ----------------------------------------------------------
   const running = activity.running;
   const extractionJob = running && (running.kind === 'extraction' || running.kind === 'correction') ? running : undefined;
-  const correctingFieldId =
-    running?.payload.kind === 'correction' ? running.payload.parameterKey : null;
+
+  // Row-level loading only (CLAUDE.md 8.1): a backend call or a correction job
+  // marks its own row and nothing else.
+  const rowBusy = useMemo(() => {
+    const out: Record<string, RowBusy> = {};
+    for (const j of jobs) {
+      if (j.projectId !== projectId || j.payload.kind !== 'correction') continue;
+      if (j.status === 'queued') out[j.payload.parameterKey] = { kind: 'queued' };
+      // The job starts in the generic "routing" phase; a single-parameter
+      // correction never routes, so its phase is shown once events arrive.
+      else if (j.status === 'running') out[j.payload.parameterKey] = { kind: 'correcting', phase: j.events.length > 0 ? j.phase : undefined };
+    }
+    for (const [key, op] of Object.entries(rowOps ?? {})) out[key] = { kind: op };
+    return out;
+  }, [jobs, projectId, rowOps]);
+
+  const parameterJobBusy = jobs.some(
+    (j) => j.projectId === projectId && (j.kind === 'extraction' || j.kind === 'correction') && (j.status === 'queued' || j.status === 'running'),
+  );
+  // Rows a correction is about to replace are not saved (lib/review/actions.ts rowsToSave).
+  const unsaved = dirty.filter((k) => rowBusy[k]?.kind !== 'queued' && rowBusy[k]?.kind !== 'correcting').length;
+  const approval = useMemo(() => approvalCheck(fields, { unsaved, jobBusy: parameterJobBusy, dirty }), [fields, unsaved, parameterJobBusy, dirty]);
+  const approveBlocked = approveBlockReason(approval);
   const inFlightUploads = uploadJobs.some((j) => j.status === 'queued' || j.status === 'running');
   const noDocuments = !!details && documents.length === 0 && !inFlightUploads;
   const firstLoad = !details && detailsLoading;
@@ -338,12 +359,27 @@ export default function WorkspacePage() {
           Runs
         </Button>
         <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-        <Button size="small" startIcon={<SaveOutlinedIcon />} onClick={handleSave} loading={isSaving} loadingPosition="start" disabled={fields.length === 0}>
-          Save
-        </Button>
-        <Button size="small" startIcon={<DoneAllIcon />} onClick={handleApprove} loading={isApproving} loadingPosition="start" disabled={fields.length === 0}>
-          Approve
-        </Button>
+        <Tooltip title={unsaved > 0 ? `Save ${unsaved} edited parameter${unsaved === 1 ? '' : 's'}` : 'No unsaved changes'}>
+          <span>
+            <Button size="small" startIcon={<SaveOutlinedIcon />} onClick={handleSave} loading={isSaving} loadingPosition="start" disabled={unsaved === 0}>
+              {unsaved > 0 ? `Save (${unsaved})` : 'Save'}
+            </Button>
+          </span>
+        </Tooltip>
+        <Tooltip title={approveBlocked ?? 'Accept every pending parameter of this project'}>
+          <span>
+            <Button
+              size="small"
+              startIcon={<DoneAllIcon />}
+              onClick={() => setApproveOpen(true)}
+              loading={isApproving}
+              loadingPosition="start"
+              disabled={fields.length === 0 || !!approveBlocked}
+            >
+              Approve
+            </Button>
+          </span>
+        </Tooltip>
         <Button size="small" startIcon={<DownloadOutlinedIcon />} onClick={handleExport} disabled={fields.length === 0}>
           Export .battery
         </Button>
@@ -373,9 +409,10 @@ export default function WorkspacePage() {
               fields={fields}
               canonical={canonical}
               loading={detailsLoading}
-              job={extractionJob}
-              correctingFieldId={correctingFieldId}
-              correctionPhase={extractionJob?.kind === 'correction' ? extractionJob.phase : undefined}
+              job={extractionJob?.kind === 'extraction' ? extractionJob : undefined}
+              rowBusy={rowBusy}
+              dirty={dirty}
+              accepted={acceptedRows}
               density={compact ? 'compact' : 'comfortable'}
               onDensityChange={(d) => setCompact(d === 'compact')}
               reviewFirst={reviewFirst}
@@ -442,6 +479,24 @@ export default function WorkspacePage() {
       )}
 
       <ConfirmDialog
+        open={approveOpen}
+        title={`Approve ${details?.alias_id ?? 'this project'}?`}
+        description={<ApproveSummary check={approval} />}
+        confirmLabel={approval.unsaved > 0 ? 'Save and approve' : 'Approve'}
+        onConfirm={() => void handleApprove()}
+        onClose={() => setApproveOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={saveConfirm !== null}
+        title="Saving returns approved parameters to pending"
+        description={`The backend marks every saved parameter as pending again, so ${saveConfirm?.join(', ') ?? ''} will need to be approved again after this save.`}
+        confirmLabel="Save anyway"
+        onConfirm={() => void runSave()}
+        onClose={() => setSaveConfirm(null)}
+      />
+
+      <ConfirmDialog
         open={exportCheck !== null}
         title={`${exportCheck?.length ?? 0} exported parameter(s) have no value`}
         description={`The .battery file will carry a placeholder (or, for the safety voltages, a value derived from U_MAX/U_MIN) for: ${exportCheck?.join(', ') ?? ''}.`}
@@ -450,5 +505,48 @@ export default function WorkspacePage() {
         onClose={() => setExportCheck(null)}
       />
     </Box>
+  );
+}
+
+const EMPTY: readonly string[] = [];
+
+/**
+ * The approval confirmation: what Approve does, and the machine's doubts
+ * (auto-flags), which warn but do not block (open human flags block; the
+ * button is disabled before this dialog can open).
+ */
+function ApproveSummary({ check }: { check: ReturnType<typeof approvalCheck> }) {
+  const list = (keys: string[]) => (keys.length > 6 ? `${keys.slice(0, 6).join(', ')} and ${keys.length - 6} more` : keys.join(', '));
+  return (
+    <Stack spacing={1.25} component="span" sx={{ display: 'flex' }}>
+      <Typography component="span" variant="body2">
+        {check.pending === 1 ? '1 pending parameter becomes' : `${check.pending} pending parameters become`} accepted. Approving
+        does not lock the project: a later Save or re-extraction returns the rows it touches to pending.
+      </Typography>
+      {check.unsaved > 0 && (
+        <Typography component="span" variant="body2">
+          <strong>{check.unsaved} unsaved edit{check.unsaved === 1 ? '' : 's'}</strong> will be saved first.
+        </Typography>
+      )}
+      {check.bounds.length > 0 && (
+        <Stack component="span" direction="row" spacing={1} alignItems="flex-start" sx={{ display: 'flex', color: 'status.warning' }}>
+          <WarningAmberIcon sx={{ fontSize: 18, mt: 0.1 }} aria-hidden />
+          <Typography component="span" variant="body2" sx={{ color: 'text.primary' }}>
+            <strong>{check.bounds.length} value{check.bounds.length === 1 ? ' is' : 's are'} out of bounds</strong> (auto-flag, raised by the backend):{' '}
+            {list(check.bounds)}.
+          </Typography>
+        </Stack>
+      )}
+      {check.needsReview.length > 0 && (
+        <Typography component="span" variant="body2" sx={{ color: 'text.secondary' }}>
+          {check.needsReview.length} still marked for review: {list(check.needsReview)}.
+        </Typography>
+      )}
+      {check.empty.length > 0 && (
+        <Typography component="span" variant="body2" sx={{ color: 'text.secondary' }}>
+          {check.empty.length} without a value.
+        </Typography>
+      )}
+    </Stack>
   );
 }

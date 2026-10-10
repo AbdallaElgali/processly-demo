@@ -18,9 +18,11 @@
 /** projects.status_enum in the DB schema. */
 export type ProjectStatus = 'NEW' | 'PENDING_REVIEW' | 'IN_REVIEW' | 'APPROVED';
 
-/** project_parameters.review_action_enum. Note there is NO 'PENDING' member;
- *  the UI's own pending state is client-side only (Task B item B6). */
-export type ReviewActionValue = 'ACCEPTED' | 'MODIFIED' | 'REJECTED';
+/** project_parameters.review_action_enum. It does have PENDING (the column
+ *  default, and what the batch save always writes, B15); an earlier comment
+ *  here said otherwise. Checked against DB/migrations/20260821000000_schema.sql
+ *  in step 10, which answers B6. */
+export type ReviewActionValue = 'ACCEPTED' | 'MODIFIED' | 'REJECTED' | 'PENDING';
 
 export interface ProjectBase {
   id: string;

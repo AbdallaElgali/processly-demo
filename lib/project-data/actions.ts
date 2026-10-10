@@ -11,7 +11,8 @@ import {
   type updateProjectParameter,
 } from '@/api/projects';
 import type { FullProjectDetails, ProjectBase } from '@/api/types/projects';
-import { dbParamToInputField } from '@/lib/parameter-adapter';
+import type { InputField } from '@/types';
+import { dbParamToInputField, inputFieldToParameterInput } from '@/lib/parameter-adapter';
 import type { ProjectParameter } from '@/api/projects';
 import { projectDataStore } from './store';
 import { projectsIndex } from './projects-index';
@@ -70,23 +71,39 @@ export async function loadProjectDetails(
   }
 }
 
-export async function saveParameters(
+/**
+ * Saves the given rows through `PUT /projects/{id}/parameters` (which updates
+ * only the rows it is sent), marks them clean, then refreshes the project in
+ * the background. `silent` keeps the toolbar's Save spinner out of a
+ * row-level save (Accept).
+ *
+ * Backend behaviour to know (B15): the batch save ignores `review_action`
+ * and writes PENDING on every row it touches, so saving a row that was
+ * approved returns it to pending.
+ */
+export async function saveFields(
   projectId: string,
-  parameters: ParameterInput[],
+  fields: readonly InputField[],
+  userId: string | null,
   options: { silent?: boolean } = {},
 ): Promise<void> {
+  if (fields.length === 0) return;
+  const parameters: ParameterInput[] = fields.map((f) => inputFieldToParameterInput(f, userId));
   if (!options.silent) projectDataStore.setLoading(projectId, 'save', true);
   try {
     await apiSaveProjectParameters(projectId, parameters);
+    projectDataStore.markSaved(projectId, fields);
     await loadProjectDetails(projectId, { background: true });
   } finally {
     if (!options.silent) projectDataStore.setLoading(projectId, 'save', false);
   }
 }
 
-export async function approveProject(projectId: string): Promise<void> {
-  await apiApproveProjectParameters(projectId);
+/** `POST /projects/{id}/approve`: every PENDING parameter becomes ACCEPTED. Returns how many. */
+export async function approveProject(projectId: string): Promise<number> {
+  const result = await apiApproveProjectParameters(projectId);
   await loadProjectDetails(projectId, { background: true });
+  return typeof result?.parameters_approved === 'number' ? result.parameters_approved : 0;
 }
 
 export async function createProject(input: ProjectCreateInput): Promise<ProjectBase | undefined> {

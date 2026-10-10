@@ -151,13 +151,19 @@ const SECONDARY_META: Record<SecondaryFact, { Icon: typeof FlagIcon; label: stri
   accepted: { Icon: DoneAllIcon, label: 'Accepted', color: 'status.success' },
 };
 
-/** Small icons for facts that hold alongside the primary state (AM1). */
-export function SecondaryFacts({ facts }: { facts: SecondaryFact[] }) {
+/**
+ * Small icons for facts that hold alongside the primary state (AM1).
+ * `acceptedLocally`: the "accepted" fact comes from this session's Accept,
+ * not from the backend's Approve, and the tooltip says so (B15).
+ */
+export function SecondaryFacts({ facts, acceptedLocally = false }: { facts: SecondaryFact[]; acceptedLocally?: boolean }) {
   if (facts.length === 0) return null;
   return (
     <Stack direction="row" spacing={0.25}>
       {facts.map((f) => {
-        const { Icon, label, color } = SECONDARY_META[f];
+        const meta = SECONDARY_META[f];
+        const { Icon, color } = meta;
+        const label = f === 'accepted' && acceptedLocally ? 'Accepted in this session (value saved; Approve records acceptance)' : meta.label;
         return (
           <Tooltip key={f} title={label}>
             <Icon aria-label={label} sx={{ fontSize: 15, color }} />

@@ -150,7 +150,13 @@ export const dbParamToInputField = (p: ProjectParameter): InputField => {
       // saved value on the selected spec while keeping every candidate as an
       // alternative. Otherwise trust the candidate's own value and confidence.
       if (p.is_human_modified) {
-        const edited: Specification = { ...selected, value: finalValue, unit: finalUnit, confidence: null };
+        const edited: Specification = {
+          ...selected,
+          value: finalValue,
+          unit: finalUnit,
+          confidence: null,
+          original: { value: selected.value, unit: selected.unit, confidence: selected.confidence },
+        };
         return {
           ...base,
           specifications: specifications.map(s => (s.id === edited.id ? edited : s)),

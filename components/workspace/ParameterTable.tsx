@@ -13,7 +13,7 @@ import { groupFields, normalizeCategoryKey, type ResolvedCategory } from '@/lib/
 import { reviewOrder, rowState, type RowState } from '@/lib/review/rowState';
 import { DensityToggle, type Density } from '@/components/ui/DensityToggle';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { ParameterRow, type ParameterRowHandlers } from './ParameterRow';
+import { ParameterRow, type ParameterRowHandlers, type RowBusy } from './ParameterRow';
 
 type Handlers = Omit<ParameterRowHandlers, 'onToggle' | 'onFocusRow'>;
 
@@ -50,8 +50,9 @@ export function ParameterTable({
   canonical,
   loading,
   job,
-  correctingFieldId,
-  correctionPhase,
+  rowBusy,
+  dirty,
+  accepted,
   density,
   onDensityChange,
   reviewFirst,
@@ -63,8 +64,12 @@ export function ParameterTable({
   canonical: CanonicalParameter[] | null;
   loading: boolean;
   job: Job | undefined;
-  correctingFieldId: string | null;
-  correctionPhase?: string;
+  /** Rows waiting on the backend or a correction job. Only those rows show it (CLAUDE.md 8.1). */
+  rowBusy: Readonly<Record<string, RowBusy>>;
+  /** Rows with unsaved edits. */
+  dirty: readonly string[];
+  /** Rows accepted in this session. */
+  accepted: readonly string[];
   density: Density;
   onDensityChange: (d: Density) => void;
   reviewFirst: boolean;
@@ -78,7 +83,7 @@ export function ParameterTable({
 
   const groups: Group[] = useMemo(() => {
     const withState = (list: InputField[]) => {
-      const rows = list.map((field) => ({ field, state: rowState(field) }));
+      const rows = list.map((field) => ({ field, state: rowState(field, { acceptedLocally: accepted.includes(field.id) }) }));
       if (reviewFirst) {
         // Stable: ties keep the backend's own order (category, then name).
         rows.sort((a, b) => reviewOrder(a.state.primary) - reviewOrder(b.state.primary));
@@ -87,7 +92,7 @@ export function ParameterTable({
     };
     if (!canonical) return [{ category: null, found: 0, rows: withState(fields) }];
     return groupFields(fields, canonical).map((g) => ({ category: g.category, found: g.found, rows: withState(g.fields) }));
-  }, [fields, canonical, reviewFirst]);
+  }, [fields, canonical, reviewFirst, accepted]);
 
   const order = useMemo(() => groups.flatMap((g) => g.rows.map((r) => r.field.id)), [groups]);
   const activeKey = focusedKey && order.includes(focusedKey) ? focusedKey : order[0] ?? null;
@@ -212,7 +217,7 @@ export function ParameterTable({
       <Box
         ref={containerRef}
         role="group"
-        aria-label="Parameters by category. Arrow keys move, Enter opens, S shows the source."
+        aria-label="Parameters by category. Arrow keys move, Enter opens."
         onKeyDown={onKeyDown}
         sx={{ flex: 1, overflowY: 'auto', containerType: 'inline-size', bgcolor: 'surface.panel' }}
       >
@@ -268,8 +273,9 @@ export function ParameterTable({
                     state={state}
                     expanded={expanded.has(field.id)}
                     focused={field.id === activeKey}
-                    correcting={field.id === correctingFieldId}
-                    correctionPhase={field.id === correctingFieldId ? correctionPhase : undefined}
+                    busy={rowBusy[field.id] ?? null}
+                    dirty={dirty.includes(field.id)}
+                    accepted={accepted.includes(field.id)}
                     density={density}
                     handlers={rowHandlers}
                   />

@@ -1,6 +1,7 @@
 import type { InputField } from '@/types';
 import type { FullProjectDetails } from '@/api/types/projects';
 import { specsStreamToInputFields } from '@/lib/parameter-adapter';
+import { mergeLocalEdits } from '@/lib/review/edits';
 
 /**
  * Per-project data, keyed by projectId.
@@ -27,7 +28,24 @@ export interface ProjectState {
   lastFetchedAt: number | null;
   loading: { details: boolean; save: boolean };
   error: string | null;
+  /**
+   * Parameter keys with unsaved local edits (value, unit, chosen candidate).
+   * Save sends these rows only, and a refresh from the backend keeps their
+   * edits (lib/review/edits.ts `mergeLocalEdits`).
+   */
+  dirty: readonly string[];
+  /** A backend call in flight for one row: that row, and only that row, shows it (CLAUDE.md 8.1). */
+  rowOps: Readonly<Record<string, RowOp>>;
+  /**
+   * Rows accepted in this session. The backend has no per-parameter accept
+   * (its batch save always writes PENDING, B15); this is the reviewer's mark,
+   * in memory only, until Approve accepts everything pending.
+   */
+  accepted: readonly string[];
 }
+
+/** What a row is waiting for. Corrections are jobs, read from the job store instead. */
+export type RowOp = 'flag' | 'unflag' | 'select' | 'accept';
 
 export const emptyProjectState = (projectId: string): ProjectState => ({
   projectId,
@@ -37,6 +55,9 @@ export const emptyProjectState = (projectId: string): ProjectState => ({
   lastFetchedAt: null,
   loading: { details: false, save: false },
   error: null,
+  dirty: [],
+  rowOps: {},
+  accepted: [],
 });
 
 /**
@@ -141,19 +162,92 @@ export class ProjectDataStore {
     this.update(projectId, (prev) => ({ ...prev, error }));
   }
 
+  /**
+   * Replace the project's data with a fresh load. Unsaved edits survive: a
+   * job finishing on one row, or a flag raised on another, refreshes the
+   * whole project, and used to revert every unsaved edit with it.
+   */
   setDetails(projectId: string, details: FullProjectDetails, fields: InputField[]) {
-    this.update(projectId, (prev) => ({
-      ...prev,
-      details,
-      fields,
-      lastFetchedAt: Date.now(),
-      error: null,
-      loading: { ...prev.loading, details: false },
-    }));
+    this.update(projectId, (prev) => {
+      const keys = new Set(fields.map((f) => f.id));
+      const dirty = prev.dirty.filter((k) => keys.has(k));
+      return {
+        ...prev,
+        details,
+        fields: mergeLocalEdits(fields, prev.fields, new Set(dirty)),
+        dirty: dirty.length === prev.dirty.length ? prev.dirty : dirty,
+        lastFetchedAt: Date.now(),
+        error: null,
+        loading: { ...prev.loading, details: false },
+      };
+    });
   }
 
   setFields(projectId: string, fields: InputField[]) {
     this.update(projectId, (prev) => ({ ...prev, fields }));
+  }
+
+  /**
+   * Change one parameter. `dirty: true` records an unsaved edit and drops the
+   * row's session "accepted" mark (an edit after accepting is a new decision).
+   * Works on the CURRENT state, so concurrent updates to other rows (a run's
+   * partial results, another row's flag) are never overwritten by a stale copy.
+   */
+  updateField(projectId: string, key: string, fn: (field: InputField) => InputField, opts: { dirty?: boolean } = {}) {
+    this.update(projectId, (prev) => {
+      const idx = prev.fields.findIndex((f) => f.id === key);
+      if (idx === -1) return prev;
+      const nextField = fn(prev.fields[idx]);
+      if (nextField === prev.fields[idx]) return prev;
+      const fields = [...prev.fields];
+      fields[idx] = nextField;
+      if (!opts.dirty) return { ...prev, fields };
+      return {
+        ...prev,
+        fields,
+        dirty: prev.dirty.includes(key) ? prev.dirty : [...prev.dirty, key],
+        accepted: prev.accepted.includes(key) ? prev.accepted.filter((k) => k !== key) : prev.accepted,
+      };
+    });
+  }
+
+  /**
+   * After a save: the rows in `saved` are clean again, unless they changed
+   * while the save was in flight (then the field object differs from the one
+   * that was sent, and the newer edit stays dirty).
+   */
+  markSaved(projectId: string, saved: readonly InputField[]) {
+    this.update(projectId, (prev) => {
+      const sent = new Map(saved.map((f) => [f.id, f]));
+      const dirty = prev.dirty.filter((k) => {
+        const field = prev.fields.find((f) => f.id === k);
+        return !(sent.has(k) && sent.get(k) === field);
+      });
+      return dirty.length === prev.dirty.length ? prev : { ...prev, dirty };
+    });
+  }
+
+  /** Forget a row's unsaved edit, e.g. when a re-extraction will replace its value. */
+  dropDirty(projectId: string, key: string) {
+    this.update(projectId, (prev) => (prev.dirty.includes(key) ? { ...prev, dirty: prev.dirty.filter((k) => k !== key) } : prev));
+  }
+
+  setRowOp(projectId: string, key: string, op: RowOp | null) {
+    this.update(projectId, (prev) => {
+      if ((prev.rowOps[key] ?? null) === op) return prev;
+      const rowOps = { ...prev.rowOps };
+      if (op) rowOps[key] = op;
+      else delete rowOps[key];
+      return { ...prev, rowOps };
+    });
+  }
+
+  setAccepted(projectId: string, key: string, accepted: boolean) {
+    this.update(projectId, (prev) => {
+      const has = prev.accepted.includes(key);
+      if (has === accepted) return prev;
+      return { ...prev, accepted: accepted ? [...prev.accepted, key] : prev.accepted.filter((k) => k !== key) };
+    });
   }
 
   /**
@@ -175,6 +269,9 @@ export class ProjectDataStore {
       for (const field of incoming) {
         const idx = next.findIndex((f) => f.id === field.id);
         if (idx === -1 || !field.specifications?.length) continue;
+        // A row with an unsaved edit keeps it; the refresh at `complete`
+        // brings the new candidates in beside it (setDetails' merge).
+        if (prev.dirty.includes(field.id)) continue;
 
         const before = next[idx];
         const sorted = [...field.specifications].sort(

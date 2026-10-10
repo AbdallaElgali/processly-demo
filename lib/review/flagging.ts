@@ -1,4 +1,4 @@
-import { flagParameter, unFlagParameter } from '@/api/parameters';
+import { flagParameter, unFlagParameter, updateResolvedBy } from '@/api/parameters';
 
 /**
  * Raising and clearing a human flag (contract fix H1).
@@ -74,4 +74,25 @@ export async function raiseHumanFlag(input: RaiseFlagInput): Promise<RaiseFlagRe
 export async function clearHumanFlag(activeFlagId: string | null): Promise<void> {
   if (!activeFlagId) return;
   await unFlagParameter(activeFlagId, null, 'DISMISSED');
+}
+
+/**
+ * Closes the flag because the reviewer accepted a value: status RESOLVED,
+ * resolved by the chosen candidate. `candidateId` is null for a value a
+ * person typed; the flag is still resolved, just without a resolving
+ * candidate. The backend closes every OPEN flag of the parameter, chained
+ * ones included.
+ *
+ * Why two calls (found in step 10, candidate B16): `ai-unflag-parameter`
+ * with a `resolved_by` always fails. Its second query selects
+ * `extraction_run_id` and the loop then reads `['id']` from that row
+ * (`BDA/src/db/ai_parameters.py`, `unflag_ai_parameter_db`), a KeyError that
+ * rolls the whole transaction back and leaves the flag OPEN. So the
+ * resolving candidate is recorded through `select-correct-ai-candidate`,
+ * and the flag is then closed through the branch without `resolved_by`,
+ * which works. Lost until B16 is fixed: `resolved_at_run_id`.
+ */
+export async function resolveHumanFlag(activeFlagId: string, candidateId: string | null): Promise<void> {
+  if (candidateId) await updateResolvedBy(activeFlagId, candidateId);
+  await unFlagParameter(activeFlagId, null, 'RESOLVED');
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 
 /**
@@ -21,7 +22,8 @@ export function ConfirmDialog({
 }: {
   open: boolean;
   title: string;
-  description?: string;
+  /** Text, or inline content (rendered inside a paragraph, so use `component="span"` elements). */
+  description?: ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
   destructive?: boolean;

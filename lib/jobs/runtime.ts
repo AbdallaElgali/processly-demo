@@ -38,6 +38,9 @@ export class JobRuntime {
   /** Injected by the provider so the runtime need not import UI state. */
   isProjectOnScreen: (projectId: string) => boolean = () => false;
 
+  /** Injected by the provider: a small notification when a job settles (never navigation, CLAUDE.md 8.1). */
+  onJobSettled: (job: Job, outcome: RunOutcome) => void = () => undefined;
+
   setUserId(userId: string | null) {
     this.userId = userId;
   }
@@ -273,6 +276,7 @@ export class JobRuntime {
         error: outcome.error ?? 'The job failed.',
       });
     }
+    this.onJobSettled(job, outcome);
 
     this.releaseJobLock(job.id);
     this.publish();

@@ -40,6 +40,12 @@ export interface Specification {
   extractionLogic?: string | null;
   /** How the value was computed, when `calculated` is true. */
   calculationLogic?: string | null;
+  /**
+   * The AI candidate's own value, unit and confidence, kept when a person
+   * edits the value: shown as "Extracted: …" and restored by Revert. Absent
+   * on an unedited candidate and on a value a person typed with no candidate.
+   */
+  original?: { value: string; unit: string | null; confidence: number | null };
 }
 
 export interface InputField {
