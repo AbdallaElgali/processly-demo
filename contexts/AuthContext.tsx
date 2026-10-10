@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { config } from '@/api/config';
 import { update_user_settings, UserSettings } from '@/api/user';
@@ -33,6 +33,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+
+  const logout = useCallback(() => {
+    setUser(null);
+    localStorage.removeItem('bda_user');
+    router.push('/login');
+  }, [router]);
 
   useEffect(() => {
     const validateSession = async () => {
@@ -69,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     validateSession();
-  }, []);
+  }, [logout]);
 
   const updateUserSettings = async (settings: Partial<UserSettings>) => {
       if (!user) throw new Error("No user logged in");
@@ -128,12 +134,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err: unknown) {
       throw new Error(err instanceof Error ? err.message : String(err));
     }
-  };
-
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('bda_user');
-    router.push('/login');
   };
 
   return (

@@ -2,7 +2,6 @@ import React from 'react';
 import { Box, Typography } from '@mui/material';
 import { FeedbackItem as IFeedbackItem } from '@/api/audit/feedback';
 import { FeedbackItem } from './FeedbackItem';
-import { colors } from '@/theme/colors';
 
 interface Props {
   feedbacks: IFeedbackItem[];
@@ -10,7 +9,7 @@ interface Props {
 
 export default function FeedbackArea({ feedbacks }: Props) {
   return (
-    <Box sx={{ p: 3, flex: 1, overflowY: 'auto', bgcolor: colors.background }}>
+    <Box sx={{ p: 3, flex: 1, overflowY: 'auto', bgcolor: 'surface.canvas' }}>
       <Typography variant="h5" sx={{ mb: 3, fontWeight: 600 }}>
         User Feedback ({feedbacks.length})
       </Typography>

@@ -85,8 +85,11 @@ export default function OverviewPage() {
         <ReviewProgressCard progress={progress} />
         <StatusCard projectId={projectId} status={details.status} />
         <DocumentsCard projectId={projectId} documents={details.documents ?? []} />
-        <LastRunCard projectId={projectId} runs={runs} error={runsError} onRetry={reload} />
-        <JobStateCard projectId={projectId} />
+        {/* The activity row spans the grid and splits it in two, so a wide screen is not left with half a row empty. */}
+        <Box sx={{ ...GRID, gridColumn: '1 / -1', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))' }}>
+          <LastRunCard projectId={projectId} runs={runs} error={runsError} onRetry={reload} />
+          <JobStateCard projectId={projectId} />
+        </Box>
       </Box>
     </Box>
   );

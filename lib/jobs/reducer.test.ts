@@ -115,7 +115,7 @@ describe('SSE events', () => {
     jobsReducer(withJob(baseJob()), { type: 'start', jobId: 'j1', tabId: 't', at: 0 });
 
   const feed = (statuses: Array<Record<string, unknown>>) =>
-    statuses.reduce(
+    statuses.reduce<JobsState>(
       (state, event) => jobsReducer(state, { type: 'event', jobId: 'j1', event: event as never }),
       running(),
     );

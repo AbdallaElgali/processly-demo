@@ -62,7 +62,7 @@ export const toast = {
 
 function ToastRow({ item }: { item: ToastItem }) {
   const remaining = useRef(item.durationMs);
-  const startedAt = useRef(Date.now());
+  const startedAt = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const arm = () => {

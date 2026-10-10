@@ -1,7 +1,6 @@
 import React from 'react';
 import { Card, CardContent, Typography, Chip, Box } from '@mui/material';
 import { FeedbackItem as IFeedbackItem } from '@/api/audit/feedback';
-import { colors } from '@/theme/colors';
 
 interface Props {
   feedback: IFeedbackItem;
@@ -19,7 +18,7 @@ export const FeedbackItem: React.FC<Props> = ({ feedback }) => {
   };
 
   return (
-    <Card sx={{ mb: 2, border: `1px solid ${colors.border}`, boxShadow: 'none', borderRadius: 2 }}>
+    <Card sx={{ mb: 2, border: '1px solid', borderColor: 'border.subtle', bgcolor: 'surface.panel', boxShadow: 'none', borderRadius: 2 }}>
       <CardContent>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
           <Typography variant="h6">{feedback.title}</Typography>

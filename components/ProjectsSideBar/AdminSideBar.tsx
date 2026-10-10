@@ -1,12 +1,13 @@
 import React from 'react';
 import { 
-  Box, Typography, Tooltip, IconButton, TextField, 
+  Box, Tooltip, IconButton, TextField, 
   FormControl, InputLabel, Select, MenuItem, Button
 } from '@mui/material';
 import { 
   Search as SearchIcon, OpenInFull as OpenInFullIcon, 
-  CloseFullscreen as CloseFullscreenIcon, Clear as ClearIcon 
+  CloseFullscreen as CloseFullscreenIcon, Clear as ClearIcon, FactCheckOutlined as AuditIcon 
 } from '@mui/icons-material';
+import Link from 'next/link';
 import { BaseSidebar } from './BaseSideBar';
 import type { ProjectMetrics } from '@/types/audit';
 
@@ -54,6 +55,13 @@ export const AdminSidebar = ({
       selectedProjectId={selectedProjectId}
       onProjectClick={handleProjectClick}
       emptyStateMessage="No projects match your filters."
+      renderProjectActions={(id) => (
+        <Tooltip title="Open this project's Audit">
+          <IconButton component={Link} href={`/projects/${id}/audit`} size="small" aria-label="Open this project's Audit">
+            <AuditIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      )}
       headerAction={
         <Tooltip title={isExpanded ? "Collapse" : "Expand Fullscreen"}>
           <IconButton size="small" onClick={() => setIsExpanded(!isExpanded)}>

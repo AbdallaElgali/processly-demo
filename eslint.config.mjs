@@ -7,16 +7,12 @@ const eslintConfig = defineConfig([
   ...nextTs,
   {
     rules: {
-      // CLAUDE.md 8.3: no component may import a raw colour. theme/colors.ts is
-      // a deprecated shim kept only so the pre-redesign screens keep rendering
-      // while they are migrated one step at a time. New code uses palette
-      // tokens (`sx={{ bgcolor: 'surface.panel' }}`) or theme.vars.palette.*.
-      //
-      // This is a WARNING for now because ~26 files still import the shim.
-      // It becomes an ERROR in the final step of Task A, when the shim is
-      // deleted.
+      // CLAUDE.md 8.3: no component may import a raw colour. The deprecated
+      // theme/colors.ts shim is deleted (step 14); this guard stops it coming
+      // back. Use palette tokens (`sx={{ bgcolor: 'surface.panel' }}`) or
+      // theme.vars.palette.*.
       "no-restricted-imports": [
-        "warn",
+        "error",
         {
           paths: [
             {

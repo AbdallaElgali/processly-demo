@@ -27,10 +27,13 @@ export interface SlotTableRow {
   detail?: ReactNode;
 }
 
+/** One dash per unset value; the table's footnote explains it once instead of every row repeating "model default". */
 const UNSET = (
-  <Typography component="span" variant="body2" sx={{ color: 'text.muted' }}>
-    model default
-  </Typography>
+  <Tooltip title="Not set: the model's own default applies.">
+    <Typography component="span" variant="body2" sx={{ color: 'text.muted' }} aria-label="Not set, the model's default applies">
+      &mdash;
+    </Typography>
+  </Tooltip>
 );
 
 function ModelCell({ row, value, unit = '' }: { row: SlotTableRow; value: string | number | null; unit?: string }) {
@@ -56,7 +59,10 @@ export function SlotTable({ rows, label, lastColumn }: { rows: SlotTableRow[]; l
     });
   const columns = 7 + (lastColumn ? 1 : 0);
 
+  const anyUnset = rows.some((r) => r.callsModel && (r.model === null || r.effort === null || r.temperature === null));
+
   return (
+    <>
     <TableContainer sx={{ border: 1, borderColor: 'border.subtle', borderRadius: 1, bgcolor: 'surface.panel' }}>
       <Table size="small" aria-label={label}>
         <TableHead>
@@ -125,6 +131,12 @@ export function SlotTable({ rows, label, lastColumn }: { rows: SlotTableRow[]; l
         </TableBody>
       </Table>
     </TableContainer>
+    {anyUnset && (
+      <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.75 }}>
+        &mdash; means not set: the model&rsquo;s own default applies. n/a means the slot is prompt text only.
+      </Typography>
+    )}
+    </>
   );
 }
 

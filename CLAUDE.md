@@ -130,7 +130,7 @@ There is **no `refining` status** — an earlier version of this list claimed on
 | `/projects` | Projects list: card grid, search, New project dialog |
 | `/projects/[projectId]` | Redirects to that project's Overview |
 | `/projects/[projectId]/{overview,workspace,parameters,prompts,audit,settings}` | The project tabs. `extract` and `review` redirect to `workspace` (AM11, `next.config.ts`) |
-| `/admin` | Audit dashboard, outside the project nav and labelled unauthenticated |
+| `/admin` | Admin dashboard, outside the project nav, labelled "Admin · no authentication" (see Admin below) |
 | `/dev/gallery` | Dev-only component gallery (tokens plus every `components/ui/` primitive, both modes); 404s in production. Absorbed `/dev/theme` in step 5. |
 
 `/bda` and `/review` are retired and redirect to `/projects` (`next.config.ts`).
@@ -157,17 +157,20 @@ Full-bleed `SplitPane` (`bda.parameters.split`). **Left, `ProjectParameters`:** 
 
 ### Overview and Settings (`app/projects/[projectId]/{overview,settings}/`, `components/overview/`, `components/settings/`, step 12, AM14)
 Reading and form screens: a CSS grid of cards (`repeat(auto-fit, minmax(…, 1fr))`, stretching rows), so wide screens fill with columns and 1280 px gets two. Shared `components/overview/Card.tsx` (`Card`, `Fact`).
-- **Overview:** header (name, status chip, description, Open Workspace, Parameters); `ReviewProgressCard` (accepted / pending / flagged / empty from `lib/overview/progress.ts`, one bucket per parameter, a bar plus a legend with an icon per bucket; out-of-bounds is a warning line, not a bucket); `StatusCard`; `DocumentsCard`; `LastRunCard` (`hooks/useExtractionRuns.ts`, refetched when a job of the project completes); `JobStateCard` (the same `JobBanner`, `padded={false}`). **Review progress is deliberately separate from the status** because Approve does not change `projects.status` (B10).
+- **Overview:** header (name, status chip, description, Open Workspace, Parameters); `ReviewProgressCard` (accepted / pending / flagged / empty from `lib/overview/progress.ts`, one bucket per parameter, a bar plus a legend with an icon per bucket; out-of-bounds is a warning line, not a bucket); `StatusCard`; `DocumentsCard`; `LastRunCard` (`hooks/useExtractionRuns.ts`, refetched when a job of the project completes); `JobStateCard` (the same `JobBanner`, `padded={false}`); the last two sit in a full-width row split in two, so a wide screen has no half-empty row. **Review progress is deliberately separate from the status** because Approve does not change `projects.status` (B10).
 - **Status change** (`changeProjectStatus` in `lib/project-data/actions.ts`): `POST /projects/update-project-status`, **form-encoded** (`apiUpdateProjectStatus`, `lib/overview/status.ts`). **It reads the project back before reporting success**, because the backend route answers 200 without writing anything (proposed B22); `StatusNotAppliedError` is shown inline and the project list is only updated with a status the backend reports. **The control is hidden** behind `STATUS_CHANGE_AVAILABLE = false` (`lib/overview/status.ts`, owner decision with the step 13 brief, B22): the Overview shows the status read-only with a note; flip the switch when the backend writes.
 - **Settings:** `AppearanceCard` (Light / Dark / System via `useThemePreference`: applied at once, saved to `user_settings.theme`), `ReviewPreferencesCard` (density and "needs review first", the same `localStorage` keys as the Workspace, now in `lib/review/preferences.ts`), `ProjectDetailsCard` (read-only; template name through `getUserTemplates`), `MembersCard` (add contributor and add auditor, 404 → "User not found" via `UserNotFoundError`; **the member list is a labelled placeholder**, B8).
 - `REMOVE_PARAMETER_AVAILABLE` (`lib/parameters/meta.ts`) is `false`: the Parameters screen hides "Remove parameter" with a note, because the backend delete is hard (B18). The code stays; flip the switch when the backend soft-deletes.
 
 ### Prompts & Models and Audit (`app/projects/[projectId]/{prompts,audit}/`, `components/prompts/`, `components/audit/`, step 13)
-- **Prompts (read-only, reading screen, capped at 1800 px):** tabs *Pinned for this project* (`GET /projects/{id}/prompt-pins`: version, model, reasoning effort, temperature, scope; `is_lazy` is shown as "Pinned during a correction"; the prompt text expands), *Next run (resolution)* (`prompt-resolution`, with the `already_pinned` banner and each slot's scope) and *Registry* (`GET /prompts/slots`, versions on expand). `api/prompts.ts` has hand-written types and GET calls only. Editing is off: `PROMPT_EDITING_AVAILABLE = false` (`lib/prompts/config.ts`) and the screen says "No authentication". Pure parts in `lib/prompts/view.ts` (scope spelling differs between routes: `GLOBAL` vs `global`; joining pins and resolution by slot).
-- **Audit (working screen, full width):** tabs *Parameters* (`GET /audit/project/{id}` summary with totals, search and two filters; a row expands to the **lineage**: `components/audit/LineageView.tsx`), *Runs* (`RunsTab`), *Flags* (labelled placeholder, B8) and *Feedback* (`fetch_all_feedback`: every page, so the total is real). The lineage lists every candidate oldest first with its run (run numbers come from `/extraction-runs`, the lineage carries only the run id), what changed against the previous candidate, confidence, the flag (`AI_CORRETION` shown as "Auto", `HUMAN_REVIEW` as "Human") and the flag chain ("Resolved by candidate #2", "Resolved the flag on #1"), and the model's explanation per candidate. It is where earlier values live, because the Workspace shows only the newest run's candidates (B21). Pure parts in `lib/audit/` (`lineage.ts`, `feedback.ts`).
+- **Prompts (read-only, reading screen, capped at 1800 px):** tabs *Pinned for this project* (`GET /projects/{id}/prompt-pins`: version, model, reasoning effort, temperature, scope; `is_lazy` is shown as "Pinned during a correction"; the prompt text expands; a value the slot leaves unset is a dash, explained once in a footnote under the table, and `n/a` on category slots), *Next run (resolution)* (`prompt-resolution`, with the `already_pinned` banner and each slot's scope) and *Registry* (`GET /prompts/slots`, versions on expand). `api/prompts.ts` has hand-written types and GET calls only. Editing is off: `PROMPT_EDITING_AVAILABLE = false` (`lib/prompts/config.ts`) and the screen says "No authentication". Pure parts in `lib/prompts/view.ts` (scope spelling differs between routes: `GLOBAL` vs `global`; joining pins and resolution by slot).
+- **Audit (working screen, full width):** tabs *Parameters* (`GET /audit/project/{id}` summary with totals, search and two filters; six stat tiles in a grid that fills the row; a row expands to the **lineage**: `components/audit/LineageView.tsx`), *Runs* (`RunsTab`), *Flags* (labelled placeholder, B8) and *Feedback* (`fetch_all_feedback`: every page, so the total is real). The lineage lists every candidate oldest first with its run (run numbers come from `/extraction-runs`, the lineage carries only the run id), what changed against the previous candidate, confidence, the flag (every stored flag is a "Reviewer flag", because the backend writes `AI_CORRETION` for all of them and means "flag on an AI value", B23; "carried over after re-extraction" when a candidate's flag repeats the reason of the flag it resolved; out-of-bounds warnings are never stored flags, they come from `rule_violations`) and the flag chain ("Resolved by candidate #2", "Resolved the flag on #1"), and the model's explanation per candidate. It is where earlier values live, because the Workspace shows only the newest run's candidates (B21). Pure parts in `lib/audit/` (`lineage.ts`, `feedback.ts`).
 - `hooks/useResource.ts`: load one thing with an `AbortSignal` and `reload`; the loader must be a stable `useCallback`.
 
-### The shell (`components/shell/`, built to the §8.4 bar per AM5 — step 5 does not rebuild it)
+### Admin (`app/admin/`, `components/ProjectsSideBar/`, step 14)
+Outside the project shell, on the shell's `AppHeader` with "Admin · no authentication" and a chip saying anyone can open it (A2). Projects view: `AdminSidebar` (search, user and date filters, expandable) beside `GlobalOverview` (two Recharts charts and three tiles on status tokens) or, once a project is picked, `ProjectSummary` (its parameters; every row and an "Open this project's Audit" button link to `/projects/[id]/audit`). Each sidebar row also has an Audit link. Feedback view: `FeedbackArea`. The admin's own parameter-lineage drill-down is deleted: the project Audit's `LineageView` is the one lineage screen. Data from `hooks/AdminData.tsx` (`/audit/projects`, all feedback pages).
+
+### The shell (`components/shell/, built to the §8.4 bar per AM5 — step 5 does not rebuild it)
 `app/projects/[projectId]/layout.tsx` mounts it once for every tab: `AppHeader` (wordmark, breadcrumb slot, `JobTray`, `ThemeToggle`, account menu) above `ProjectRail` (six nav items since AM11, per-project activity badges, collapsible to icons, arrow/Home/End keyboard navigation) beside the screen. `Breadcrumb` renders `Projects › Customer › Project` per D6. The URL is the source of truth for which project is open; the layout tells `projectsIndex` so badges and the job tray agree with the address bar.
 
 ### Shared component library (`components/ui/`, step 5)
@@ -219,30 +222,50 @@ MUI v7 with CSS theme variables and **both colour schemes** (step 1). No Tailwin
 - `theme/tokens.ts` — typed view over that JSON, plus `radius`, `motion` (capped at 200 ms) and `shadow`.
 - `theme/theme.ts` — `createTheme` with `cssVariables.colorSchemeSelector: 'data-mui-color-scheme'` and both schemes. Semantic tokens are added to the palette by module augmentation, so components write `sx={{ bgcolor: 'surface.panel' }}` or `theme.vars.palette.*` and **never a raw colour**. Also owns the global focus ring, the `prefers-reduced-motion` reset, and a `MuiButtonBase` focus-visible override (ButtonBase resets `outline: 0`, which otherwise beats the global rule on source order).
 - `theme/layout.ts` — header/rail/split-pane constants, previously duplicated as magic numbers per page.
-- `theme/colors.ts` — **deprecated shim** holding the dark values so pre-redesign screens keep rendering. It is plain hex, not CSS variables, because call sites pass it through `alpha()` and string-concatenate alpha suffixes, both of which break on a `var()`. ESLint warns on importing it; the warning becomes an error when the last screen is migrated and the file is deleted.
+- `theme/colors.ts` is **deleted** (step 14). `no-restricted-imports` in `eslint.config.mjs` is an **error** on `@/theme/colors`, so a raw-colour shim cannot come back. No component names a colour literal: `app/` and `components/` (the pdf.js/spreadsheet document surfaces aside) hold no hex or `rgb()`. Charts (Recharts, `/admin`) read `theme.vars.palette.*`.
 - Mode: default `system`, persisted by MUI to `localStorage` and mirrored to the backend's `user_settings.theme` by `hooks/useThemePreference.ts`. Quick toggle in `components/shell/ThemeToggle.tsx`; the full control belongs in Settings.
 - `npm run check:contrast` asserts the WCAG ratios in `scripts/contrast-check.mjs` and must pass.
 
 ### Local DB (`lib/db.ts`)
-Dexie (IndexedDB) database `BatterySpecDB` with a `files` table. Defined, but file blobs may be held in React state instead; check usages before relying on it.
+Dexie (IndexedDB) database `BatterySpecDB` with one table, `pendingUploads` (v2): the files of queued uploads, deleted when the upload succeeds, is cancelled or dismissed (§8.1). The v1 `files` table was dropped.
 
-### Project ID
-A UUID is generated client-side via `uuidv4()` on mount and passed to every API call.
+### Project ids
+Projects are created and listed through `/projects`; the id is the backend's UUID and comes from the URL (`/projects/[projectId]/...`). `uuid` is used only for client-side ids of unsaved candidates and toasts.
+
+### Feature switches (constants, not env vars)
+`STATUS_CHANGE_AVAILABLE` (`lib/overview/status.ts`, B22), `REMOVE_PARAMETER_AVAILABLE` (`lib/parameters/meta.ts`, B18), `SAVE_AS_TEMPLATE_AVAILABLE` (`lib/templates/rules.ts`, B17), `PROMPT_EDITING_AVAILABLE` (`lib/prompts/config.ts`). All are `false`; each hides a control whose backend route is a no-op or fails, with the reason on screen. Flip one only after the backend item is fixed.
+
+### Dependencies and security (step 14)
+Next.js **16.4.0** and `eslint-config-next` 16.4.0 (exact pins). `npm audit` was 23 findings (3 critical) and is 8 (2 critical), all in dev tooling: `vitest` 3.x (via `tinypool`, fix is vitest 4, a major) and `eslint-config-next` (`@next/eslint-plugin-next` → `fast-glob` → `micromatch` → `braces`; npm's only offered "fix" is a downgrade to 14.2.35). None ships to the browser. `xlsx` comes from the SheetJS tarball (see Document viewers), not npm. Running `next dev` writes an `AGENTS.md` at the repo root (Next 16.4); it is not ours and is not committed.
 
 ---
 
 ## 6. Known gaps between this frontend and the current backend
 
-| Gap | Impact |
+The frontend has no open gap of its own against the contract. What is left is **backend behaviour the UI cannot fix**, recorded as B1–B24 in `claude-notes/plans/plan-A-amendments.md` (AM8) for Task B. The UI shows each as a labelled placeholder or a hidden control and never works around it silently.
+
+| Backend item | What the UI does about it |
 |---|---|
-| Endpoints in `api/` are outdated (`/files/upload-document/`, `/specs/extract-specs/`, `/chat`) | The backend now uses `/files/upload-documents/`, `/specs/stream-specs`, `/specs/stream-parameter`. `/chat` is not in the current backend. |
-| Client-generated project UUID | The backend has a real `projects` table with customers, templates, and parameters. Projects must be created and listed through `/projects`, not invented client-side. |
-| ~~`SCHEMA_GROUPS` is hardcoded with 4 categories (no End of Life)~~ | **Fixed in step 8.** Deleted; the Workspace groups by `groupFields` from data, End of Life included. |
-| Loading state is global | Pressing Analyze or uploading blocks the whole app, so the user cannot switch projects. See §8.1. |
-| ~~Dark mode only~~ | **Tokens and both schemes landed in step 1.** Remaining: the pre-redesign screens still import the deprecated `theme/colors.ts` shim, so they render dark in light mode until their own step migrates them to palette tokens. See §8.3. |
-| ~~Only 5 SSE statuses handled~~ | **Fixed in step 7.** `RunTimeline` draws all of the pipeline (routing/extracting/supervising) and `JobBanner` labels every warning status (routing_truncated, no_frames_tagged, category_extraction_fallback, category_workers_failed) in place rather than ignoring it. |
-| ~~Flags, reason codes not surfaced~~ | **Flags, reason codes and the model's rationale are surfaced** (steps 8 and 10). Prompt pins and lineage are still steps 13+. See RFC §4–§5. |
-| No test suite | Verification is build + lint + manual until a plan step adds tests. |
+| B1 Add parameter fails | "Add parameter" is a labelled placeholder |
+| B2, B4 no customer alias or `category` on the project payload | Customer joined from `GET /customers/`; categories joined from the canonical dictionary (D5/D6) |
+| B3, B5 out-of-bounds auto-flags not stored; no reason-code field | Read from `rule_violations`; reason codes matched by prefix (AM6) |
+| B7 file route 404 for every missing case | 404 and 410 both show "Source unavailable, values preserved" |
+| B8 no member list, no project-wide flag list | Placeholders in Settings and the Audit's Flags tab |
+| B9 a never-extracted parameter cannot be flagged | The UI refuses with an explanation |
+| B10, B22 approve and status route do not change the status | Review progress shown separately; status control hidden (`STATUS_CHANGE_AVAILABLE`) |
+| B11 `final_value` as a long float | Rounded for display only (AM10); Save never sends the rounded value |
+| B12 no delete route for projects or users | Test data accumulates in the dev database |
+| B13, B14 reasoning is narration; Excel sources name a table, not a cell | Labelled as the model's text; the table is outlined and matching cells marked |
+| B15, B16 no per-parameter accept; unflag with `resolved_by` fails | Accept is a session mark; resolving a flag is two calls |
+| B17 save-as-template fails | Placeholder (`SAVE_AS_TEMPLATE_AVAILABLE`) |
+| B18 parameter removal is a hard delete | Hidden (`REMOVE_PARAMETER_AVAILABLE`) |
+| B19, B20 texts cannot be nulled; templates check no ownership | Empty text sent as `''`; access enforced in the UI only (`templateAccess`) |
+| B21 a correction leaves only the newest run's candidates in the project payload | Older candidates are read from the Audit lineage |
+| B23 flag type does not say who raised a flag | Every stored flag is labelled "Reviewer flag" |
+| B24 feedback list has no id, date or total; one route is a stub | All pages are read for the total; no date shown |
+| (A2) no real authentication | Admin and Prompts say so on screen; Prompts editing is off |
+
+Frontend limits that remain by decision: no custom keyboard shortcuts (AM19), command palette deferred (§2), jobs run in the browser tab and the queue is per browser (§8.1), view state of a document is in memory only.
 
 ---
 

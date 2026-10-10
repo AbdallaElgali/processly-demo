@@ -25,7 +25,7 @@ type SortKey = 'parameterKey' | 'totalCandidates' | 'totalFlags' | 'totalExtract
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <Paper variant="outlined" sx={{ px: 2, py: 1.25, bgcolor: 'surface.panel', borderColor: 'border.subtle', minWidth: 120 }}>
+    <Paper variant="outlined" sx={{ px: 2, py: 1.25, bgcolor: 'surface.panel', borderColor: 'border.subtle', minWidth: 0 }}>
       <Typography variant="h6" component="div" sx={{ fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 }}>{value}</Typography>
       <Typography variant="caption" sx={{ color: 'text.secondary' }}>{label}</Typography>
     </Paper>
@@ -75,14 +75,14 @@ export function ParametersAudit({ projectId }: { projectId: string }) {
 
   return (
     <Stack spacing={2}>
-      <Stack direction="row" spacing={1.5} useFlexGap sx={{ flexWrap: 'wrap' }}>
+      <Box sx={{ display: 'grid', gap: 1.5, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))' }}>
         <Stat label="Parameters" value={totals.parameters} />
         <Stat label="Extracted again" value={totals.reExtracted} />
         <Stat label="With flags" value={totals.withFlags} />
         <Stat label="Flags in total" value={totals.totalFlags} />
         <Stat label="Edited by a person" value={totals.humanModified} />
         <Stat label="Value from an AI candidate" value={totals.aiAccepted} />
-      </Stack>
+      </Box>
 
       <Stack direction="row" spacing={2} alignItems="center" useFlexGap sx={{ flexWrap: 'wrap' }}>
         <SearchField value={query} onChange={setQuery} placeholder="Search parameters" aria-label="Search parameters" />

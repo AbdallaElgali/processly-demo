@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Box, Chip, IconButton, ToggleButtonGroup, ToggleButton, Typography } from '@mui/material';
+import { Box, Chip, ToggleButtonGroup, ToggleButton, Typography } from '@mui/material';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import FeedbackIcon from '@mui/icons-material/Feedback';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 
-import { colors } from '@/theme/colors';
 import { useAdminData } from '@/hooks/AdminData';
 import { AdminSidebar } from '@/components/ProjectsSideBar/AdminSideBar';
 import { AppHeader } from '@/components/shell/AppHeader';
@@ -46,7 +46,7 @@ export default function AdminPage() {
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden', bgcolor: colors.background }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden', bgcolor: 'surface.canvas' }}>
         
         {/* The shell header, with the admin view switcher in the breadcrumb
             slot. Labelled unauthenticated per A2: /auth has no password or
@@ -54,16 +54,16 @@ export default function AdminPage() {
         <AppHeader
           breadcrumb={
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                Admin
+              <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                Admin &middot; no authentication
               </Typography>
-              <Chip size="small" label="no authentication" sx={{ bgcolor: 'status.warningBg', color: 'status.warning' }} />
+              <Chip size="small" icon={<LockOutlinedIcon />} label="Anyone can open this page" sx={{ bgcolor: 'status.warningBg', color: 'status.warning', '& .MuiChip-icon': { color: 'inherit' } }} />
               <ToggleButtonGroup
                 value={activeTab}
                 exclusive
                 onChange={handleTabChange}
                 size="small"
-                sx={{ bgcolor: colors.surface }}
+                sx={{ bgcolor: 'surface.panel' }}
               >
                 <ToggleButton value="projects" aria-label="projects view">
                   <AssignmentIcon fontSize="small" sx={{ mr: 1 }} />
@@ -86,8 +86,9 @@ export default function AdminPage() {
               width: isExpanded ? '100%' : 350, 
               flexShrink: 0,
               transition: 'width 0.3s ease', 
-              borderRight: isExpanded ? 'none' : `1px solid ${colors.border}`, 
-              bgcolor: colors.surface, 
+              borderRight: isExpanded ? 'none' : '1px solid',
+              borderColor: 'border.subtle', 
+              bgcolor: 'surface.panel',
               display: 'flex', flexDirection: 'column', zIndex: 10 
             }}>
               <AdminSidebar 

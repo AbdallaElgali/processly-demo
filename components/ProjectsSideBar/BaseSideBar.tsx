@@ -1,9 +1,8 @@
 import React from 'react';
 import { 
-  Box, Typography, List, ListItemButton, ListItemIcon, ListItemText, CircularProgress
+  Box, Typography, List, ListItemButton, ListItemIcon, ListItemText
 } from '@mui/material';
 import { Folder as FolderIcon, FolderOpen as FolderOpenIcon } from '@mui/icons-material';
-import { colors } from '@/theme/colors';
 
 export interface BaseSidebarProject {
   id: string;
@@ -39,11 +38,11 @@ export const BaseSidebar = ({
   isLoading = false
 }: BaseSidebarProps) => {
   return (
-    <Box sx={{ height: '100%', width: '100%', bgcolor: colors.surface, display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ height: '100%', width: '100%', bgcolor: 'surface.panel', display: 'flex', flexDirection: 'column' }}>
       
       {/* Header */}
-      <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: topContent ? 'none' : `1px solid ${colors.border}` }}>
-        <Typography variant="overline" sx={{ color: colors.textSecondary, letterSpacing: 1 }}>
+      <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: topContent ? 'none' : '1px solid', borderColor: 'border.subtle' }}>
+        <Typography variant="overline" sx={{ color: 'text.secondary', letterSpacing: 1 }}>
           {title}
         </Typography>
         {headerAction}
@@ -51,7 +50,7 @@ export const BaseSidebar = ({
 
       {/* Top Content (Filters, Search, Clear Selection) */}
       {topContent && (
-        <Box sx={{ px: 2, pb: 2, borderBottom: `1px solid ${colors.border}` }}>
+        <Box sx={{ px: 2, pb: 2, borderBottom: '1px solid', borderColor: 'border.subtle' }}>
           {topContent}
         </Box>
       )}
@@ -65,17 +64,19 @@ export const BaseSidebar = ({
             
             return (
               <React.Fragment key={project.id}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5, gap: 0.5 }}>
                 <ListItemButton
                   onClick={() => onProjectClick(project.id)}
                   selected={isSelected && !expandedProjectId} // Admin style selection
                   sx={{
                     borderRadius: 1, 
-                    mb: 0.5,
-                    bgcolor: isSelected ? 'rgba(255, 255, 255, 0.05)' : 'transparent',
+                    flex: 1,
+                    minWidth: 0,
+                    bgcolor: isSelected ? 'accent.tint' : 'transparent',
                     '&:hover .project-action-icon': { opacity: 1 }, 
                   }}
                 >
-                  <ListItemIcon sx={{ minWidth: 36, color: isExpanded || isSelected ? colors.primary : colors.textSecondary }}>
+                  <ListItemIcon sx={{ minWidth: 36, color: isExpanded || isSelected ? 'accent.text' : 'text.secondary' }}>
                     {isExpanded ? <FolderOpenIcon fontSize="small" /> : <FolderIcon fontSize="small" />}
                   </ListItemIcon>
                   
@@ -84,15 +85,16 @@ export const BaseSidebar = ({
                     secondary={project.secondaryText}
                     primaryTypographyProps={{ 
                       variant: 'body2', 
-                      color: isSelected ? 'white' : colors.textSecondary,
+                      color: isSelected ? 'text.primary' : 'text.secondary',
                       fontWeight: isSelected ? 600 : 400,
                       noWrap: true
                     }} 
                     secondaryTypographyProps={{ variant: 'caption' }}
                   />
                   
-                  {renderProjectActions && renderProjectActions(project.id)}
                 </ListItemButton>
+                {renderProjectActions && renderProjectActions(project.id)}
+                </Box>
 
                 {/* Nested Items (e.g. Documents) */}
                 {renderNestedItems && renderNestedItems(project.id)}
@@ -102,7 +104,7 @@ export const BaseSidebar = ({
         </List>
         
         {projects.length === 0 && !isLoading && (
-           <Box sx={{ p: 2, color: colors.textSecondary, fontStyle: 'italic', fontSize: '0.8rem', textAlign: 'center' }}>
+           <Box sx={{ p: 2, color: 'text.secondary', fontStyle: 'italic', fontSize: '0.8rem', textAlign: 'center' }}>
              {emptyStateMessage}
            </Box>
         )}
