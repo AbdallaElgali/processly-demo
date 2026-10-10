@@ -45,3 +45,6 @@ test-data/
 
 # pdf.js worker, CMaps and fonts, copied from node_modules by scripts/copy-pdf-assets.mjs
 /public/pdfjs/
+
+# Written by `next dev` (Next 16.4); not ours
+/AGENTS.md
