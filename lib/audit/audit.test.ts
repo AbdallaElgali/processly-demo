@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { ParameterLineageEvent, ParameterLineageResponse, ProjectSummary } from '@/types/audit';
 import type { ExtractionRun } from '@/api/types/projects';
 import type { FeedbackItem } from '@/api/audit/feedback';
-import { buildLineage, filterSummary, isCarriedOver, REVIEWER_FLAG_LABEL, sameValue, summaryTotals } from './lineage';
+import { buildLineage, emptyValueLabel, filterSummary, isCarriedOver, REVIEWER_FLAG_LABEL, sameValue, summaryTotals } from './lineage';
+import { REASON_NOT_SEARCHED_CAP_REACHED, REASON_SEARCHED_ABSENT } from '@/lib/review/reasonCodes';
 import { collectAllPages, feedbackTotals } from './feedback';
 
 const run = (id: string, n: number): ExtractionRun => ({
@@ -149,5 +150,16 @@ describe('feedback totals (the route has no total and caps pages)', () => {
     expect(t.byStatus.reduce((n, s) => n + s.count, 0)).toBe(4);
     expect(t.byType.reduce((n, s) => n + s.count, 0)).toBe(4);
     expect(t.byStatus[0]).toEqual({ status: 'new', count: 2 });
+  });
+});
+
+describe('emptyValueLabel (CLAUDE.md 7: an empty value shows its reason code)', () => {
+  it('names the reason code of an empty candidate', () => {
+    expect(emptyValueLabel(REASON_SEARCHED_ABSENT)).toBe('Searched, absent');
+    expect(emptyValueLabel(REASON_NOT_SEARCHED_CAP_REACHED)).toBe('Not searched: cap reached');
+  });
+  it('falls back to "no value" when the explanation is not a reason code', () => {
+    expect(emptyValueLabel(null)).toBe('no value');
+    expect(emptyValueLabel('The value was absent from the table.')).toBe('no value');
   });
 });

@@ -9,6 +9,7 @@ import Link from 'next/link';
 import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
 import { useProjectSummary } from '@/hooks/useProjectSummary'; 
 import { ProjectSummary as ProjectSummaryType } from '@/types/audit';
+import { formatDisplayValue } from '@/lib/review/format';
 
 interface ParameterRowProps {
   parameter: ProjectSummaryType;
@@ -59,8 +60,8 @@ const ParameterRow: React.FC<ParameterRowProps> = ({ parameter, href }) => {
         <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
           Final Value
         </Typography>
-        <Typography variant="body2" fontWeight="bold" color={parameter.finalValue ? 'text.primary' : 'text.disabled'}>
-          {parameter.finalValue !== null ? parameter.finalValue : 'Unassigned'}
+        <Typography variant="body2" fontWeight="bold" color={parameter.finalValue !== null ? 'text.primary' : 'text.disabled'} sx={{ fontVariantNumeric: 'tabular-nums' }}>
+          {parameter.finalValue !== null ? formatDisplayValue(parameter.finalValue) : 'Unassigned'}
         </Typography>
       </Box>
 

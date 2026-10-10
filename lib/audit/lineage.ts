@@ -1,5 +1,6 @@
 import type { FlagDetail, ParameterLineageEvent, ParameterLineageResponse, ProjectSummary } from '@/types/audit';
 import type { ExtractionRun } from '@/api/types/projects';
+import { matchReasonCode } from '@/lib/review/reasonCodes';
 
 /**
  * Every stored flag was raised by a reviewer (`POST /flagging/ai-flag-parameter`).
@@ -19,6 +20,15 @@ export function isCarriedOver(flag: FlagDetail | null, resolvesFlag: FlagDetail 
   if (!flag || !resolvesFlag) return false;
   const a = (flag.flagReason ?? '').trim();
   return a !== '' && a === (resolvesFlag.flagReason ?? '').trim();
+}
+
+/**
+ * What an empty candidate shows instead of a value: its reason code's short
+ * label (CLAUDE.md 7: never a blank), or "no value" when the explanation is
+ * not one of the four codes.
+ */
+export function emptyValueLabel(extractionLogic: string | null): string {
+  return matchReasonCode(extractionLogic)?.label ?? 'no value';
 }
 
 /** Equal as numbers when both parse (2.30 equals 2.3), otherwise as text; null only equals null. */

@@ -15,13 +15,13 @@ import { ConfidenceIndicator } from '@/components/workspace/indicators';
 import { useResource } from '@/hooks/useResource';
 import { fetch_parameter_lineage } from '@/api/audit/project_metrics';
 import type { ExtractionRun } from '@/api/types/projects';
-import { buildLineage, CARRIED_OVER_LABEL, REVIEWER_FLAG_LABEL, type LineageRow } from '@/lib/audit/lineage';
+import { buildLineage, CARRIED_OVER_LABEL, emptyValueLabel, REVIEWER_FLAG_LABEL, type LineageRow } from '@/lib/audit/lineage';
 import { formatDisplayValue } from '@/lib/review/format';
 import { RUN_TYPE_LABEL } from '@/lib/overview/status';
-import type { FlagDetail } from '@/types/audit';
+import type { FlagDetail, ParameterLineageEvent } from '@/types/audit';
 
-const valueText = (value: string | null, unit: string | null) =>
-  value === null ? 'no value' : `${formatDisplayValue(value)}${unit ? ` ${unit}` : ''}`;
+const valueText = (e: ParameterLineageEvent) =>
+  e.value === null ? emptyValueLabel(e.extractionLogic) : `${formatDisplayValue(e.value)}${e.unit ? ` ${e.unit}` : ''}`;
 
 const runText = (row: LineageRow) =>
   row.runNumber !== null ? `Run ${row.runNumber}` : 'Run unknown';
@@ -81,7 +81,7 @@ function ChangeCell({ row }: { row: LineageRow }) {
         <Typography variant="caption" sx={{ color: 'text.secondary' }}>Same value as #{row.ordinal - 1}</Typography>
       ) : (
         <Typography variant="caption" sx={{ color: 'status.warning', fontWeight: 600 }}>
-          Changed from {valueText(prev.value, prev.unit)}
+          Changed from {valueText(prev)}
         </Typography>
       )}
       {row.unitChanged && row.valueChange === 'same' && (
@@ -131,7 +131,7 @@ export function LineageView({ projectId, parameterKey, runs }: { projectId: stri
               variant={r.event.isWinner ? 'filled' : 'outlined'}
               color={r.event.isWinner ? 'primary' : 'default'}
               icon={r.event.isWinner ? <CheckCircleOutlineIcon /> : undefined}
-              label={`#${r.ordinal} · ${runText(r)}: ${valueText(r.event.value, r.event.unit)}${r.event.isWinner ? ' (current)' : ''}`}
+              label={`#${r.ordinal} · ${runText(r)}: ${valueText(r.event)}${r.event.isWinner ? ' (current)' : ''}`}
               sx={{ fontVariantNumeric: 'tabular-nums' }}
             />
           </Fragment>
@@ -180,7 +180,7 @@ export function LineageView({ projectId, parameterKey, runs }: { projectId: stri
                         variant="body2"
                         sx={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: e.value === null ? 'text.muted' : 'text.primary', fontStyle: e.value === null ? 'italic' : 'normal' }}
                       >
-                        {valueText(e.value, e.unit)}
+                        {valueText(e)}
                       </Typography>
                       {e.isWinner && (
                         <Chip size="small" icon={<CheckCircleOutlineIcon />} label="Current value" sx={{ mt: 0.5, bgcolor: 'status.successBg', color: 'status.success', '& .MuiChip-icon': { color: 'inherit' } }} />
