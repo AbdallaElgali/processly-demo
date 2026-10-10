@@ -6,6 +6,7 @@ import {
   apiGetUserProjects,
   apiSaveProjectParameters,
   apiUpdateProjectParameter,
+  apiRemoveProjectParameter,
   type ParameterInput,
   type ProjectCreateInput,
   type updateProjectParameter,
@@ -126,4 +127,25 @@ export async function updateParameterMetadata(
   data: updateProjectParameter,
 ): Promise<void> {
   await apiUpdateProjectParameter(projectParameterId, data);
+}
+
+/** Edits one parameter's alias, description or AI instructions, then refreshes the project in the background. */
+export async function editParameterMetadata(
+  projectId: string,
+  projectParameterId: string,
+  data: updateProjectParameter,
+): Promise<void> {
+  await apiUpdateProjectParameter(projectParameterId, data);
+  await loadProjectDetails(projectId, { background: true });
+}
+
+/**
+ * Removes one parameter from a project. The backend deletes the row for good,
+ * with its candidates and flag history, so any unsaved edit on it is dropped
+ * too.
+ */
+export async function removeParameter(projectId: string, key: string, projectParameterId: string): Promise<void> {
+  await apiRemoveProjectParameter(projectParameterId);
+  projectDataStore.dropDirty(projectId, key);
+  await loadProjectDetails(projectId, { background: true });
 }

@@ -206,3 +206,13 @@ export const apiUpdateProjectParameter = async (project_parameter_id: string, pa
   });
   if (!response.ok) throw new Error(await response.text());
 }
+
+/**
+ * DELETE /projects/project-parameter/{id}/remove. A HARD delete of the
+ * `project_parameters` row: its extracted candidates and its flag history go
+ * with it (`ON DELETE CASCADE`), and nothing in the schema soft-deletes.
+ */
+export const apiRemoveProjectParameter = async (project_parameter_id: string): Promise<void> => {
+  const response = await fetch(`${API_BASE_URL}/project-parameter/${project_parameter_id}/remove`, { method: 'DELETE' });
+  if (!response.ok) throw new Error(await response.text());
+};

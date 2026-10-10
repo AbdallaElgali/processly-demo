@@ -14,6 +14,7 @@ export function SearchField({
   value,
   onChange,
   placeholder = 'Search',
+  'aria-label': ariaLabel,
   sx,
   ...rest
 }: {
@@ -36,6 +37,8 @@ export function SearchField({
       size="small"
       sx={{ maxWidth: 420, width: '100%', ...sx }}
       slotProps={{
+        // The accessible name belongs on the <input>; on the root it labels a div.
+        htmlInput: { 'aria-label': ariaLabel ?? placeholder },
         input: {
           startAdornment: (
             <InputAdornment position="start">
