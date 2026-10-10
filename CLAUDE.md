@@ -236,7 +236,7 @@ Projects are created and listed through `/projects`; the id is the backend's UUI
 `STATUS_CHANGE_AVAILABLE` (`lib/overview/status.ts`, B22), `REMOVE_PARAMETER_AVAILABLE` (`lib/parameters/meta.ts`, B18), `SAVE_AS_TEMPLATE_AVAILABLE` (`lib/templates/rules.ts`, B17), `PROMPT_EDITING_AVAILABLE` (`lib/prompts/config.ts`). All are `false`; each hides a control whose backend route is a no-op or fails, with the reason on screen. Flip one only after the backend item is fixed.
 
 ### Dependencies and security (step 14)
-Next.js **16.4.0** and `eslint-config-next` 16.4.0 (exact pins). `npm audit` was 23 findings (3 critical) and is 8 (2 critical), all in dev tooling: `vitest` 3.x (via `tinypool`, fix is vitest 4, a major) and `eslint-config-next` (`@next/eslint-plugin-next` → `fast-glob` → `micromatch` → `braces`; npm's only offered "fix" is a downgrade to 14.2.35). None ships to the browser. `xlsx` comes from the SheetJS tarball (see Document viewers), not npm. Running `next dev` writes an `AGENTS.md` at the repo root (Next 16.4); it is not ours and is not committed.
+Next.js **16.4.0** and `eslint-config-next` 16.4.0 (exact pins). `npm audit` was 23 findings (3 critical) and is 8 (2 critical), all in dev tooling: `vitest` 3.x (via `tinypool`, fix is vitest 4, a major) and `eslint-config-next` (`@next/eslint-plugin-next` → `fast-glob` → `micromatch` → `braces`; npm's only offered "fix" is a downgrade to 14.2.35). None ships to the browser. `xlsx` comes from the SheetJS tarball (see Document viewers), not npm. Running `next dev` writes an `AGENTS.md` at the repo root (Next 16.4); it is not ours and is gitignored.
 
 ---
 
