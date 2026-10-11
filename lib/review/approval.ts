@@ -14,6 +14,14 @@ import { rowState } from './rowState';
  * - Unsaved edits are saved first ("Save and approve"), so what is approved
  *   is what the table shows.
  */
+/**
+ * The backend stores `review_action` per row and keeps a human-touched row
+ * through re-extraction (B15 + R1). While this was false, every save wrote
+ * PENDING and the UI had to work around it; the workarounds are gone, and the
+ * switch records that the frontend now depends on the stored state.
+ */
+export const REVIEW_STATE_PERSISTED = true;
+
 export interface ApprovalCheck {
   openFlags: string[];
   bounds: string[];
@@ -22,19 +30,20 @@ export interface ApprovalCheck {
   unsaved: number;
   jobBusy: boolean;
   /**
-   * Rows Approve will accept: not yet ACCEPTED, plus unsaved rows (the save
-   * before approving writes them back as PENDING, B15).
+   * Rows Approve will accept: the ones whose review_action is PENDING. Approve
+   * flips only those; an edited (MODIFIED) row is already a person's decision
+   * and stays as it is, so it is not counted.
    */
   pending: number;
 }
 
 export function approvalCheck(
   fields: InputField[],
-  opts: { unsaved: number; jobBusy: boolean; dirty?: readonly string[] },
+  opts: { unsaved: number; jobBusy: boolean },
 ): ApprovalCheck {
   const check: ApprovalCheck = { openFlags: [], bounds: [], empty: [], needsReview: [], unsaved: opts.unsaved, jobBusy: opts.jobBusy, pending: 0 };
   for (const f of fields) {
-    if (f.reviewAction !== 'ACCEPTED' || opts.dirty?.includes(f.id)) check.pending += 1;
+    if (f.reviewAction === 'PENDING') check.pending += 1;
     const st = rowState(f);
     if (f.isFlagged) check.openFlags.push(f.id);
     if (st.primary === 'bounds' || st.secondary.includes('bounds')) check.bounds.push(f.id);
@@ -51,6 +60,6 @@ export function approveBlockReason(check: ApprovalCheck): string | null {
     return `${n} open flag${n === 1 ? '' : 's'} (${check.openFlags.join(', ')}). Accept a value or remove the flag first.`;
   }
   if (check.jobBusy) return 'Wait for the running analysis or re-extraction to finish.';
-  if (check.pending === 0) return 'Every parameter is already approved.';
+  if (check.pending === 0) return 'Nothing is pending: every parameter is already accepted, edited or rejected.';
   return null;
 }

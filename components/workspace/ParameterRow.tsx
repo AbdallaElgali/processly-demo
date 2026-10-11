@@ -24,6 +24,8 @@ import { matchReasonCode } from '@/lib/review/reasonCodes';
 import { formatDisplayValue } from '@/lib/review/format';
 import { fieldAnchors } from '@/lib/review/anchors';
 import { canRevert } from '@/lib/review/edits';
+import { newerCandidateAvailable } from '@/lib/review/newer';
+import NewReleasesOutlinedIcon from '@mui/icons-material/NewReleasesOutlined';
 import { parseCandidateNumber } from '@/lib/excel/highlight';
 import { ConfidenceIndicator, QualifierTags, SecondaryFacts, StateBadge } from './indicators';
 import { ValueCell } from './ValueCell';
@@ -110,7 +112,6 @@ function ParameterRowImpl({
   focused,
   busy,
   dirty,
-  accepted,
   density,
   handlers,
 }: {
@@ -121,8 +122,6 @@ function ParameterRowImpl({
   busy: RowBusy | null;
   /** Has an unsaved edit. */
   dirty: boolean;
-  /** Accepted in this session (not stored per row, B15). */
-  accepted: boolean;
   density: Density;
   handlers: ParameterRowHandlers;
 }) {
@@ -228,7 +227,7 @@ function ParameterRowImpl({
 
         <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
           <StateBadge state={state} flagReason={field.flagReason} />
-          <SecondaryFacts facts={state.secondary} acceptedLocally={accepted && field.reviewAction !== 'ACCEPTED'} />
+          <SecondaryFacts facts={state.secondary} />
         </Stack>
 
         <Box onClick={(e) => e.stopPropagation()}>
@@ -254,7 +253,7 @@ function ParameterRowImpl({
       </Box>
 
       <Collapse in={expanded} unmountOnExit timeout={160}>
-        <RowDetail field={field} state={state} busy={busy} accepted={accepted} handlers={handlers} />
+        <RowDetail field={field} state={state} busy={busy} handlers={handlers} />
       </Collapse>
     </Box>
   );
@@ -281,13 +280,11 @@ function RowDetail({
   field,
   state,
   busy,
-  accepted,
   handlers,
 }: {
   field: InputField;
   state: RowState;
   busy: RowBusy | null;
-  accepted: boolean;
   handlers: ParameterRowHandlers;
 }) {
   const selected = state.selected;
@@ -337,7 +334,7 @@ function RowDetail({
 
       <Stack spacing={2.5} sx={{ minWidth: 0 }}>
         <ValueEditor key={selected?.id ?? 'none'} field={field} spec={selected} disabled={locked} handlers={handlers} />
-        <ReviewActions field={field} busy={busy} accepted={accepted} handlers={handlers} />
+        <ReviewActions field={field} busy={busy} handlers={handlers} />
       </Stack>
     </Box>
   );
@@ -445,12 +442,10 @@ function ValueEditor({
 function ReviewActions({
   field,
   busy,
-  accepted,
   handlers,
 }: {
   field: InputField;
   busy: RowBusy | null;
-  accepted: boolean;
   handlers: ParameterRowHandlers;
 }) {
   const [reason, setReason] = useState('');
@@ -458,6 +453,7 @@ function ReviewActions({
   const locked = !!busy;
   const correcting = busy?.kind === 'queued' || busy?.kind === 'correcting';
   const approved = field.reviewAction === 'ACCEPTED';
+  const newer = newerCandidateAvailable(field);
   const candidateId = field.specifications.find((s) => s.id === field.selectedSpecId)?.candidateId ?? null;
   const flaggable = !!candidateId;
   const text = reason.trim();
@@ -471,6 +467,12 @@ function ReviewActions({
           {busy?.kind === 'queued'
             ? 'Queued for re-extraction. It starts when a slot is free; corrections go first.'
             : `Re-extracting this parameter${busy?.kind === 'correcting' && busy.phase ? ` (${busy.phase})` : ''}. The rest of the project stays usable.`}
+        </Note>
+      )}
+
+      {newer && (
+        <Note tone="info" icon={<NewReleasesOutlinedIcon sx={{ fontSize: 16 }} />}>
+          <strong>Newer AI candidate available.</strong> A later extraction run found a candidate this row does not use. Your decision was kept; choose it from the candidates if you want it.
         </Note>
       )}
 
@@ -530,16 +532,16 @@ function ReviewActions({
       ) : (
         <Stack spacing={1.25}>
           <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap' }} useFlexGap>
-            {accepted || approved ? (
+            {approved ? (
               <Stack direction="row" spacing={0.75} alignItems="center" sx={{ color: 'status.success' }} role="status">
                 <DoneAllIcon sx={{ fontSize: 18 }} aria-hidden />
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>{approved ? 'Approved' : 'Accepted'}</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>Accepted</Typography>
                 <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                  {approved ? 'Accepted by Approve. Saving this row returns it to pending.' : 'Value saved. Marked for this session; Approve records it.'}
+                  Saved. Editing the value or choosing another candidate makes it a new decision.
                 </Typography>
               </Stack>
             ) : (
-              <Tooltip title="Saves this row’s value now and marks it accepted for this session. Approve records acceptance for the whole project.">
+              <Tooltip title="Saves this row’s value now and marks it accepted">
                 <span>
                   <Button
                     size="small"

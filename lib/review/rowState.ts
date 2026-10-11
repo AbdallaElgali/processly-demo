@@ -1,6 +1,7 @@
 import type { InputField, Specification } from '@/types';
 import { isHighConfidence } from './confidence';
 import { matchReasonCode, type ReasonCodeInfo } from './reasonCodes';
+import { newerCandidateAvailable } from './newer';
 
 /**
  * Row-state precedence (AM1). Every parameter row shows exactly ONE primary
@@ -27,7 +28,7 @@ export type PrimaryState =
   | 'needs_review'
   | 'high';
 
-export type SecondaryFact = 'bounds' | 'modified' | 'low_confidence' | 'needs_review' | 'accepted';
+export type SecondaryFact = 'bounds' | 'modified' | 'low_confidence' | 'needs_review' | 'accepted' | 'newer_candidate';
 
 export interface RowState {
   primary: PrimaryState;
@@ -49,12 +50,7 @@ export function hasValue(spec: Specification | undefined): boolean {
   return !!spec && spec.value !== null && spec.value !== undefined && String(spec.value).trim() !== '';
 }
 
-/**
- * `acceptedLocally`: the reviewer accepted this row in this session (step 10).
- * The backend cannot store that per row (B15), so it is a secondary fact
- * only, the same one an approved row shows.
- */
-export function rowState(field: InputField, opts: { acceptedLocally?: boolean } = {}): RowState {
+export function rowState(field: InputField): RowState {
   const selected = selectedSpec(field);
   const valued = hasValue(selected);
   const modified = field.reviewAction === 'MODIFIED';
@@ -80,7 +76,8 @@ export function rowState(field: InputField, opts: { acceptedLocally?: boolean } 
     if (lowConfidence) secondary.push('low_confidence');
     else if (supervisorReview) secondary.push('needs_review');
   }
-  if (field.reviewAction === 'ACCEPTED' || opts.acceptedLocally) secondary.push('accepted');
+  if (field.reviewAction === 'ACCEPTED') secondary.push('accepted');
+  if (newerCandidateAvailable(field)) secondary.push('newer_candidate');
 
   return {
     primary,

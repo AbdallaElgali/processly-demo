@@ -36,12 +36,6 @@ export interface ProjectState {
   dirty: readonly string[];
   /** A backend call in flight for one row: that row, and only that row, shows it (CLAUDE.md 8.1). */
   rowOps: Readonly<Record<string, RowOp>>;
-  /**
-   * Rows accepted in this session. The backend has no per-parameter accept
-   * (its batch save always writes PENDING, B15); this is the reviewer's mark,
-   * in memory only, until Approve accepts everything pending.
-   */
-  accepted: readonly string[];
 }
 
 /** What a row is waiting for. Corrections are jobs, read from the job store instead. */
@@ -57,7 +51,6 @@ export const emptyProjectState = (projectId: string): ProjectState => ({
   error: null,
   dirty: [],
   rowOps: {},
-  accepted: [],
 });
 
 /**
@@ -188,8 +181,7 @@ export class ProjectDataStore {
   }
 
   /**
-   * Change one parameter. `dirty: true` records an unsaved edit and drops the
-   * row's session "accepted" mark (an edit after accepting is a new decision).
+   * Change one parameter. `dirty: true` records an unsaved edit.
    * Works on the CURRENT state, so concurrent updates to other rows (a run's
    * partial results, another row's flag) are never overwritten by a stale copy.
    */
@@ -206,7 +198,6 @@ export class ProjectDataStore {
         ...prev,
         fields,
         dirty: prev.dirty.includes(key) ? prev.dirty : [...prev.dirty, key],
-        accepted: prev.accepted.includes(key) ? prev.accepted.filter((k) => k !== key) : prev.accepted,
       };
     });
   }
@@ -239,14 +230,6 @@ export class ProjectDataStore {
       if (op) rowOps[key] = op;
       else delete rowOps[key];
       return { ...prev, rowOps };
-    });
-  }
-
-  setAccepted(projectId: string, key: string, accepted: boolean) {
-    this.update(projectId, (prev) => {
-      const has = prev.accepted.includes(key);
-      if (has === accepted) return prev;
-      return { ...prev, accepted: accepted ? [...prev.accepted, key] : prev.accepted.filter((k) => k !== key) };
     });
   }
 

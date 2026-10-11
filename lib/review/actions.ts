@@ -6,8 +6,9 @@ import { mapFieldsToSpecs } from '@/lib/parameter-adapter';
 import { createJob, jobRuntime } from '@/lib/jobs/runtime';
 import { jobStore } from '@/lib/jobs/store';
 import type { InputField } from '@/types';
+import { errorMessage } from '@/lib/errors';
 import { clearHumanFlag, raiseHumanFlag, resolveHumanFlag } from './flagging';
-import { editValue, revertValue, selectCandidate } from './edits';
+import { acceptField, editValue, revertValue, selectCandidate } from './edits';
 import { selectedSpec } from './rowState';
 
 /**
@@ -23,13 +24,15 @@ import { selectedSpec } from './rowState';
  * - flag, remove flag, accept-with-flag: the /flagging routes, immediately;
  * - value, unit and chosen candidate: `PUT /projects/{id}/parameters`, on
  *   Save (or on Accept, for that row);
- * - "accepted": nowhere per row (B15). Approve accepts every pending row.
+ * - Accept: ACCEPTED, saved for that row at once; Approve accepts every row
+ *   that is still PENDING. The review state is stored (B15), so there is no
+ *   session-only mark.
  */
 
 const fieldOf = (projectId: string, key: string): InputField | undefined =>
   projectDataStore.get(projectId).fields.find((f) => f.id === key);
 
-const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
+const message = (e: unknown) => errorMessage(e);
 
 /** Runs `fn` with the row marked busy; refuses if the row is already busy. */
 async function onRow<T>(projectId: string, key: string, op: RowOp, fn: () => Promise<T>): Promise<T | undefined> {
@@ -109,7 +112,6 @@ export async function flagRow(projectId: string, key: string, userId: string, re
       // batch save ignores flag fields (B9). The old "persist on flag" saved
       // every other row's unsaved edits as a side effect.
       projectDataStore.updateField(projectId, key, (f) => ({ ...f, isFlagged: true, flagReason: text, activeFlagId: id }));
-      projectDataStore.setAccepted(projectId, key, false);
       return id;
     } catch (e) {
       toast.show(`Could not flag ${key}: ${message(e)}`, { severity: 'error' });
@@ -120,12 +122,12 @@ export async function flagRow(projectId: string, key: string, userId: string, re
 }
 
 /** Dismiss the open flag. The flag stays in the audit trail as DISMISSED. */
-export async function removeFlag(projectId: string, key: string): Promise<boolean> {
+export async function removeFlag(projectId: string, key: string, userId: string | null = null): Promise<boolean> {
   const field = fieldOf(projectId, key);
   if (!field?.isFlagged) return false;
   const ok = await onRow(projectId, key, 'unflag', async () => {
     try {
-      await clearHumanFlag(field.activeFlagId);
+      await clearHumanFlag(field.activeFlagId, userId);
       projectDataStore.updateField(projectId, key, (f) => ({ ...f, isFlagged: false, flagReason: null, activeFlagId: null }));
       toast.show(`Flag removed from ${key}.`, { severity: 'success' });
       return true;
@@ -168,26 +170,29 @@ export async function flagAndReextract(projectId: string, key: string, userId: s
 
 /**
  * Accept the row's current value: resolve its open flag (RESOLVED, by the
- * chosen candidate), then save this row. The "accepted" mark itself is
- * session-only (B15).
+ * chosen candidate), then save this row as ACCEPTED. If the save fails the
+ * row goes back to the state it had.
  */
 export async function acceptRow(projectId: string, key: string, userId: string | null): Promise<void> {
   await onRow(projectId, key, 'accept', async () => {
     const field = fieldOf(projectId, key);
     if (!field) return;
     const flagId = field.isFlagged ? field.activeFlagId : null;
+    const wasDirty = projectDataStore.get(projectId).dirty.includes(key);
     let resolved = false;
     try {
       if (flagId) {
-        await resolveHumanFlag(flagId, selectedSpec(field)?.candidateId ?? null);
+        await resolveHumanFlag(flagId, selectedSpec(field)?.candidateId ?? null, userId);
         projectDataStore.updateField(projectId, key, (f) => ({ ...f, isFlagged: false, flagReason: null, activeFlagId: null }));
         resolved = true;
       }
+      projectDataStore.updateField(projectId, key, acceptField, { dirty: true });
       const current = fieldOf(projectId, key);
       if (current) await saveFields(projectId, [current], userId, { silent: true });
-      projectDataStore.setAccepted(projectId, key, true);
       toast.show(resolved ? `${key} accepted: flag resolved and value saved.` : `${key} accepted and saved.`, { severity: 'success' });
     } catch (e) {
+      projectDataStore.updateField(projectId, key, (f) => ({ ...f, reviewAction: field.reviewAction }));
+      if (!wasDirty) projectDataStore.dropDirty(projectId, key);
       toast.show(
         resolved
           ? `${key}: the flag was resolved, but saving the value failed: ${message(e)}. Use Save to retry.`
@@ -215,8 +220,5 @@ export async function saveChanges(projectId: string, userId: string | null): Pro
 /** Save pending edits first, then approve. Returns how many parameters the backend approved. */
 export async function saveAndApprove(projectId: string, userId: string | null): Promise<number> {
   await saveChanges(projectId, userId);
-  const n = await approveProject(projectId);
-  // Approve accepted everything pending, so the session marks are now real.
-  for (const key of projectDataStore.get(projectId).accepted) projectDataStore.setAccepted(projectId, key, false);
-  return n;
+  return approveProject(projectId, userId);
 }

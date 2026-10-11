@@ -9,6 +9,7 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import DoneAllIcon from '@mui/icons-material/DoneAll';
+import NewReleasesOutlinedIcon from '@mui/icons-material/NewReleasesOutlined';
 import type { RowState, SecondaryFact } from '@/lib/review/rowState';
 import { CONFIDENCE_HIGH } from '@/lib/review/confidence';
 import { qualifierTags } from '@/lib/review/domain';
@@ -149,21 +150,18 @@ const SECONDARY_META: Record<SecondaryFact, { Icon: typeof FlagIcon; label: stri
   low_confidence: { Icon: HelpOutlineIcon, label: `Also below ${CONFIDENCE_HIGH}% confidence`, color: 'status.warning' },
   needs_review: { Icon: HelpOutlineIcon, label: 'Also marked uncertain by the checking model', color: 'status.warning' },
   accepted: { Icon: DoneAllIcon, label: 'Accepted', color: 'status.success' },
+  newer_candidate: { Icon: NewReleasesOutlinedIcon, label: 'Newer AI candidate available', color: 'status.info' },
 };
 
-/**
- * Small icons for facts that hold alongside the primary state (AM1).
- * `acceptedLocally`: the "accepted" fact comes from this session's Accept,
- * not from the backend's Approve, and the tooltip says so (B15).
- */
-export function SecondaryFacts({ facts, acceptedLocally = false }: { facts: SecondaryFact[]; acceptedLocally?: boolean }) {
+/** Small icons for facts that hold alongside the primary state (AM1). */
+export function SecondaryFacts({ facts }: { facts: SecondaryFact[] }) {
   if (facts.length === 0) return null;
   return (
     <Stack direction="row" spacing={0.25}>
       {facts.map((f) => {
         const meta = SECONDARY_META[f];
         const { Icon, color } = meta;
-        const label = f === 'accepted' && acceptedLocally ? 'Accepted in this session (value saved; Approve records acceptance)' : meta.label;
+        const label = meta.label;
         return (
           <Tooltip key={f} title={label}>
             <Icon aria-label={label} sx={{ fontSize: 15, color }} />

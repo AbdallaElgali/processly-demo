@@ -38,6 +38,7 @@ export interface ParameterInput {
   flag: boolean;
   flag_reason: string | null;
   flagger_id: string | null;
+  /** The row's review state: the server's, or what the person just did (PENDING | ACCEPTED | MODIFIED | REJECTED). */
   review_action: string;
 }
 
@@ -195,19 +196,33 @@ export const apiUpdateProjectStatus = async (projectId: string, status: ProjectS
   if (!response.ok) throw new Error(await response.text());
 };
 
-export const apiSaveProjectParameters = async (projectId: string, parameters: ParameterInput[]): Promise<void> => {
+/**
+ * PUT /projects/{id}/parameters (BatchParameterSaveInput). `reviewer_id` is the
+ * signed-in user; the backend logs who changed what and answers 422 for an id
+ * it does not know -- the caller shows that text and does not retry.
+ */
+export const apiSaveProjectParameters = async (
+  projectId: string,
+  parameters: ParameterInput[],
+  reviewerId: string | null = null,
+): Promise<void> => {
   const response = await fetch(`${API_BASE_URL}/${projectId}/parameters`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ parameters }), // Wraps in the BatchParameterSaveInput schema
+    body: JSON.stringify({ parameters, reviewer_id: reviewerId }),
   });
   if (!response.ok) throw new Error(await response.text());
 };
 
-export const apiApproveProjectParameters = async (projectId: string): Promise<{ message: string, parameters_approved: number }> => {
+/** POST /projects/{id}/approve with the optional ApproveInput body; 422 for an unknown reviewer. */
+export const apiApproveProjectParameters = async (
+  projectId: string,
+  reviewerId: string | null = null,
+): Promise<{ message: string, parameters_approved: number }> => {
   const response = await fetch(`${API_BASE_URL}/${projectId}/approve`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' }
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reviewer_id: reviewerId }),
   });
   if (!response.ok) throw new Error(await response.text());
   return response.json();

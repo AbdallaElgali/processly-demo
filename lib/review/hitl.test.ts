@@ -114,13 +114,11 @@ describe('mergeLocalEdits: a background refresh keeps unsaved edits', () => {
 describe('ProjectDataStore: dirty rows (step 10)', () => {
   const details = { parameters: [] } as unknown as FullProjectDetails;
 
-  it('marks a row dirty on edit, drops its accepted mark, and keeps the edit through setDetails', () => {
+  it('marks a row dirty on edit and keeps the edit through setDetails', () => {
     const store = new ProjectDataStore();
     store.setDetails('A', details, [field()]);
-    store.setAccepted('A', 'U_MAX', true);
     store.updateField('A', 'U_MAX', (f) => editValue(f, '4.1', 'V'), { dirty: true });
     expect(store.get('A').dirty).toEqual(['U_MAX']);
-    expect(store.get('A').accepted).toEqual([]);
     store.setDetails('A', details, [field()]); // e.g. a correction on another row finished
     expect(store.get('A').fields[0].specifications[0].value).toBe('4.1');
   });
@@ -172,17 +170,16 @@ describe('Approve gate (step 10)', () => {
     expect(approveBlockReason(approvalCheck([field()], { unsaved: 0, jobBusy: true }))).toMatch(/Wait/);
   });
 
-  it('counts pending rows; nothing pending means nothing to approve, unless a row has an unsaved edit', () => {
+  it('counts pending rows; nothing pending means nothing to approve', () => {
     const approved = field({ reviewAction: 'ACCEPTED' });
     expect(approvalCheck([approved, field({ id: 'U_MIN' })], { unsaved: 0, jobBusy: false }).pending).toBe(1);
-    expect(approveBlockReason(approvalCheck([approved], { unsaved: 0, jobBusy: false }))).toMatch(/already approved/);
-    expect(approveBlockReason(approvalCheck([approved], { unsaved: 1, jobBusy: false, dirty: ['U_MAX'] }))).toBeNull();
+    expect(approveBlockReason(approvalCheck([approved], { unsaved: 0, jobBusy: false }))).toMatch(/Nothing is pending/);
   });
 });
 
-describe('rowState: accepted in this session', () => {
+describe('rowState: accepted', () => {
   it('adds the accepted fact without changing the primary state', () => {
-    const st = rowState(field(), { acceptedLocally: true });
+    const st = rowState(field({ reviewAction: 'ACCEPTED' }));
     expect(st.primary).toBe('high');
     expect(st.secondary).toContain('accepted');
   });

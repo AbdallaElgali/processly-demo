@@ -39,15 +39,17 @@ export const flagParameter = async (
     return data.flag_id; // Return the new ticket ID for the React state
 }
 
+/** POST /flagging/ai-unflag-parameter. `user_id` (AIUnflagRequest) is who removed or resolved the flag. */
 export const unFlagParameter = async (
     flag_id: string, 
     resolved_by: string | null = null, 
-    status: string = "DISMISSED"
+    status: string = "DISMISSED",
+    user_id: string | null = null
 ): Promise<void> => {
    const response = await fetch(`${API_BASE_URL}/ai-unflag-parameter`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ flag_id, resolved_by, status }),
+        body: JSON.stringify({ flag_id, resolved_by, status, user_id }),
     });
     
     if (!response.ok) throw new Error(await response.text());

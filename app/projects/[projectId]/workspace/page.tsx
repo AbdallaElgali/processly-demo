@@ -37,9 +37,10 @@ import { mapFieldsToSpecs } from '@/lib/parameter-adapter';
 import { useCanStart, useJobTray, useJobs, useProjectActivity, useProjectData } from '@/lib/jobs/hooks';
 import {
   acceptRow, chooseCandidate, editRowValue, flagAndReextract, flagRow, removeFlag, reextractRow, revertRowValue,
-  rowsToSave, saveAndApprove, saveChanges,
+  saveAndApprove, saveChanges,
 } from '@/lib/review/actions';
 import { approvalCheck, approveBlockReason } from '@/lib/review/approval';
+import { errorMessage } from '@/lib/errors';
 import { COMPACT_KEY, REVIEW_FIRST_KEY } from '@/lib/review/preferences';
 import type { RowBusy } from '@/components/workspace/ParameterRow';
 import { JOB_CAP } from '@/lib/jobs/config';
@@ -84,7 +85,6 @@ export default function WorkspacePage() {
 
   const [isApproving, setApproving] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
-  const [saveConfirm, setSaveConfirm] = useState<string[] | null>(null);
   const [exportCheck, setExportCheck] = useState<string[] | null>(null);
 
   // ---- parameters and review actions (step 10) --------------------------
@@ -92,7 +92,6 @@ export default function WorkspacePage() {
   // still posting when the user leaves lands in the right project.
   const fields = useMemo(() => projectState?.fields ?? [], [projectState?.fields]);
   const dirty = projectState?.dirty ?? EMPTY;
-  const acceptedRows = projectState?.accepted ?? EMPTY;
   const rowOps = projectState?.rowOps;
   const isSaving = projectState?.loading.save ?? false;
   const userId = user?.id ?? null;
@@ -144,7 +143,7 @@ export default function WorkspacePage() {
         if (userId) void flagAndReextract(projectId, key, userId, reason);
       },
       onReextract: (key: string, hint: string) => reextractRow(projectId, key, hint),
-      onRemoveFlag: (key: string) => void removeFlag(projectId, key),
+      onRemoveFlag: (key: string) => void removeFlag(projectId, key, userId),
       onAccept: (key: string) => void acceptRow(projectId, key, userId),
     }),
     [onJumpToSource, isSpreadsheet, documentName, projectId, userId],
@@ -179,25 +178,15 @@ export default function WorkspacePage() {
   const extractionBusy = activity.running?.kind === 'extraction' || activity.queued?.job.kind === 'extraction';
 
   // ---- save / approve / export ------------------------------------------
-  // Save sends only the rows with unsaved edits. The backend writes PENDING
-  // on every row it saves (B15), so saving an approved row un-approves it:
-  // that is confirmed first.
-  const runSave = async () => {
-    setSaveConfirm(null);
+  // Save sends only the rows with unsaved edits, each with its real review
+  // state (lib/parameter-adapter.ts), so saving never un-approves a row.
+  const handleSave = async () => {
     try {
       const n = await saveChanges(projectId, userId);
       toast.show(n === 1 ? 'Saved 1 parameter.' : `Saved ${n} parameters.`, { severity: 'success' });
     } catch (e) {
-      toast.show(`Save failed: ${e instanceof Error ? e.message : String(e)}. Your edits are still here; try again.`, { severity: 'error' });
+      toast.show(`Save failed: ${errorMessage(e)}. Your edits are still here; try again.`, { severity: 'error' });
     }
-  };
-  const handleSave = () => {
-    // A local edit changes the row's reviewAction, so "was approved" is read
-    // from the loaded project, not from the edited field.
-    const approvedKeys = new Set((details?.parameters ?? []).filter((p) => p.review_action === 'ACCEPTED').map((p) => p.parameter_key));
-    const wereApproved = rowsToSave(projectId).filter((f) => approvedKeys.has(f.id));
-    if (wereApproved.length > 0) setSaveConfirm(wereApproved.map((f) => f.id));
-    else void runSave();
   };
 
   const handleApprove = async () => {
@@ -207,7 +196,7 @@ export default function WorkspacePage() {
       const n = await saveAndApprove(projectId, userId);
       toast.show(n === 1 ? 'Approved 1 parameter.' : `Approved ${n} parameters.`, { severity: 'success' });
     } catch (e) {
-      toast.show(`Approve failed: ${e instanceof Error ? e.message : String(e)}`, { severity: 'error' });
+      toast.show(`Approve failed: ${errorMessage(e)}`, { severity: 'error' });
     } finally {
       setApproving(false);
     }
@@ -263,7 +252,7 @@ export default function WorkspacePage() {
   );
   // Rows a correction is about to replace are not saved (lib/review/actions.ts rowsToSave).
   const unsaved = dirty.filter((k) => rowBusy[k]?.kind !== 'queued' && rowBusy[k]?.kind !== 'correcting').length;
-  const approval = useMemo(() => approvalCheck(fields, { unsaved, jobBusy: parameterJobBusy, dirty }), [fields, unsaved, parameterJobBusy, dirty]);
+  const approval = useMemo(() => approvalCheck(fields, { unsaved, jobBusy: parameterJobBusy }), [fields, unsaved, parameterJobBusy]);
   const approveBlocked = approveBlockReason(approval);
   const inFlightUploads = uploadJobs.some((j) => j.status === 'queued' || j.status === 'running');
   const noDocuments = !!details && documents.length === 0 && !inFlightUploads;
@@ -360,7 +349,7 @@ export default function WorkspacePage() {
         <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
         <Tooltip title={unsaved > 0 ? `Save ${unsaved} edited parameter${unsaved === 1 ? '' : 's'}` : 'No unsaved changes'}>
           <span>
-            <Button size="small" startIcon={<SaveOutlinedIcon />} onClick={handleSave} loading={isSaving} loadingPosition="start" disabled={unsaved === 0}>
+            <Button size="small" startIcon={<SaveOutlinedIcon />} onClick={() => void handleSave()} loading={isSaving} loadingPosition="start" disabled={unsaved === 0}>
               {unsaved > 0 ? `Save (${unsaved})` : 'Save'}
             </Button>
           </span>
@@ -411,7 +400,6 @@ export default function WorkspacePage() {
               job={extractionJob?.kind === 'extraction' ? extractionJob : undefined}
               rowBusy={rowBusy}
               dirty={dirty}
-              accepted={acceptedRows}
               density={compact ? 'compact' : 'comfortable'}
               onDensityChange={(d) => setCompact(d === 'compact')}
               reviewFirst={reviewFirst}
@@ -484,15 +472,6 @@ export default function WorkspacePage() {
         confirmLabel={approval.unsaved > 0 ? 'Save and approve' : 'Approve'}
         onConfirm={() => void handleApprove()}
         onClose={() => setApproveOpen(false)}
-      />
-
-      <ConfirmDialog
-        open={saveConfirm !== null}
-        title="Saving returns approved parameters to pending"
-        description={`The backend marks every saved parameter as pending again, so ${saveConfirm?.join(', ') ?? ''} will need to be approved again after this save.`}
-        confirmLabel="Save anyway"
-        onConfirm={() => void runSave()}
-        onClose={() => setSaveConfirm(null)}
       />
 
       <ConfirmDialog

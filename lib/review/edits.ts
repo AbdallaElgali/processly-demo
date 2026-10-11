@@ -25,6 +25,7 @@ export function editValue(field: InputField, value: string, unit: string): Input
     return {
       ...field,
       reviewAction: 'MODIFIED',
+      isHumanModified: true,
       // A person's number has no model confidence (as after a reload, lib/parameter-adapter.ts).
       specifications: field.specifications.map((s) => (s.id === selected.id ? { ...s, value, unit, original, confidence: null } : s)),
     };
@@ -41,7 +42,7 @@ export function editValue(field: InputField, value: string, unit: string): Input
     rule_violations: [],
     requires_review: false,
   };
-  return { ...field, reviewAction: 'MODIFIED', specifications: [human, ...field.specifications], selectedSpecId: human.id };
+  return { ...field, reviewAction: 'MODIFIED', isHumanModified: true, specifications: [human, ...field.specifications], selectedSpecId: human.id };
 }
 
 /** Undo an edit: the candidate's extracted value, unit and confidence come back. */
@@ -52,10 +53,19 @@ export function revertValue(field: InputField): InputField {
   return {
     ...field,
     reviewAction: 'PENDING',
+    isHumanModified: false,
     specifications: field.specifications.map((s) =>
       s.id === selected.id ? { ...s, value: original.value, unit: original.unit, confidence: original.confidence, original: undefined } : s,
     ),
   };
+}
+
+/**
+ * The reviewer accepts the value shown. A person's edit stays an edit
+ * (`isHumanModified`): the row becomes ACCEPTED and its value still reloads.
+ */
+export function acceptField(field: InputField): InputField {
+  return field.reviewAction === 'ACCEPTED' ? field : { ...field, reviewAction: 'ACCEPTED' };
 }
 
 export function canRevert(field: InputField): boolean {
@@ -80,6 +90,7 @@ export function selectCandidate(field: InputField, specId: string): InputField {
     selectedSpecId: specId,
     // A typed value with no candidate stays "modified"; an AI candidate is not.
     reviewAction: target.candidateId ? 'PENDING' : 'MODIFIED',
+    isHumanModified: !target.candidateId,
   };
 }
 
@@ -105,7 +116,7 @@ export function mergeLocalEdits(server: InputField[], local: InputField[], dirty
     if (!chosen.candidateId) {
       // A value a person typed: keep it in front of whatever the server has.
       const rest = f.specifications.filter((s) => s.id !== chosen.id && s.candidateId !== null);
-      return { ...f, specifications: [chosen, ...rest], selectedSpecId: chosen.id, reviewAction: mine.reviewAction };
+      return { ...f, specifications: [chosen, ...rest], selectedSpecId: chosen.id, reviewAction: mine.reviewAction, isHumanModified: mine.isHumanModified };
     }
 
     const target = f.specifications.find((s) => s.candidateId === chosen.candidateId);
@@ -118,6 +129,7 @@ export function mergeLocalEdits(server: InputField[], local: InputField[], dirty
       specifications: f.specifications.map((s) => (s.id === target.id ? edited : s)),
       selectedSpecId: target.id,
       reviewAction: mine.reviewAction,
+      isHumanModified: mine.isHumanModified,
     };
   });
 }
