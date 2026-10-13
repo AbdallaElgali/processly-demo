@@ -12,9 +12,9 @@ import { Card } from './Card';
 
 const SEGMENTS = [
   { key: 'reviewed', label: 'Reviewed', hint: 'Accepted, edited or rejected by a reviewer', icon: CheckCircleOutlineIcon, bg: 'status.success', fg: 'status.success' },
-  { key: 'pending', label: 'Pending', hint: 'Has a value, no decision yet', icon: HourglassEmptyIcon, bg: 'status.info', fg: 'status.info' },
+  { key: 'pending', label: 'Pending', hint: 'No decision yet (includes rows with no value)', icon: HourglassEmptyIcon, bg: 'status.info', fg: 'status.info' },
   { key: 'flagged', label: 'Flagged', hint: 'An open flag raised by a reviewer', icon: OutlinedFlagIcon, bg: 'status.danger', fg: 'status.danger' },
-  { key: 'empty', label: 'Empty', hint: 'No value: not extracted, or not found', icon: RemoveCircleOutlineIcon, bg: 'status.neutral', fg: 'text.secondary' },
+  { key: 'empty', label: 'Empty', hint: 'No value, and already decided', icon: RemoveCircleOutlineIcon, bg: 'status.neutral', fg: 'text.secondary' },
 ] as const;
 
 /**

@@ -29,9 +29,9 @@ export interface ProjectBase {
   alias_id: string;
   description: string | null;
   /**
-   * Always null today: the query is `SELECT *` on a `projects` table that has
-   * no such column (Task B item B2). The breadcrumb falls back to joining
-   * GET /customers/ by customer_id, per decision D6.
+   * The customer's alias (`customers.alias_name`), populated by the backend
+   * since step 3.5 on the create, list and detail responses; null when the
+   * project has no customer.
    */
   customer: string | null;
   status: ProjectStatus;
@@ -112,10 +112,13 @@ export interface FullProjectParameter {
 
   candidates: AiMetricCandidate[];
 
-  // NOTE: there is deliberately no `category` here. The SQL does not select
-  // it, so declaring one would be inventing a field (CLAUDE.md 0.4). Until
-  // Task B item B4 adds it, categories come from joining
-  // GET /extraction-templates/parameters on parameter_key (decision D5).
+  /**
+   * The canonical `parameters.id`. **Not unique per project**: later work
+   * allows several rows for one parameter. Never key on it; key on `id`.
+   */
+  parameter_id: string | null;
+  /** The parameter's category (Title_Case, e.g. `End_Of_Life`), or null. Since backend step 3.5. */
+  category: string | null;
 }
 
 export interface FullProjectDetails extends ProjectBase {

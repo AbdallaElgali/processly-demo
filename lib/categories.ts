@@ -1,8 +1,7 @@
 import type { InputField } from '@/types';
-import type { CanonicalParameter } from '@/api/templates';
 
 /**
- * Category grouping (D5, CLAUDE.md 8.2).
+ * Category grouping (CLAUDE.md 8.2; D5 superseded by backend step 3.5).
  *
  * The backend's real category strings, confirmed against
  * GET /extraction-templates/parameters, are Title_Case with underscores
@@ -97,18 +96,16 @@ function fieldHasValue(field: InputField): boolean {
  * Groups a project's parameters by category for the Workspace table (D5,
  * CLAUDE.md 8.2, AM9).
  *
- * - Each field's category comes from joining the canonical dictionary on
- *   parameter key (`CanonicalParameter.name === field.id`), until Task B (B4)
- *   puts `category` on the project payload.
+ * - Each field's category is the one on its own project parameter (backend
+ *   step 3.5, B4). The D5 join against the canonical dictionary is gone.
  * - **Every known category is returned, even with zero fields**, so a missing
  *   End of Life block is visible rather than silently absent.
- * - Unknown categories are appended with a humanised label; fields with no
- *   match (or no category) go to Other. Both appear only when non-empty.
+ * - Unknown categories are appended with a humanised label; fields with
+ *   no category go to Other. Both appear only when non-empty.
  * - Order within a group is the input order (the backend already sorts by
  *   category then name); callers re-sort for "needs review first".
  */
-export function groupFields(fields: InputField[], canonical: CanonicalParameter[]): FieldGroup[] {
-  const categoryByKey = new Map(canonical.map((p) => [p.name, p.category]));
+export function groupFields(fields: InputField[]): FieldGroup[] {
   const groups = new Map<string, FieldGroup>();
 
   for (const [key] of KNOWN_CATEGORIES) {
@@ -117,7 +114,7 @@ export function groupFields(fields: InputField[], canonical: CanonicalParameter[
   }
 
   for (const field of fields) {
-    const category = resolveCategory(categoryByKey.get(field.id));
+    const category = resolveCategory(field.category);
     let group = groups.get(category.key);
     if (!group) {
       group = { category, fields: [], found: 0 };

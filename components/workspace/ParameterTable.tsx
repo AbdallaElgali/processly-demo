@@ -7,7 +7,6 @@ import { Box, FormControlLabel, Skeleton, Stack, Switch, Tooltip, Typography } f
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import type { InputField } from '@/types';
-import type { CanonicalParameter } from '@/api/templates';
 import type { Job } from '@/lib/jobs/types';
 import { groupFields, normalizeCategoryKey, type ResolvedCategory } from '@/lib/categories';
 import { reviewOrder, rowState, type RowState } from '@/lib/review/rowState';
@@ -47,7 +46,6 @@ function liveState(category: ResolvedCategory, job: Job | undefined): LiveState 
 export function ParameterTable({
   projectId,
   fields,
-  canonical,
   loading,
   job,
   rowBusy,
@@ -60,7 +58,6 @@ export function ParameterTable({
 }: {
   projectId: string;
   fields: InputField[];
-  canonical: CanonicalParameter[] | null;
   loading: boolean;
   job: Job | undefined;
   /** Rows waiting on the backend or a correction job. Only those rows show it (CLAUDE.md 8.1). */
@@ -87,9 +84,8 @@ export function ParameterTable({
       }
       return rows;
     };
-    if (!canonical) return [{ category: null, found: 0, rows: withState(fields) }];
-    return groupFields(fields, canonical).map((g) => ({ category: g.category, found: g.found, rows: withState(g.fields) }));
-  }, [fields, canonical, reviewFirst]);
+    return groupFields(fields).map((g) => ({ category: g.category, found: g.found, rows: withState(g.fields) }));
+  }, [fields, reviewFirst]);
 
   const order = useMemo(() => groups.flatMap((g) => g.rows.map((r) => r.field.id)), [groups]);
   const activeKey = focusedKey && order.includes(focusedKey) ? focusedKey : order[0] ?? null;

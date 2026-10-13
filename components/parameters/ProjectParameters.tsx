@@ -57,11 +57,10 @@ export function ProjectParameters({ projectId }: { projectId: string }) {
   const groups = useMemo(() => {
     const list = (fields ?? []).filter((f) => matchesQuery(f, canonicalByKey.get(f.id), query));
     const searching = query.trim() !== '';
-    if (!canonical) return [{ key: 'all', label: 'Parameters', fields: list }];
-    return groupFields(list, canonical)
+    return groupFields(list)
       .filter((g) => !searching || g.fields.length > 0)
       .map((g) => ({ key: g.category.key, label: g.category.label, fields: g.fields }));
-  }, [fields, canonical, canonicalByKey, query]);
+  }, [fields, canonicalByKey, query]);
 
   const available = useMemo(() => {
     const q = query.trim().toLowerCase();

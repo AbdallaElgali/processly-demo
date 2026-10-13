@@ -17,7 +17,6 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useDocumentWorkspace } from '@/hooks/useDocumentWorkspace';
-import { useCanonicalParameters } from '@/hooks/useCanonicalParameters';
 import { useLocalStorageFlag } from '@/hooks/useLocalStorageFlag';
 import { Dropzone } from '@/components/ui/Dropzone';
 import { SplitPane } from '@/components/ui/SplitPane';
@@ -69,7 +68,6 @@ export default function WorkspacePage() {
   const details = projectState?.details ?? null;
   const detailsLoading = projectState?.loading.details ?? false;
   const documents = useMemo(() => details?.documents ?? [], [details?.documents]);
-  const { parameters: canonical } = useCanonicalParameters();
 
   const activity = useProjectActivity(projectId);
   const analyzeGate = useCanStart(projectId, 'extraction');
@@ -395,7 +393,6 @@ export default function WorkspacePage() {
             <ParameterTable
               projectId={projectId}
               fields={fields}
-              canonical={canonical}
               loading={detailsLoading}
               job={extractionJob?.kind === 'extraction' ? extractionJob : undefined}
               rowBusy={rowBusy}

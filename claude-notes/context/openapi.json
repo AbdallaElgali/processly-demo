@@ -1553,7 +1553,7 @@
           "extraction-templates"
         ],
         "summary": "Create Template From Project",
-        "description": "Clones a project's active parameters back into a reusable template.",
+        "description": "Clones a project's parameters back into a reusable template (404 unknown project, 422 no parameters or unknown user).",
         "operationId": "create_template_from_project_extraction_templates_from_project_post",
         "requestBody": {
           "content": {
@@ -2364,13 +2364,19 @@
           },
           "status": {
             "type": "string",
+            "enum": [
+              "OPEN",
+              "RESOLVED",
+              "DISMISSED"
+            ],
             "title": "Status",
             "default": "DISMISSED"
           },
           "user_id": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "format": "uuid"
               },
               {
                 "type": "null"
@@ -3413,6 +3419,7 @@
         "properties": {
           "project_id": {
             "type": "string",
+            "format": "uuid",
             "title": "Project Id"
           },
           "user_id": {

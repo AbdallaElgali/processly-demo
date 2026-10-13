@@ -10,6 +10,7 @@ import DataObjectIcon from '@mui/icons-material/DataObject';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
 import SaveAltOutlinedIcon from '@mui/icons-material/SaveAltOutlined';
 import StarIcon from '@mui/icons-material/Star';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
@@ -22,7 +23,7 @@ import { toast } from '@/components/ui/Toast';
 import { useCanonicalParameters } from '@/hooks/useCanonicalParameters';
 import { useTemplates } from '@/hooks/useTemplates';
 import { errorMessage } from '@/lib/errors';
-import { SAVE_AS_TEMPLATE_AVAILABLE, SAVE_AS_TEMPLATE_UNAVAILABLE, templateAccess, templateScope } from '@/lib/templates/rules';
+import { SAVE_AS_TEMPLATE_AVAILABLE, copyName, templateAccess, templateScope } from '@/lib/templates/rules';
 import type { ExtractionTemplateBase, TemplateRule } from '@/api/templates';
 import { NameDialog } from './NameDialog';
 import { RuleDialog } from './RuleDialog';
@@ -30,6 +31,7 @@ import { RuleDialog } from './RuleDialog';
 type Dialog =
   | { kind: 'create' }
   | { kind: 'saveProject' }
+  | { kind: 'copy'; template: ExtractionTemplateBase }
   | { kind: 'rule'; rule?: TemplateRule }
   | { kind: 'delete'; template: ExtractionTemplateBase }
   | null;
@@ -103,19 +105,27 @@ export function TemplatesPanel({ projectId, projectName, parameterCount }: { pro
               Set as default
             </Button>
           )}
-          <Tooltip title={access?.editable ? 'Delete this template' : access?.reason}>
-            <span>
-              <Button
-                size="small"
-                color="error"
-                startIcon={<DeleteOutlineIcon />}
-                disabled={!access?.editable}
-                onClick={() => setDialog({ kind: 'delete', template: summary })}
-              >
-                Delete
-              </Button>
-            </span>
-          </Tooltip>
+          {access?.copyable && (
+            <Button size="small" variant="outlined" disabled={!openTemplate} startIcon={<ContentCopyOutlinedIcon />} onClick={() => setDialog({ kind: 'copy', template: summary })}>
+              Save a copy
+            </Button>
+          )}
+          {/* The system default cannot be changed or deleted (backend 403, step 3.4): no controls, a copy instead. */}
+          {!access?.copyable && (
+            <Tooltip title={access?.editable ? 'Delete this template' : access?.reason}>
+              <span>
+                <Button
+                  size="small"
+                  color="error"
+                  startIcon={<DeleteOutlineIcon />}
+                  disabled={!access?.editable}
+                  onClick={() => setDialog({ kind: 'delete', template: summary })}
+                >
+                  Delete
+                </Button>
+              </span>
+            </Tooltip>
+          )}
         </>
       ) : (
         <>
@@ -129,9 +139,6 @@ export function TemplatesPanel({ projectId, projectName, parameterCount }: { pro
           >
             Save this project as template
           </Button>
-          {!SAVE_AS_TEMPLATE_AVAILABLE && (
-            <Chip size="small" variant="outlined" color="warning" label="Unavailable" title={SAVE_AS_TEMPLATE_UNAVAILABLE} />
-          )}
           <Button size="small" variant="contained" disableElevation startIcon={<AddIcon />} onClick={() => setDialog({ kind: 'create' })}>
             New template
           </Button>
@@ -254,15 +261,17 @@ export function TemplatesPanel({ projectId, projectName, parameterCount }: { pro
               sx={{ mr: 0 }}
             />
           )}
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={<AddIcon />}
-            disabled={!access?.editable || !canonical}
-            onClick={() => setDialog({ kind: 'rule' })}
-          >
-            Add rule
-          </Button>
+          {!access?.copyable && (
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<AddIcon />}
+              disabled={!access?.editable || !canonical}
+              onClick={() => setDialog({ kind: 'rule' })}
+            >
+              Add rule
+            </Button>
+          )}
         </Stack>
         {t.openError ? (
           <ErrorState title="Could not load this template" description={t.openError} onRetry={() => void t.openTemplate(summary.id)} />
@@ -319,13 +328,8 @@ export function TemplatesPanel({ projectId, projectName, parameterCount }: { pro
           onRowClick={(x) => void t.openTemplate(x.id)}
           defaultSortKey="name"
         />
-        {!SAVE_AS_TEMPLATE_AVAILABLE && (
-          <Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'status.warning', fontWeight: 600 }}>
-            {SAVE_AS_TEMPLATE_UNAVAILABLE}
-          </Typography>
-        )}
         <Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'text.muted' }}>
-          Select a template to see and edit its rules. The system default and other people&apos;s templates are read-only here.
+          Select a template to see and edit its rules. The system default and other people&apos;s templates are read-only here; save a copy of the system default to change it.
         </Typography>
       </Box>
     );
@@ -360,6 +364,20 @@ export function TemplatesPanel({ projectId, projectName, parameterCount }: { pro
           onSubmit={async (name) => {
             const made = await t.saveProjectAsTemplate(projectId, name);
             toast.show(`Template “${made.name}” saved from this project.`, { severity: 'success' });
+            void t.openTemplate(made.id);
+          }}
+        />
+      )}
+      {dialog?.kind === 'copy' && (
+        <NameDialog
+          title="Save a copy"
+          description={`Copies “${dialog.template.name}” and its ${rules.length} ${rules.length === 1 ? 'rule' : 'rules'} into a new personal template you can change.`}
+          initialName={copyName(dialog.template.name)}
+          submitLabel="Save copy"
+          onClose={() => setDialog(null)}
+          onSubmit={async (name) => {
+            const made = await t.saveCopy(dialog.template, rules, name);
+            toast.show(`Template “${made.name}” saved.`, { severity: 'success' });
             void t.openTemplate(made.id);
           }}
         />

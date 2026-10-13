@@ -33,6 +33,19 @@ const field = (over: Partial<InputField> = {}, specs: Specification[] = [spec()]
 });
 
 describe('reviewProgress (step 12, B10)', () => {
+  it('counts an empty row that is still PENDING as pending (F0c), an empty row someone decided as empty', () => {
+    const p = reviewProgress([
+      field({ id: 'A' }, []),
+      field({ id: 'B', reviewAction: 'REJECTED' }, []),
+      field({ id: 'C', reviewAction: 'ACCEPTED' }, [spec({ value: '', id: 'x', candidateId: 'x' })]),
+    ]);
+    expect(p).toMatchObject({ total: 3, pending: 1, empty: 2, reviewed: 0, flagged: 0 });
+  });
+
+  it('a flagged empty row is still flagged', () => {
+    expect(reviewProgress([field({ isFlagged: true }, [])])).toMatchObject({ flagged: 1, pending: 0, empty: 0 });
+  });
+
   it('puts every parameter in exactly one bucket, so the four add up to the total', () => {
     const fields = [
       field({ id: 'A', reviewAction: 'ACCEPTED' }),
@@ -43,7 +56,8 @@ describe('reviewProgress (step 12, B10)', () => {
       field({ id: 'F' }, [spec({ value: '', candidateId: 'x', id: 'x' })]),
     ];
     const p = reviewProgress(fields);
-    expect(p).toMatchObject({ total: 6, reviewed: 2, pending: 1, flagged: 1, empty: 2 });
+    // F0c: the empty rows are still PENDING, so they count as pending, as in Approve.
+    expect(p).toMatchObject({ total: 6, reviewed: 2, pending: 3, flagged: 1, empty: 0 });
     expect(p.reviewed + p.pending + p.flagged + p.empty).toBe(p.total);
   });
 

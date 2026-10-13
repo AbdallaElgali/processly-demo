@@ -40,10 +40,13 @@ export const flagParameter = async (
 }
 
 /** POST /flagging/ai-unflag-parameter. `user_id` (AIUnflagRequest) is who removed or resolved the flag. */
+/** `AIUnflagRequest.status`: the only three values the backend accepts (422 otherwise). */
+export type FlagStatus = 'OPEN' | 'RESOLVED' | 'DISMISSED';
+
 export const unFlagParameter = async (
     flag_id: string, 
     resolved_by: string | null = null, 
-    status: string = "DISMISSED",
+    status: FlagStatus = "DISMISSED",
     user_id: string | null = null
 ): Promise<void> => {
    const response = await fetch(`${API_BASE_URL}/ai-unflag-parameter`, {

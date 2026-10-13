@@ -6,9 +6,11 @@ import {
   resolveCategory,
 } from './categories';
 import type { InputField } from '@/types';
-import type { CanonicalParameter } from '@/api/templates';
+import type { ProjectParameter } from '@/api/projects';
+import { dbParamToInputField } from '@/lib/parameter-adapter';
 
-const field = (id: string, specCount: number): InputField => ({
+const field = (id: string, specCount: number, category?: string | null): InputField => ({
+  category,
   id,
   dbId: id,
   label: id,
@@ -28,14 +30,6 @@ const field = (id: string, specCount: number): InputField => ({
   flagReason: null,
   activeFlagId: null,
   reviewAction: 'PENDING',
-});
-
-const canonical = (name: string, category: string | null): CanonicalParameter => ({
-  id: name,
-  name,
-  category,
-  default_description: null,
-  expected_unit: null,
 });
 
 describe('resolveCategory (AM9)', () => {
@@ -74,18 +68,18 @@ describe('compareCategories', () => {
   });
 });
 
-describe('groupFields (AM3, AM9)', () => {
+describe('groupFields (AM3, AM9; category read from the parameter since 3.5)', () => {
   const labels = (groups: ReturnType<typeof groupFields>) => groups.map((g) => g.category.label);
 
   it('returns every known category in the fixed order, even when empty', () => {
-    const groups = groupFields([], []);
+    const groups = groupFields([]);
     expect(labels(groups)).toEqual(['Voltage', 'Current', 'Temperature', 'Capacity', 'End of life']);
     expect(groups.every((g) => g.fields.length === 0 && g.found === 0)).toBe(true);
   });
 
   it('puts End of Life parameters in the End of life group for all three spellings', () => {
     for (const spelling of ['End_Of_Life', 'END_OF_LIFE', 'end of life']) {
-      const groups = groupFields([field('EOL_FCE', 1)], [canonical('EOL_FCE', spelling)]);
+      const groups = groupFields([field('EOL_FCE', 1, spelling)]);
       const eol = groups.find((g) => g.category.key === 'END_OF_LIFE');
       expect(eol?.fields.map((f) => f.id)).toEqual(['EOL_FCE']);
       // No stray unknown group for the raw spelling.
@@ -94,12 +88,8 @@ describe('groupFields (AM3, AM9)', () => {
   });
 
   it('counts found per group from the selected value, and keeps empty known groups', () => {
-    const fields = [field('U_MIN', 1), field('U_MAX', 0), field('EOL_FCE', 1)];
-    const groups = groupFields(fields, [
-      canonical('U_MIN', 'Voltage'),
-      canonical('U_MAX', 'Voltage'),
-      canonical('EOL_FCE', 'End_Of_Life'),
-    ]);
+    const fields = [field('U_MIN', 1, 'Voltage'), field('U_MAX', 0, 'Voltage'), field('EOL_FCE', 1, 'End_Of_Life')];
+    const groups = groupFields(fields);
     expect(groups.map((g) => [g.category.label, g.fields.length, g.found])).toEqual([
       ['Voltage', 2, 1],
       ['Current', 0, 0],
@@ -110,10 +100,11 @@ describe('groupFields (AM3, AM9)', () => {
   });
 
   it('appends an unknown category with a humanised label, then Other last', () => {
-    const groups = groupFields(
-      [field('MYSTERY_FIELD', 0), field('R_INTERNAL', 1), field('U_MIN', 1)],
-      [canonical('R_INTERNAL', 'INTERNAL_RESISTANCE'), canonical('U_MIN', 'Voltage')],
-    );
+    const groups = groupFields([
+      field('MYSTERY_FIELD', 0),
+      field('R_INTERNAL', 1, 'INTERNAL_RESISTANCE'),
+      field('U_MIN', 1, 'Voltage'),
+    ]);
     expect(labels(groups)).toEqual([
       'Voltage', 'Current', 'Temperature', 'Capacity', 'End of life', 'Internal Resistance', 'Other',
     ]);
@@ -121,8 +112,22 @@ describe('groupFields (AM3, AM9)', () => {
     expect(groups.at(-1)?.fields.map((f) => f.id)).toEqual(['MYSTERY_FIELD']);
   });
 
-  it('omits Other when every field matched', () => {
-    const groups = groupFields([field('U_MIN', 1)], [canonical('U_MIN', 'Voltage')]);
+  it('puts a null or empty category in Other, never drops the row', () => {
+    const groups = groupFields([field('A', 1, null), field('B', 1, '  ')]);
+    expect(groups.at(-1)?.category).toEqual(OTHER_CATEGORY);
+    expect(groups.at(-1)?.fields.map((f) => f.id)).toEqual(['A', 'B']);
+  });
+
+  it('omits Other when every field has a category', () => {
+    const groups = groupFields([field('U_MIN', 1, 'Voltage')]);
     expect(labels(groups)).not.toContain('Other');
+  });
+});
+
+describe('dbParamToInputField carries category (3.5)', () => {
+  it('reads category from the payload row', () => {
+    const f = dbParamToInputField({ id: 'pp', parameter_key: 'U_MIN', parameter_alias: 'U', category: 'Voltage', parameter_id: 'canon', candidates: [] } as unknown as ProjectParameter);
+    expect(f.category).toBe('Voltage');
+    expect(f.dbId).toBe('pp'); // keyed on the row id, never parameter_id
   });
 });
