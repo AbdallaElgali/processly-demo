@@ -92,7 +92,13 @@ export function jobsReducer(state: JobsState, action: JobAction): JobsState {
         endedAt: action.at,
         seen: action.seen,
         uploadWarnings: action.warnings ?? job.uploadWarnings,
+        ...(action.savedWhileAway && { savedWhileAway: true, uploadCheck: undefined, error: undefined }),
       }));
+
+    case 'uploadCheck':
+      return replace(state, action.jobId, (job) =>
+        job.status === 'interrupted' ? { ...job, uploadCheck: action.check } : job,
+      );
 
     case 'fail':
       return replace(state, action.jobId, (job) => ({

@@ -1,4 +1,5 @@
 import { config } from './config';
+import { uploadErrorText } from './upload-error';
 
 const API_URL = config.api;
 
@@ -44,15 +45,13 @@ export const uploadDocuments = async (
     signal,
   });
 
-  const data = await response.json() as UploadResponse & { message?: string };
+  const body = await response.text();
+  if (!response.ok) throw new Error(uploadErrorText(response.status, body));
 
-  if (response.ok) {
-    return {
-      project_id: data.project_id,
-      successful_uploads: data.successful_uploads,
-      errors: data.errors,
-    };
-  } else {
-    throw new Error(data.message || 'Failed to upload batch of documents');
-  }
+  const data = JSON.parse(body) as UploadResponse;
+  return {
+    project_id: data.project_id,
+    successful_uploads: data.successful_uploads,
+    errors: data.errors,
+  };
 };

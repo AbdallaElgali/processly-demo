@@ -33,6 +33,15 @@ export type JobPayload =
       userHint: string | null;
     };
 
+/**
+ * The check of an interrupted upload against the project's documents (U2).
+ * A fully sent upload keeps running on the server, so the file may be saved.
+ */
+export type UploadCheck =
+  | { state: 'checking' }
+  | { state: 'unknown' }
+  | { state: 'missing'; missing: string[]; saved: number };
+
 export interface JobProgress {
   categoriesDone: string[];
   categoriesFailed: string[];
@@ -75,6 +84,10 @@ export interface Job {
    * `warnings` above instead.
    */
   uploadWarnings?: string[];
+  /** Interrupted uploads only: what the project's documents say about the files. */
+  uploadCheck?: UploadCheck;
+  /** An interrupted upload found complete in the project ("Saved while you were away"). */
+  savedWhileAway?: boolean;
 
   /** False until the results have been seen in that project (CLAUDE.md 8.1). */
   seen: boolean;
@@ -89,9 +102,10 @@ export type JobAction =
   | { type: 'enqueue'; job: Job }
   | { type: 'start'; jobId: string; tabId: string; at: number }
   | { type: 'event'; jobId: string; event: SseEvent }
-  | { type: 'complete'; jobId: string; at: number; seen: boolean; warnings?: string[] }
+  | { type: 'complete'; jobId: string; at: number; seen: boolean; warnings?: string[]; savedWhileAway?: boolean }
   | { type: 'fail'; jobId: string; at: number; error: string }
   | { type: 'interrupt'; jobId: string; at: number }
+  | { type: 'uploadCheck'; jobId: string; check: UploadCheck }
   | { type: 'cancel'; jobId: string; at: number }
   | { type: 'markSeen'; projectId: string }
   | { type: 'dismiss'; jobId: string }

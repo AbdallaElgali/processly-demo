@@ -1,3 +1,5 @@
+import { apiGetProjectDetails } from '@/api/projects';
+import { toast } from '@/components/ui/Toast';
 import { reloadAfterRun } from '@/lib/project-data/actions';
 import {
   deletePendingFiles,
@@ -11,6 +13,7 @@ import { prunePersistable, readJobs, writeJobs } from './persistence';
 import { runCorrection, runExtraction, runUpload, type RunContext, type RunOutcome } from './runners';
 import { planSchedulePass, tabLockName, withSchedulerLock } from './scheduler';
 import { jobStore } from './store';
+import { checkUploadOutcome, resendNotice, splitByDocuments } from './uploadRecovery';
 import type { Job, JobPayload } from './types';
 
 /**
@@ -29,6 +32,8 @@ export class JobRuntime {
   private started = false;
   private pumping = false;
   private pumpQueued = false;
+  /** Interrupted uploads this tab is currently checking against the project's documents. */
+  private recovering = new Set<string>();
 
   readonly tabId =
     typeof crypto !== 'undefined' && crypto.randomUUID
@@ -65,6 +70,12 @@ export class JobRuntime {
 
     // Adopt whatever the last session left behind.
     jobStore.dispatch({ type: 'hydrate', jobs: prunePersistable(readJobs()) });
+    // An upload left interrupted whose check never finished (its tab died mid-check).
+    for (const job of jobStore.getJobs()) {
+      if (job.status === 'interrupted' && job.kind === 'upload' && (!job.uploadCheck || job.uploadCheck.state === 'checking')) {
+        void this.recoverUpload(job.id);
+      }
+    }
     await sweepPendingFiles(new Set(jobStore.getJobs().map((j) => j.id)));
 
     if ('BroadcastChannel' in window) {
@@ -134,11 +145,89 @@ export class JobRuntime {
   async runAgain(jobId: string) {
     const job = jobStore.getJob(jobId);
     if (!job) return;
-    const files = job.kind === 'upload' ? await loadPendingFiles(job.id) : undefined;
+    if (job.payload.kind === 'upload') return this.runUploadAgain(job, job.payload);
     const replacement = createJob(job.projectId, job.payload);
     jobStore.dispatch({ type: 'dismiss', jobId });
     await deletePendingFiles(jobId);
-    await this.enqueue(replacement, files);
+    await this.enqueue(replacement);
+  }
+
+  /**
+   * An interrupted upload may already be saved (backend U1). Re-sending a file
+   * the project holds would create a duplicate document and overwrite its
+   * stored file, so only the files the project lacks go again. If the project
+   * cannot be read, nothing is sent: guessing is what causes the duplicate.
+   */
+  private async runUploadAgain(job: Job, payload: Extract<JobPayload, { kind: 'upload' }>) {
+    let docs: readonly { name: string }[];
+    try {
+      docs = await fetchProjectDocuments(job.projectId);
+    } catch {
+      toast.show("Could not read the project's documents, so nothing was re-sent (it could create a duplicate). Try again in a moment.", { severity: 'error' });
+      return;
+    }
+    const files = await loadPendingFiles(job.id);
+    const { saved, missing } = splitByDocuments(files, docs);
+
+    if (missing.length === 0) {
+      await this.finishSavedWhileAway(job.id, job.projectId);
+      toast.show(resendNotice(saved.length, 0), { severity: 'success' });
+      return;
+    }
+    const missingNames = new Set(missing.map((f) => f.name));
+    const replacement = createJob(job.projectId, {
+      kind: 'upload',
+      fileRefs: payload.fileRefs.filter((ref) => missingNames.has(ref.name)),
+    });
+    jobStore.dispatch({ type: 'dismiss', jobId: job.id });
+    await deletePendingFiles(job.id);
+    toast.show(resendNotice(saved.length, missing.length), { severity: 'info' });
+    await this.enqueue(replacement, missing);
+  }
+
+  private async finishSavedWhileAway(jobId: string, projectId: string) {
+    await deletePendingFiles(jobId);
+    await reloadAfterRun(projectId);
+    // Not marked seen: the "Saved while you were away" line is the news.
+    jobStore.dispatch({ type: 'complete', jobId, at: Date.now(), seen: false, savedWhileAway: true });
+    this.publish();
+  }
+
+  /**
+   * An interrupted upload is not known to be lost: the server keeps working on
+   * a fully sent file and lists the document once it is done. Poll the
+   * project's documents for about a minute, then say what is there.
+   */
+  private async recoverUpload(jobId: string) {
+    if (this.recovering.has(jobId)) return;
+    const job = jobStore.getJob(jobId);
+    if (!job || job.status !== 'interrupted' || job.payload.kind !== 'upload') return;
+    const names = job.payload.fileRefs.map((ref) => ref.name);
+    this.recovering.add(jobId);
+    try {
+      jobStore.dispatch({ type: 'uploadCheck', jobId, check: { state: 'checking' } });
+      this.publish();
+      const outcome = names.length
+        ? await checkUploadOutcome({ names, fetchDocuments: () => fetchProjectDocuments(job.projectId) })
+        : { saved: [], missing: [], checked: false };
+
+      // Dismissed or run again while we waited: leave it alone.
+      if (jobStore.getJob(jobId)?.status !== 'interrupted') return;
+      if (outcome.checked && outcome.missing.length === 0) {
+        await this.finishSavedWhileAway(jobId, job.projectId);
+        return;
+      }
+      jobStore.dispatch({
+        type: 'uploadCheck',
+        jobId,
+        check: outcome.checked
+          ? { state: 'missing', missing: outcome.missing, saved: outcome.saved.length }
+          : { state: 'unknown' },
+      });
+      this.publish();
+    } finally {
+      this.recovering.delete(jobId);
+    }
   }
 
   async cancel(jobId: string) {
@@ -199,6 +288,7 @@ export class JobRuntime {
       for (const job of plan.interrupted) {
         jobStore.dispatch({ type: 'interrupt', jobId: job.id, at: Date.now() });
       }
+      const interruptedUploads = plan.interrupted.filter((job) => job.kind === 'upload');
 
       for (const job of plan.toStart) {
         // Claim by taking the per-job lock BEFORE marking it running, so a
@@ -211,6 +301,7 @@ export class JobRuntime {
       }
 
       if (plan.interrupted.length > 0 || claimed.length > 0) this.publish();
+      for (const job of interruptedUploads) void this.recoverUpload(job.id);
     });
 
     // Run outside the scheduler lock: a run takes minutes and must not block
@@ -331,4 +422,8 @@ export function createJob(projectId: string, payload: JobPayload): Job {
     seen: false,
     payload,
   };
+}
+
+async function fetchProjectDocuments(projectId: string): Promise<readonly { name: string }[]> {
+  return (await apiGetProjectDetails(projectId)).documents ?? [];
 }

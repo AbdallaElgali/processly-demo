@@ -1,6 +1,7 @@
 'use client';
 
-import { KEEP_TAB_OPEN_TEXT } from '@/lib/jobs/closeGuard';
+import { KEEP_TAB_OPEN_TEXT, KEEP_UPLOAD_OPEN_TEXT } from '@/lib/jobs/closeGuard';
+import { SAVED_AWAY_TEXT, interruptedUploadText } from '@/lib/jobs/uploadRecovery';
 import { useState } from 'react';
 import { Alert, Box, Button, LinearProgress, Stack, Typography } from '@mui/material';
 import { useProjectActivity } from '@/lib/jobs/hooks';
@@ -89,6 +90,9 @@ export function JobBanner({ projectId, padded = true }: { projectId: string | nu
                 {KIND_LABEL[running.kind]}: {PHASE_LABEL[running.phase] ?? running.phase}
               </Typography>
               <LinearProgress sx={{ borderRadius: 1 }} />
+              <Typography variant="caption" role="note" sx={{ display: 'block', mt: 0.5, fontWeight: 600 }}>
+                {KEEP_UPLOAD_OPEN_TEXT}
+              </Typography>
             </>
           ) : (
             <>
@@ -123,11 +127,26 @@ export function JobBanner({ projectId, padded = true }: { projectId: string | nu
             </Stack>
           }
         >
-          {/* Results are saved only when a run reaches `complete` (D9), so an
-              interrupted run really did save nothing. Re-running costs tokens
-              and creates a new extraction run, so it stays the user's choice. */}
-          The tab running this {KIND_LABEL[interrupted.kind].toLowerCase()} was closed or
-          refreshed, so it saved nothing.
+          {/* An extraction or correction saves only when its stream reaches
+              `complete` (D9), so an interrupted one really saved nothing.
+              Re-running costs tokens and creates a new run, so it stays the
+              user's choice. An upload is different (backend U1): a fully sent
+              file keeps going on the server, so its outcome is checked. */}
+          {interrupted.kind === 'upload' ? (
+            <>
+              The tab sending this upload was closed or refreshed. {interruptedUploadText(interrupted.uploadCheck)}
+              {interrupted.uploadCheck?.state === 'missing' && (
+                <Typography variant="caption" sx={{ display: 'block' }}>
+                  Not in the project: {interrupted.uploadCheck.missing.join(', ')}. Run again sends only these.
+                </Typography>
+              )}
+            </>
+          ) : (
+            <>
+              The tab running this {KIND_LABEL[interrupted.kind].toLowerCase()} was closed or
+              refreshed, so it saved nothing.
+            </>
+          )}
         </Alert>
       )}
 
@@ -149,7 +168,7 @@ export function JobBanner({ projectId, padded = true }: { projectId: string | nu
             projectId && jobStore.dispatch({ type: 'markSeen', projectId })
           }
         >
-          New results are in.
+          {unseen.savedWhileAway ? `${SAVED_AWAY_TEXT}.` : 'New results are in.'}
         </Alert>
       )}
     </Box>

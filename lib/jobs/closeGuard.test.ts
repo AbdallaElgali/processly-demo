@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { KEEP_TAB_OPEN_TEXT, closeWarningHandler, hasRunningAnalysis } from './closeGuard';
+import { KEEP_TAB_OPEN_TEXT, KEEP_UPLOAD_OPEN_TEXT, closeWarningHandler, hasRunningAnalysis, hasRunningUpload, keepOpenText } from './closeGuard';
 import type { Job } from './types';
 
 const job = (kind: Job['kind'], status: Job['status']) => ({ id: `${kind}-${status}`, kind, status }) as Job;
@@ -49,4 +49,25 @@ describe('closeWarningHandler', () => {
 
 it('has the short line the indicator shows', () => {
   expect(KEEP_TAB_OPEN_TEXT).toBe('Keep this tab open until the analysis finishes');
+});
+
+describe('uploads (U2: closing during the send itself still loses the file)', () => {
+  it('knows a running upload, and only a running one', () => {
+    expect(hasRunningUpload([job('upload', 'running')])).toBe(true);
+    for (const status of ['queued', 'completed', 'failed', 'interrupted', 'cancelled'] as const) {
+      expect(hasRunningUpload([job('upload', status)])).toBe(false);
+    }
+    expect(hasRunningUpload([job('extraction', 'running')])).toBe(false);
+  });
+  it('asks before the tab closes while an upload runs', () => {
+    const e = { preventDefault: vi.fn(), returnValue: undefined as unknown } as unknown as BeforeUnloadEvent;
+    closeWarningHandler(() => [job('upload', 'running')])(e);
+    expect(e.preventDefault).toHaveBeenCalled();
+  });
+  it('has its own text, and the analysis text wins when both run', () => {
+    expect(KEEP_UPLOAD_OPEN_TEXT).toBe('Keep this tab open until the upload has been sent');
+    expect(keepOpenText([job('upload', 'running')])).toBe(KEEP_UPLOAD_OPEN_TEXT);
+    expect(keepOpenText([job('upload', 'running'), job('extraction', 'running')])).toBe(KEEP_TAB_OPEN_TEXT);
+    expect(keepOpenText([job('upload', 'queued')])).toBeNull();
+  });
 });
