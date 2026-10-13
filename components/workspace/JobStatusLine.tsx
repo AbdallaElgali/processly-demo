@@ -7,7 +7,8 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { useProjectActivity } from '@/lib/jobs/hooks';
 import { JobBanner } from '@/components/jobs/JobBanner';
 import { jobKindLabel, runningJobText } from '@/lib/jobs/label';
-import { KEEP_TAB_OPEN_TEXT, hasRunningAnalysis } from '@/lib/jobs/closeGuard';
+import { keepOpenText } from '@/lib/jobs/closeGuard';
+import { SAVED_AWAY_TEXT, interruptedUploadText } from '@/lib/jobs/uploadRecovery';
 
 type Tone = 'info' | 'warning' | 'danger' | 'success';
 
@@ -41,18 +42,22 @@ export function JobStatusLine({ projectId }: { projectId: string }) {
     text = `${jobKindLabel(queued.job.kind)} queued, position ${queued.position}`;
   } else if (interrupted) {
     tone = 'warning';
-    text = `${jobKindLabel(interrupted.kind)} interrupted; nothing was saved`;
+    // Only extraction and correction streams really save nothing when the tab
+    // goes (D9); a sent upload is checked against the project (backend U1).
+    text = interrupted.kind === 'upload'
+      ? interruptedUploadText(interrupted.uploadCheck)
+      : `${jobKindLabel(interrupted.kind)} interrupted; nothing was saved`;
   } else if (failed) {
     tone = 'danger';
     text = `${jobKindLabel(failed.kind)} failed`;
   } else if (unseen) {
     tone = 'success';
-    text = 'New results are in';
+    text = unseen.savedWhileAway ? SAVED_AWAY_TEXT : 'New results are in';
   } else {
     return null;
   }
 
-  const keepOpen = !!running && hasRunningAnalysis([running]);
+  const keepOpen = running ? keepOpenText([running]) : null;
 
   const color = { info: 'status.info', warning: 'status.warning', danger: 'status.danger', success: 'status.success' }[tone];
   const bg = { info: 'status.infoBg', warning: 'status.warningBg', danger: 'status.dangerBg', success: 'status.successBg' }[tone];
@@ -63,7 +68,7 @@ export function JobStatusLine({ projectId }: { projectId: string }) {
         onClick={(e) => setAnchorEl(e.currentTarget)}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={`${text}${keepOpen ? `. ${KEEP_TAB_OPEN_TEXT}` : ''}. Show details`}
+        aria-label={`${text}${keepOpen ? `. ${keepOpen}` : ''}. Show details`}
         sx={{
           px: 1.25,
           py: 0.5,
@@ -91,7 +96,7 @@ export function JobStatusLine({ projectId }: { projectId: string }) {
           </Typography>
           {keepOpen && (
             <Typography variant="caption" noWrap sx={{ color: 'inherit', opacity: 0.85, display: { xs: 'none', lg: 'block' } }}>
-              · {KEEP_TAB_OPEN_TEXT}
+              · {keepOpen}
             </Typography>
           )}
           {warnings > 0 && (

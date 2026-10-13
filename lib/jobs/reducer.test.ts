@@ -192,3 +192,37 @@ describe('phaseForEvent', () => {
     expect(phaseForEvent('partial', 'supervising')).toBe('supervising');
   });
 });
+
+describe('interrupted uploads (U2)', () => {
+  const upload = (over: Partial<Job> = {}) =>
+    baseJob({ kind: 'upload', status: 'interrupted', payload: { kind: 'upload', fileRefs: [] }, ...over });
+
+  it('records the outcome of the check on an interrupted job', () => {
+    const state = jobsReducer(withJob(upload()), {
+      type: 'uploadCheck', jobId: 'j1', check: { state: 'missing', missing: ['a.pdf'], saved: 0 },
+    });
+    expect(only(state).uploadCheck).toEqual({ state: 'missing', missing: ['a.pdf'], saved: 0 });
+    expect(only(state).status).toBe('interrupted');
+  });
+
+  it('ignores a check result for a job that is no longer interrupted', () => {
+    const done = withJob(upload({ status: 'completed' }));
+    const after = jobsReducer(done, { type: 'uploadCheck', jobId: 'j1', check: { state: 'checking' } });
+    expect(after).toBe(done);
+  });
+
+  it('completes an interrupted upload as saved while away, and clears the check', () => {
+    const state = jobsReducer(withJob(upload({ uploadCheck: { state: 'checking' } })), {
+      type: 'complete', jobId: 'j1', at: 5, seen: false, savedWhileAway: true,
+    });
+    expect(only(state).status).toBe('completed');
+    expect(only(state).savedWhileAway).toBe(true);
+    expect(only(state).uploadCheck).toBeUndefined();
+    expect(only(state).error).toBeUndefined();
+  });
+
+  it('does not resurrect a dismissed job', () => {
+    const empty = initialJobsState;
+    expect(jobsReducer(empty, { type: 'uploadCheck', jobId: 'gone', check: { state: 'checking' } })).toBe(empty);
+  });
+});
