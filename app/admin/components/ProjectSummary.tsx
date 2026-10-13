@@ -1,22 +1,25 @@
 import React, { useState, useMemo } from 'react';
 import { 
   Box, Typography, Card, Button, TextField, 
-  MenuItem, Select, FormControl, InputLabel, CircularProgress, Chip 
+  MenuItem, Select, FormControl, InputLabel, Chip 
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SearchIcon from '@mui/icons-material/Search';
-import { colors } from '@/theme/colors';
+import Link from 'next/link';
+import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
 import { useProjectSummary } from '@/hooks/useProjectSummary'; 
 import { ProjectSummary as ProjectSummaryType } from '@/types/audit';
-import ParameterLineage from './ParameterLineage';
+import { formatDisplayValue } from '@/lib/review/format';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { SkeletonRows } from '@/components/ui/Skeletons';
 
 interface ParameterRowProps {
   parameter: ProjectSummaryType;
-  onClick: () => void;
+  href: string;
 }
 
 // Redesigned: High-Density Horizontal Row
-const ParameterRow: React.FC<ParameterRowProps> = ({ parameter, onClick }) => {
+const ParameterRow: React.FC<ParameterRowProps> = ({ parameter, href }) => {
   // Determine color coding for the main review action
   const getActionColor = (action: string | null) => {
     switch (action) {
@@ -28,19 +31,23 @@ const ParameterRow: React.FC<ParameterRowProps> = ({ parameter, onClick }) => {
   };
 
   return (
-    <Card 
-      onClick={onClick}
-      sx={{ 
-        mb: 1.5, 
-        elevation: 0, 
-        border: `1px solid ${colors.border}`, 
+    <Card
+      component={Link}
+      href={href}
+      variant="outlined"
+      aria-label={`${parameter.parameterKey}: open the Audit`}
+      sx={{
+        mb: 1.5,
+        borderColor: 'border.subtle',
+        bgcolor: 'surface.panel',
         borderRadius: 2,
         display: 'flex',
         alignItems: 'center',
         p: 2,
-        cursor: 'pointer',
+        color: 'inherit',
+        textDecoration: 'none',
         transition: 'background-color 0.2s',
-        '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' }
+        '&:hover': { bgcolor: 'surface.hover' },
       }}
     >
       {/* 1. Parameter Key (Name) */}
@@ -51,41 +58,41 @@ const ParameterRow: React.FC<ParameterRowProps> = ({ parameter, onClick }) => {
       </Box>
 
       {/* 2. Final Value */}
-      <Box sx={{ flex: '1 1 25%', pr: 2, borderLeft: `1px solid ${colors.border}`, pl: 2 }}>
+      <Box sx={{ flex: '1 1 25%', pr: 2, borderLeft: '1px solid', borderColor: 'border.subtle', pl: 2 }}>
         <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
-          Final Value
+          Final value
         </Typography>
-        <Typography variant="body2" fontWeight="bold" color={parameter.finalValue ? 'text.primary' : 'text.disabled'}>
-          {parameter.finalValue !== null ? parameter.finalValue : 'Unassigned'}
+        <Typography variant="body2" fontWeight="bold" color={parameter.finalValue !== null ? 'text.primary' : 'text.disabled'} sx={{ fontVariantNumeric: 'tabular-nums' }}>
+          {parameter.finalValue !== null ? formatDisplayValue(parameter.finalValue) : 'Unassigned'}
         </Typography>
       </Box>
 
       {/* 3. Micro-Stats (Candidates / Runs / Flags) */}
-      <Box sx={{ flex: '1 1 25%', pr: 2, borderLeft: `1px solid ${colors.border}`, pl: 2 }}>
+      <Box sx={{ flex: '1 1 25%', pr: 2, borderLeft: '1px solid', borderColor: 'border.subtle', pl: 2 }}>
         <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
-          Extraction Stats
+          Activity
         </Typography>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <span><b>{parameter.totalCandidates}</b> cands</span>
+          <span><b>{parameter.totalCandidates}</b> candidates</span>
           <span>•</span>
           <span><b>{parameter.totalExtractionRuns}</b> runs</span>
           <span>•</span>
-          <span style={{ color: parameter.totalFlags > 0 ? '#d32f2f' : 'inherit' }}>
+          <Box component="span" sx={{ color: parameter.totalFlags > 0 ? 'status.danger' : 'inherit' }}>
             <b>{parameter.totalFlags}</b> flags
-          </span>
+          </Box>
         </Typography>
       </Box>
 
       {/* 4. Status Badges */}
       <Box sx={{ flex: '1 1 25%', display: 'flex', justifyContent: 'flex-end', gap: 1, alignItems: 'center' }}>
         {parameter.isAiAccepted && (
-          <Typography variant="caption" fontWeight="bold" color="success.main" sx={{ border: '1px solid', borderColor: 'success.light', px: 1, py: 0.25, borderRadius: 1 }}>
-            AI Won
+          <Typography variant="caption" fontWeight="bold" sx={{ color: 'status.success', border: '1px solid', borderColor: 'status.success', px: 1, py: 0.25, borderRadius: 1 }}>
+            From AI
           </Typography>
         )}
         {parameter.isHumanModified && (
-          <Typography variant="caption" fontWeight="bold" color="warning.main" sx={{ border: '1px solid', borderColor: 'warning.light', px: 1, py: 0.25, borderRadius: 1 }}>
-            Human Edited
+          <Typography variant="caption" fontWeight="bold" sx={{ color: 'status.warning', border: '1px solid', borderColor: 'status.warning', px: 1, py: 0.25, borderRadius: 1 }}>
+            Edited
           </Typography>
         )}
         <Chip 
@@ -106,7 +113,8 @@ interface ProjectSummaryProps {
 }
 
 const ProjectSummary: React.FC<ProjectSummaryProps> = ({ projectId, onBack }) => {
-  const { summaryData, isLoading, error } = useProjectSummary(projectId);
+  const { summaryData, isLoading, error, reload } = useProjectSummary(projectId);
+  const auditHref = `/projects/${projectId}/audit`;
   
   // Search and Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -114,9 +122,6 @@ const ProjectSummary: React.FC<ProjectSummaryProps> = ({ projectId, onBack }) =>
   const [runsFilter, setRunsFilter] = useState('ALL');
   const [flagsFilter, setFlagsFilter] = useState('ALL');
   
-  // Track selected parameter for drill-down routing
-  const [selectedParameterKey, setSelectedParameterKey] = useState<string | null>(null);
-
   // Derive filtered parameters based on UI state
   const filteredParameters = useMemo(() => {
     return summaryData.filter(param => {
@@ -124,7 +129,8 @@ const ProjectSummary: React.FC<ProjectSummaryProps> = ({ projectId, onBack }) =>
       const matchesSearch = param.parameterKey.toLowerCase().includes(searchQuery.toLowerCase());
       
       // Review Status
-      const matchesReview = reviewFilter === 'ALL' || param.reviewAction === reviewFilter;
+      // A row with no stored action is shown as PENDING, so it filters as PENDING.
+      const matchesReview = reviewFilter === 'ALL' || (param.reviewAction ?? 'PENDING') === reviewFilter;
       
       // Extraction Runs Logic
       let matchesRuns = true;
@@ -141,37 +147,38 @@ const ProjectSummary: React.FC<ProjectSummaryProps> = ({ projectId, onBack }) =>
     });
   }, [summaryData, searchQuery, reviewFilter, runsFilter, flagsFilter]);
 
-  // Route to Lineage view if a parameter is selected
-  if (selectedParameterKey) {
-    return (
-      <ParameterLineage 
-        projectId={projectId} 
-        parameterKey={selectedParameterKey} 
-        onBack={() => setSelectedParameterKey(null)} 
-      />
-    );
-  }
-
   if (isLoading) {
-    return <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box>;
+    return <Box sx={{ p: 1 }} aria-busy="true"><SkeletonRows count={8} columns={4} /></Box>;
   }
 
   if (error) {
-    return <Typography color="error">Error loading project details: {error}</Typography>;
+    return (
+      <Box sx={{ flex: 1 }}>
+        <Button startIcon={<ArrowBackIcon />} onClick={onBack} sx={{ textTransform: 'none', color: 'text.secondary' }}>
+          Back to Overview
+        </Button>
+        <ErrorState title="Could not load this project's parameters" description={error} onRetry={reload} />
+      </Box>
+    );
   }
 
   return (
     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
       
       <Box sx={{ mb: 3 }}>
-        <Button startIcon={<ArrowBackIcon />} onClick={onBack} sx={{ textTransform: 'none', color: colors.textSecondary }}>
+        <Button startIcon={<ArrowBackIcon />} onClick={onBack} sx={{ textTransform: 'none', color: 'text.secondary' }}>
           Back to Overview
         </Button>
       </Box>
 
-      <Typography variant="h5" fontWeight="bold" sx={{ mb: 3 }}>
-        Project Parameters
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', mb: 3 }}>
+        <Typography variant="h5" fontWeight="bold" sx={{ flex: 1 }}>
+          Project Parameters
+        </Typography>
+        <Button component={Link} href={auditHref} variant="outlined" startIcon={<FactCheckOutlinedIcon />}>
+          Open this project&rsquo;s Audit
+        </Button>
+      </Box>
 
       {/* Controls Bar: Flex-wrap added to support multiple dropdowns */}
       <Box sx={{ display: 'flex', gap: 2, mb: 4, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -182,14 +189,12 @@ const ProjectSummary: React.FC<ProjectSummaryProps> = ({ projectId, onBack }) =>
           placeholder="Search parameters..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          sx={{ flex: 1, minWidth: 200, bgcolor: colors.surface }}
-          InputProps={{
-            startAdornment: <SearchIcon sx={{ color: 'text.secondary', mr: 1 }} />
-          }}
+          sx={{ flex: 1, minWidth: 200, bgcolor: 'surface.panel' }}
+          slotProps={{ input: { startAdornment: <SearchIcon sx={{ color: 'text.secondary', mr: 1 }} /> } }}
         />
         
         {/* Review Status Filter */}
-        <FormControl size="small" sx={{ minWidth: 160, bgcolor: colors.surface }}>
+        <FormControl size="small" sx={{ minWidth: 160, bgcolor: 'surface.panel' }}>
           <InputLabel>Review Status</InputLabel>
           <Select
             value={reviewFilter}
@@ -197,6 +202,7 @@ const ProjectSummary: React.FC<ProjectSummaryProps> = ({ projectId, onBack }) =>
             onChange={(e) => setReviewFilter(e.target.value)}
           >
             <MenuItem value="ALL">All Statuses</MenuItem>
+            <MenuItem value="PENDING">Pending</MenuItem>
             <MenuItem value="ACCEPTED">Accepted</MenuItem>
             <MenuItem value="MODIFIED">Modified</MenuItem>
             <MenuItem value="REJECTED">Rejected</MenuItem>
@@ -204,7 +210,7 @@ const ProjectSummary: React.FC<ProjectSummaryProps> = ({ projectId, onBack }) =>
         </FormControl>
 
         {/* Extraction Runs Filter */}
-        <FormControl size="small" sx={{ minWidth: 160, bgcolor: colors.surface }}>
+        <FormControl size="small" sx={{ minWidth: 160, bgcolor: 'surface.panel' }}>
           <InputLabel>Extraction Runs</InputLabel>
           <Select
             value={runsFilter}
@@ -219,7 +225,7 @@ const ProjectSummary: React.FC<ProjectSummaryProps> = ({ projectId, onBack }) =>
         </FormControl>
 
         {/* Flags Filter */}
-        <FormControl size="small" sx={{ minWidth: 160, bgcolor: colors.surface }}>
+        <FormControl size="small" sx={{ minWidth: 160, bgcolor: 'surface.panel' }}>
           <InputLabel>Flags</InputLabel>
           <Select
             value={flagsFilter}
@@ -241,11 +247,11 @@ const ProjectSummary: React.FC<ProjectSummaryProps> = ({ projectId, onBack }) =>
             <ParameterRow 
               key={param.parameterKey} 
               parameter={param} 
-              onClick={() => setSelectedParameterKey(param.parameterKey)} 
+              href={auditHref}
             />
           ))
         ) : (
-          <Box sx={{ p: 4, textAlign: 'center', border: `1px dashed ${colors.border}`, borderRadius: 2 }}>
+          <Box sx={{ p: 4, textAlign: 'center', border: '1px dashed', borderColor: 'border.strong', borderRadius: 2 }}>
             <Typography color="text.secondary">No parameters match your search filters.</Typography>
           </Box>
         )}

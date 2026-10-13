@@ -1,0 +1,4315 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "FastAPI",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/": {
+      "get": {
+        "summary": "Root",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/files/upload-documents/": {
+      "post": {
+        "tags": [
+          "files"
+        ],
+        "summary": "Upload Documents",
+        "operationId": "upload_documents_files_upload_documents__post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_documents_files_upload_documents__post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/specs/stream-specs": {
+      "post": {
+        "tags": [
+          "specs"
+        ],
+        "summary": "Stream Battery Specs",
+        "operationId": "stream_battery_specs_specs_stream_specs_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_stream_battery_specs_specs_stream_specs_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/specs/stream-parameter": {
+      "post": {
+        "tags": [
+          "specs"
+        ],
+        "summary": "Stream Single Parameter",
+        "description": "Fast-path corrective re-extraction of ONE flagged parameter.\nDoes not replace /stream-specs \u2014 that remains the batch correction path.",
+        "operationId": "stream_single_parameter_specs_stream_parameter_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SingleParameterRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/user": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Get User",
+        "operationId": "get_user_auth_user_get",
+        "parameters": [
+          {
+            "name": "username",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Username"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/register-user": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Register User",
+        "operationId": "register_user_auth_register_user_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserRegistration"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/update-user-settings": {
+      "put": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Update User Settings",
+        "operationId": "update_user_settings_auth_update_user_settings_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserSettingsInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/": {
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Create Project",
+        "operationId": "create_project_projects__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectCreateInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/user/{user_id}": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Get User Projects",
+        "operationId": "get_user_projects_projects_user__user_id__get",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Fetch Project",
+        "operationId": "fetch_project_projects__project_id__get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/update-project-status": {
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Update Project Status",
+        "operationId": "update_project_status_projects_update_project_status_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_update_project_status_projects_update_project_status_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}/contributors": {
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Add Contributor",
+        "operationId": "add_contributor_projects__project_id__contributors_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContributorAddInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}/auditors": {
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Add Auditor",
+        "operationId": "add_auditor_projects__project_id__auditors_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContributorAddInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}/parameters": {
+      "put": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Save Project Parameters Batch",
+        "operationId": "save_project_parameters_batch_projects__project_id__parameters_put",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchParameterSaveInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}/approve": {
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Approve Project Parameters",
+        "operationId": "approve_project_parameters_projects__project_id__approve_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ApproveInput"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/project-parameter/{project_parameter_id}/": {
+      "patch": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Update Project Parameter",
+        "operationId": "update_project_parameter_projects_project_parameter__project_parameter_id___patch",
+        "parameters": [
+          {
+            "name": "project_parameter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Parameter Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectParameterUpdateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/project-parameter/{project_parameter_id}/remove": {
+      "delete": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Remove Project Parameter",
+        "operationId": "remove_project_parameter_projects_project_parameter__project_parameter_id__remove_delete",
+        "parameters": [
+          {
+            "name": "project_parameter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Parameter Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/project-parameter/{project_parameter_id}/add": {
+      "put": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Add Project Parameter",
+        "operationId": "add_project_parameter_projects_project_parameter__project_parameter_id__add_put",
+        "parameters": [
+          {
+            "name": "project_parameter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Parameter Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents/{doc_id}/file": {
+      "get": {
+        "tags": [
+          "documents"
+        ],
+        "summary": "Serve Doc Binary",
+        "operationId": "serve_doc_binary_documents__doc_id__file_get",
+        "parameters": [
+          {
+            "name": "doc_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Doc Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/dashboard": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Get Analytics Dashboard",
+        "description": "Fetches aggregated analytics data tracking human-in-the-loop performance,\nhotspots, pipeline configurations, and velocity trends.",
+        "operationId": "get_analytics_dashboard_analytics_dashboard_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardAnalyticsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/system/reset-database": {
+      "delete": {
+        "tags": [
+          "System Setup"
+        ],
+        "summary": "Reset Database",
+        "description": "\u26a0\ufe0f DANGER: Completely wipes all data from the database.\nRetains the table structures, indexes, and custom types.",
+        "operationId": "reset_database_system_reset_database_delete",
+        "parameters": [
+          {
+            "name": "confirm-reset",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Must pass 'I_KNOW_WHAT_I_AM_DOING' to execute",
+              "title": "Confirm-Reset"
+            },
+            "description": "Must pass 'I_KNOW_WHAT_I_AM_DOING' to execute"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/audit/projects": {
+      "get": {
+        "tags": [
+          "Audit"
+        ],
+        "summary": "Fetch Projects Metrics",
+        "operationId": "fetch_projects_metrics_audit_projects_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/audit/project/{project_id}": {
+      "get": {
+        "tags": [
+          "Audit"
+        ],
+        "summary": "Fetch Project Summary",
+        "description": "Fetches the mid-level parameter summary (friction metrics) for a specific project.",
+        "operationId": "fetch_project_summary_audit_project__project_id__get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/audit/project/{project_id}/parameter/{parameter_key}/lineage": {
+      "get": {
+        "tags": [
+          "Audit"
+        ],
+        "summary": "Fetch Parameter Lineage",
+        "description": "Drill-down route: Gets the complete chronological extraction history \nand flag trail for a specific parameter.",
+        "operationId": "fetch_parameter_lineage_audit_project__project_id__parameter__parameter_key__lineage_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "parameter_key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Parameter Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/audit/feedback/{project_id}": {
+      "get": {
+        "tags": [
+          "Audit"
+        ],
+        "summary": "Get Users",
+        "operationId": "get_users_audit_feedback__project_id__get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/audit/feedback-list": {
+      "get": {
+        "tags": [
+          "Audit"
+        ],
+        "summary": "List Feedback",
+        "description": "Endpoint to retrieve user feedback.",
+        "operationId": "list_feedback_audit_feedback_list_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by project ID",
+              "title": "Project Id"
+            },
+            "description": "Filter by project ID"
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by user ID",
+              "title": "User Id"
+            },
+            "description": "Filter by user ID"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by status (e.g., 'new', 'resolved')",
+              "title": "Status"
+            },
+            "description": "Filter by status (e.g., 'new', 'resolved')"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/flagging/ai-flag-parameter": {
+      "post": {
+        "tags": [
+          "flagging"
+        ],
+        "summary": "Flag Ai Parameter",
+        "description": "Flags a specific AI candidate metric for correction.\nReturns the newly generated flag_id to track the audit trail.",
+        "operationId": "flag_ai_parameter_flagging_ai_flag_parameter_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AIFlagRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/flagging/ai-unflag-parameter": {
+      "post": {
+        "tags": [
+          "flagging"
+        ],
+        "summary": "Unflag Ai Parameter",
+        "description": "Resolves or dismisses an AI parameter flag, linking the new AI run ID.",
+        "operationId": "unflag_ai_parameter_flagging_ai_unflag_parameter_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AIUnflagRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/flagging/select-correct-ai-candidate": {
+      "post": {
+        "tags": [
+          "flagging"
+        ],
+        "summary": "Select Correct Ai Candidate",
+        "operationId": "select_correct_ai_candidate_flagging_select_correct_ai_candidate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSelectedCandidate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/feedback/submit": {
+      "post": {
+        "tags": [
+          "feedback"
+        ],
+        "summary": "Submit Feedback",
+        "operationId": "submit_feedback_feedback_submit_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserFeedback"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/extraction-templates/parameters": {
+      "get": {
+        "tags": [
+          "extraction-templates"
+        ],
+        "summary": "Get Parameters",
+        "description": "Fetches the core dictionary of canonical parameters.",
+        "operationId": "get_parameters_extraction_templates_parameters_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CanonicalParameter"
+                  },
+                  "type": "array",
+                  "title": "Response Get Parameters Extraction Templates Parameters Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/extraction-templates/": {
+      "post": {
+        "tags": [
+          "extraction-templates"
+        ],
+        "summary": "Create New Template",
+        "description": "Creates a new empty extraction template.",
+        "operationId": "create_new_template_extraction_templates__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtractionTemplateBase"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/extraction-templates/user/{user_id}": {
+      "get": {
+        "tags": [
+          "extraction-templates"
+        ],
+        "summary": "Get User Templates",
+        "description": "Fetches all templates a user has access to (own, global, system).",
+        "operationId": "get_user_templates_extraction_templates_user__user_id__get",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExtractionTemplateBase"
+                  },
+                  "title": "Response Get User Templates Extraction Templates User  User Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/extraction-templates/{template_id}": {
+      "get": {
+        "tags": [
+          "extraction-templates"
+        ],
+        "summary": "Get Template Details",
+        "description": "Fetches a complete template and all its associated parameter rules.",
+        "operationId": "get_template_details_extraction_templates__template_id__get",
+        "parameters": [
+          {
+            "name": "template_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Template Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateWithRules"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "extraction-templates"
+        ],
+        "summary": "Delete Existing Template",
+        "description": "Deletes a template (cascades to rules automatically).",
+        "operationId": "delete_existing_template_extraction_templates__template_id__delete",
+        "parameters": [
+          {
+            "name": "template_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Template Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/extraction-templates/{template_id}/rules": {
+      "put": {
+        "tags": [
+          "extraction-templates"
+        ],
+        "summary": "Upsert Rule",
+        "description": "Inserts a new rule for a template, or updates it if the alias already exists.",
+        "operationId": "upsert_rule_extraction_templates__template_id__rules_put",
+        "parameters": [
+          {
+            "name": "template_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Template Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateRuleUpsert"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateRule"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/extraction-templates/from-project": {
+      "post": {
+        "tags": [
+          "extraction-templates"
+        ],
+        "summary": "Create Template From Project",
+        "description": "Clones a project's active parameters back into a reusable template.",
+        "operationId": "create_template_from_project_extraction_templates_from_project_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectToTemplate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtractionTemplateBase"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/customers/": {
+      "get": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Fetch All Customers",
+        "description": "Retrieve a list of all customers.",
+        "operationId": "fetch_all_customers_customers__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CustomerResponse"
+                  },
+                  "type": "array",
+                  "title": "Response Fetch All Customers Customers  Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Create New Customer",
+        "description": "Add a new customer alias to the database.",
+        "operationId": "create_new_customer_customers__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/customers/{alias_name}": {
+      "delete": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Remove Customer By Alias",
+        "description": "Delete a customer from the database by their alias.",
+        "operationId": "remove_customer_by_alias_customers__alias_name__delete",
+        "parameters": [
+          {
+            "name": "alias_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Alias Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/prompts/slots": {
+      "get": {
+        "tags": [
+          "prompt-management"
+        ],
+        "summary": "List Slots",
+        "description": "All slots, each with its current GLOBAL version and (for AGENT slots) current GLOBAL\nmodel config \u2014 the catalogue view for an admin picker.",
+        "operationId": "list_slots_prompts_slots_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SlotSummary"
+                  },
+                  "type": "array",
+                  "title": "Response List Slots Prompts Slots Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/prompts/slots/{slot_key}/versions": {
+      "get": {
+        "tags": [
+          "prompt-management"
+        ],
+        "summary": "List Versions",
+        "description": "All versions of a slot, newest first. Archived versions are hidden unless\n?include_archived=true.",
+        "operationId": "list_versions_prompts_slots__slot_key__versions_get",
+        "parameters": [
+          {
+            "name": "slot_key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slot Key"
+            }
+          },
+          {
+            "name": "include_archived",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Archived"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PromptVersion"
+                  },
+                  "title": "Response List Versions Prompts Slots  Slot Key  Versions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "prompt-management"
+        ],
+        "summary": "Create Version",
+        "description": "Creates a new version of a slot's prompt text. Rejected placeholder validation returns\n422 naming exactly which required placeholders are missing \u2014 not a generic 400.",
+        "operationId": "create_version_prompts_slots__slot_key__versions_post",
+        "parameters": [
+          {
+            "name": "slot_key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slot Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptVersion"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/prompts/slots/{slot_key}/assignment": {
+      "get": {
+        "tags": [
+          "prompt-management"
+        ],
+        "summary": "Get Assignment",
+        "description": "The current assignment for a slot at one exact scope target \u2014 not the project ->\ncustomer -> global lookup, an exact read.",
+        "operationId": "get_assignment_prompts_slots__slot_key__assignment_get",
+        "parameters": [
+          {
+            "name": "slot_key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slot Key"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Scope"
+            }
+          },
+          {
+            "name": "customer_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Customer Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/PromptAssignment"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Assignment Prompts Slots  Slot Key  Assignment Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "prompt-management"
+        ],
+        "summary": "Set Assignment",
+        "description": "Points a scope at a specific version \u2014 updates the existing row for that scope target in\nplace, or creates one. Rejected if the slot's level doesn't allow the requested scope (AGENT\nslots are GLOBAL only).",
+        "operationId": "set_assignment_prompts_slots__slot_key__assignment_put",
+        "parameters": [
+          {
+            "name": "slot_key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slot Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignmentSet"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptAssignment"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/prompts/slots/{slot_key}/model-assignment": {
+      "get": {
+        "tags": [
+          "prompt-management"
+        ],
+        "summary": "Get Model Assignment",
+        "description": "Same shape as GET .../assignment, for model_assignments. 404 if the slot doesn't execute\ncalls \u2014 model config only applies to AGENT slots that do.",
+        "operationId": "get_model_assignment_prompts_slots__slot_key__model_assignment_get",
+        "parameters": [
+          {
+            "name": "slot_key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slot Key"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Scope"
+            }
+          },
+          {
+            "name": "customer_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Customer Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ModelAssignment"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Model Assignment Prompts Slots  Slot Key  Model Assignment Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "prompt-management"
+        ],
+        "summary": "Set Model Assignment",
+        "description": "Sets model/reasoning_effort/temperature at a scope. The temperature/reasoning_effort\nconstraint is the model_assignments CHECK constraint's job, not re-implemented here \u2014 a\nviolation surfaces as a clean 422, not a raw 500.",
+        "operationId": "set_model_assignment_prompts_slots__slot_key__model_assignment_put",
+        "parameters": [
+          {
+            "name": "slot_key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slot Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelAssignmentSet"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelAssignment"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}/prompt-pins": {
+      "get": {
+        "tags": [
+          "prompt-management"
+        ],
+        "summary": "Get Project Prompt Pins",
+        "description": "The project's full pin set \u2014 every slot, its pinned version content, model, and resolved\nscope. What this project actually ran.",
+        "operationId": "get_project_prompt_pins_projects__project_id__prompt_pins_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PinDetail"
+                  },
+                  "title": "Response Get Project Prompt Pins Projects  Project Id  Prompt Pins Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}/prompt-resolution": {
+      "get": {
+        "tags": [
+          "prompt-management"
+        ],
+        "summary": "Get Project Prompt Resolution",
+        "description": "Read-only preview of what this project's first extraction would lock in: the full\npin -> project -> customer -> global -> file resolution for every slot, via the same loader\nextraction itself uses (load_slots_for_project) -- never a second implementation of the\nfallback chain. If the project is already pinned, every other field reflects the pin verbatim\n(load_slots_for_project's own pin-first branch), not a fresh resolution -- except\n`resolved_from_scope`, which is merged in from get_pin_details_for_project_db (already used by\n/prompt-pins) so it reports the pin's original GLOBAL/CUSTOMER/PROJECT scope rather than the\nloader's own opaque \"pin\" tag (that tag is correct for load_slots_for_project's real caller,\nextraction, and is left untouched there).",
+        "operationId": "get_project_prompt_resolution_projects__project_id__prompt_resolution_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectPromptResolution"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}/extraction-runs": {
+      "get": {
+        "tags": [
+          "prompt-management"
+        ],
+        "summary": "Get Project Extraction Runs",
+        "description": "Every extraction attempt for a project, newest first, with whatever model config was\nrecorded for it (Task 5, Part B). Optional ?extraction_type= filter, e.g. ITERATIVE, to see\njust correction attempts and which model each one used.",
+        "operationId": "get_project_extraction_runs_projects__project_id__extraction_runs_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "extraction_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Extraction Type"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExtractionRun"
+                  },
+                  "title": "Response Get Project Extraction Runs Projects  Project Id  Extraction Runs Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ABTestMetric": {
+        "properties": {
+          "extraction_type": {
+            "type": "string",
+            "title": "Extraction Type"
+          },
+          "total_parameters": {
+            "type": "integer",
+            "title": "Total Parameters"
+          },
+          "acceptance_rate": {
+            "type": "number",
+            "title": "Acceptance Rate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "extraction_type",
+          "total_parameters",
+          "acceptance_rate"
+        ],
+        "title": "ABTestMetric"
+      },
+      "AIFlagRequest": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "parameter_id": {
+            "type": "string",
+            "title": "Parameter Id"
+          },
+          "ai_metric_candidate_id": {
+            "type": "string",
+            "title": "Ai Metric Candidate Id"
+          },
+          "flag_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flag Reason"
+          },
+          "parent_flag_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Flag Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "parameter_id",
+          "ai_metric_candidate_id"
+        ],
+        "title": "AIFlagRequest"
+      },
+      "AIUnflagRequest": {
+        "properties": {
+          "flag_id": {
+            "type": "string",
+            "title": "Flag Id"
+          },
+          "resolved_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved By"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "DISMISSED"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "flag_id"
+        ],
+        "title": "AIUnflagRequest"
+      },
+      "ApproveInput": {
+        "properties": {
+          "reviewer_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewer Id"
+          }
+        },
+        "type": "object",
+        "title": "ApproveInput"
+      },
+      "AssignmentSet": {
+        "properties": {
+          "prompt_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Prompt Version Id"
+          },
+          "scope": {
+            "type": "string",
+            "title": "Scope"
+          },
+          "customer_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompt_version_id",
+          "scope"
+        ],
+        "title": "AssignmentSet"
+      },
+      "BatchParameterSaveInput": {
+        "properties": {
+          "parameters": {
+            "items": {
+              "$ref": "#/components/schemas/ParameterInput"
+            },
+            "type": "array",
+            "title": "Parameters"
+          },
+          "reviewer_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewer Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "parameters"
+        ],
+        "title": "BatchParameterSaveInput"
+      },
+      "Body_stream_battery_specs_specs_stream_specs_post": {
+        "properties": {
+          "current_user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "previous_specs": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Specs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "current_user"
+        ],
+        "title": "Body_stream_battery_specs_specs_stream_specs_post"
+      },
+      "Body_update_project_status_projects_update_project_status_post": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "new_status": {
+            "type": "string",
+            "enum": [
+              "NEW",
+              "PENDING_REVIEW",
+              "IN_REVIEW",
+              "APPROVED"
+            ],
+            "title": "New Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "new_status"
+        ],
+        "title": "Body_update_project_status_projects_update_project_status_post"
+      },
+      "Body_upload_documents_files_upload_documents__post": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "files": {
+            "items": {
+              "type": "string",
+              "format": "binary"
+            },
+            "type": "array",
+            "title": "Files",
+            "description": "Upload multiple battery datasheets"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "files"
+        ],
+        "title": "Body_upload_documents_files_upload_documents__post"
+      },
+      "CanonicalParameter": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "default_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Description"
+          },
+          "expected_unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Unit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "category",
+          "default_description",
+          "expected_unit"
+        ],
+        "title": "CanonicalParameter"
+      },
+      "ConfidenceMetrics": {
+        "properties": {
+          "avg_ai_confidence_accepted": {
+            "type": "number",
+            "title": "Avg Ai Confidence Accepted"
+          },
+          "avg_ai_confidence_modified": {
+            "type": "number",
+            "title": "Avg Ai Confidence Modified"
+          }
+        },
+        "type": "object",
+        "required": [
+          "avg_ai_confidence_accepted",
+          "avg_ai_confidence_modified"
+        ],
+        "title": "ConfidenceMetrics"
+      },
+      "ContributorAddInput": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "title": "Username"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username"
+        ],
+        "title": "ContributorAddInput"
+      },
+      "CustomerCreate": {
+        "properties": {
+          "alias_name": {
+            "type": "string",
+            "title": "Alias Name",
+            "description": "The 3-letter alias for the customer (e.g., 'DAM')"
+          }
+        },
+        "type": "object",
+        "required": [
+          "alias_name"
+        ],
+        "title": "CustomerCreate"
+      },
+      "CustomerResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "alias_name": {
+            "type": "string",
+            "title": "Alias Name"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "alias_name"
+        ],
+        "title": "CustomerResponse"
+      },
+      "DashboardAnalyticsResponse": {
+        "properties": {
+          "global_metrics": {
+            "$ref": "#/components/schemas/GlobalMetricsResponse"
+          },
+          "hotspots": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorHotspot"
+            },
+            "type": "array",
+            "title": "Hotspots"
+          },
+          "ab_test": {
+            "items": {
+              "$ref": "#/components/schemas/ABTestMetric"
+            },
+            "type": "array",
+            "title": "Ab Test"
+          },
+          "confidence": {
+            "$ref": "#/components/schemas/ConfidenceMetrics"
+          },
+          "velocity": {
+            "items": {
+              "$ref": "#/components/schemas/VelocityMetric"
+            },
+            "type": "array",
+            "title": "Velocity"
+          }
+        },
+        "type": "object",
+        "required": [
+          "global_metrics",
+          "hotspots",
+          "ab_test",
+          "confidence",
+          "velocity"
+        ],
+        "title": "DashboardAnalyticsResponse"
+      },
+      "DepartmentEnum": {
+        "type": "string",
+        "enum": [
+          "Zelle",
+          "Module",
+          "Pack"
+        ],
+        "title": "DepartmentEnum"
+      },
+      "ErrorHotspot": {
+        "properties": {
+          "parameter_key": {
+            "type": "string",
+            "title": "Parameter Key"
+          },
+          "total_reviews": {
+            "type": "integer",
+            "title": "Total Reviews"
+          },
+          "total_modifications": {
+            "type": "integer",
+            "title": "Total Modifications"
+          },
+          "error_rate": {
+            "type": "number",
+            "title": "Error Rate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "parameter_key",
+          "total_reviews",
+          "total_modifications",
+          "error_rate"
+        ],
+        "title": "ErrorHotspot"
+      },
+      "ExtractionRun": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "run_number": {
+            "type": "integer",
+            "title": "Run Number"
+          },
+          "parameters_count": {
+            "type": "integer",
+            "title": "Parameters Count"
+          },
+          "extraction_type": {
+            "type": "string",
+            "title": "Extraction Type"
+          },
+          "model_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Name"
+          },
+          "reasoning_effort": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reasoning Effort"
+          },
+          "temperature": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "user_id",
+          "run_number",
+          "parameters_count",
+          "extraction_type"
+        ],
+        "title": "ExtractionRun",
+        "description": "One row of the per-attempt audit table. model_name/reasoning_effort/temperature (Task 5,\nPart B) record what a specific ITERATIVE/SINGLE_PARAM correction actually used \u2014 NULL for\nMAIN_MULTI_AGENT runs and any row that predates the migration adding these columns."
+      },
+      "ExtractionTemplateBase": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          },
+          "customer_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
+          },
+          "is_global": {
+            "type": "boolean",
+            "title": "Is Global"
+          },
+          "is_system_default": {
+            "type": "boolean",
+            "title": "Is System Default"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "user_id",
+          "customer_id",
+          "is_global",
+          "is_system_default",
+          "created_at"
+        ],
+        "title": "ExtractionTemplateBase"
+      },
+      "GlobalMetricsResponse": {
+        "properties": {
+          "accepted_count": {
+            "type": "integer",
+            "title": "Accepted Count"
+          },
+          "corrected_count": {
+            "type": "integer",
+            "title": "Corrected Count"
+          },
+          "pending_count": {
+            "type": "integer",
+            "title": "Pending Count"
+          },
+          "total_parameters": {
+            "type": "integer",
+            "title": "Total Parameters"
+          },
+          "acceptance_rate_percent": {
+            "type": "number",
+            "title": "Acceptance Rate Percent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "accepted_count",
+          "corrected_count",
+          "pending_count",
+          "total_parameters",
+          "acceptance_rate_percent"
+        ],
+        "title": "GlobalMetricsResponse"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ModelAssignment": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "slot_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Slot Id"
+          },
+          "model_name": {
+            "type": "string",
+            "title": "Model Name"
+          },
+          "reasoning_effort": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reasoning Effort"
+          },
+          "temperature": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature"
+          },
+          "scope": {
+            "type": "string",
+            "title": "Scope"
+          },
+          "customer_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "slot_id",
+          "model_name",
+          "scope",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ModelAssignment"
+      },
+      "ModelAssignmentSet": {
+        "properties": {
+          "model_name": {
+            "type": "string",
+            "title": "Model Name"
+          },
+          "reasoning_effort": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reasoning Effort"
+          },
+          "temperature": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature"
+          },
+          "scope": {
+            "type": "string",
+            "title": "Scope",
+            "default": "GLOBAL"
+          },
+          "customer_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_name"
+        ],
+        "title": "ModelAssignmentSet"
+      },
+      "ParameterInput": {
+        "properties": {
+          "project_parameter_id": {
+            "type": "string",
+            "title": "Project Parameter Id"
+          },
+          "final_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Value"
+          },
+          "final_unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Unit"
+          },
+          "is_human_modified": {
+            "type": "boolean",
+            "title": "Is Human Modified",
+            "default": false
+          },
+          "selected_candidate_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Candidate Id"
+          },
+          "flag": {
+            "type": "boolean",
+            "title": "Flag",
+            "default": false
+          },
+          "flag_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flag Reason"
+          },
+          "flagger_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flagger Id"
+          },
+          "review_action": {
+            "type": "string",
+            "enum": [
+              "ACCEPTED",
+              "MODIFIED",
+              "REJECTED",
+              "PENDING"
+            ],
+            "title": "Review Action",
+            "default": "PENDING"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_parameter_id"
+        ],
+        "title": "ParameterInput"
+      },
+      "PinDetail": {
+        "properties": {
+          "slot_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Slot Id"
+          },
+          "slot_key": {
+            "type": "string",
+            "title": "Slot Key"
+          },
+          "slot_level": {
+            "type": "string",
+            "title": "Slot Level"
+          },
+          "prompt_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Prompt Version Id"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          },
+          "version_number": {
+            "type": "integer",
+            "title": "Version Number"
+          },
+          "resolved_from_scope": {
+            "type": "string",
+            "title": "Resolved From Scope"
+          },
+          "model_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Name"
+          },
+          "reasoning_effort": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reasoning Effort"
+          },
+          "temperature": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature"
+          },
+          "pinned_by_run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pinned By Run Id"
+          },
+          "pinned_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Pinned At"
+          },
+          "is_lazy": {
+            "type": "boolean",
+            "title": "Is Lazy",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "slot_id",
+          "slot_key",
+          "slot_level",
+          "prompt_version_id",
+          "content",
+          "version_number",
+          "resolved_from_scope",
+          "pinned_at"
+        ],
+        "title": "PinDetail",
+        "description": "Task 5, Part A \u2014 one row of GET /projects/{project_id}/prompt-pins: a pin joined with its\nslot_key and the pinned version's content, so the response is directly readable without a\nsecond lookup per row."
+      },
+      "ProjectCreateInput": {
+        "properties": {
+          "alias_id": {
+            "type": "string",
+            "title": "Alias Id"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "customer_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "template_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "alias_id",
+          "user_id",
+          "template_id"
+        ],
+        "title": "ProjectCreateInput"
+      },
+      "ProjectParameterUpdateInput": {
+        "properties": {
+          "parameter_alias": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parameter Alias"
+          },
+          "description_override": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description Override"
+          },
+          "ai_instructions": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ai Instructions"
+          }
+        },
+        "type": "object",
+        "title": "ProjectParameterUpdateInput",
+        "description": "Input schema for updating a project's parameter metadata."
+      },
+      "ProjectPromptResolution": {
+        "properties": {
+          "already_pinned": {
+            "type": "boolean",
+            "title": "Already Pinned"
+          },
+          "slots": {
+            "items": {
+              "$ref": "#/components/schemas/ResolvedSlotConfig"
+            },
+            "type": "array",
+            "title": "Slots"
+          }
+        },
+        "type": "object",
+        "required": [
+          "already_pinned",
+          "slots"
+        ],
+        "title": "ProjectPromptResolution",
+        "description": "Response shape for GET /projects/{project_id}/prompt-resolution: the resolved config for\nevery slot, plus whether the project is already pinned (in which case every slot below\nreflects the pin verbatim, not a fresh resolution)."
+      },
+      "ProjectToTemplate": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "new_template_name": {
+            "type": "string",
+            "title": "New Template Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "user_id",
+          "new_template_name"
+        ],
+        "title": "ProjectToTemplate"
+      },
+      "PromptAssignment": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "slot_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Slot Id"
+          },
+          "prompt_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Prompt Version Id"
+          },
+          "scope": {
+            "type": "string",
+            "title": "Scope",
+            "description": "'GLOBAL', 'CUSTOMER', or 'PROJECT'."
+          },
+          "customer_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "slot_id",
+          "prompt_version_id",
+          "scope",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "PromptAssignment"
+      },
+      "PromptVersion": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "slot_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Slot Id"
+          },
+          "version_number": {
+            "type": "integer",
+            "title": "Version Number"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          },
+          "change_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Note"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "is_archived": {
+            "type": "boolean",
+            "title": "Is Archived",
+            "default": false
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "slot_id",
+          "version_number",
+          "content",
+          "created_at"
+        ],
+        "title": "PromptVersion"
+      },
+      "ResolvedSlotConfig": {
+        "properties": {
+          "slot_key": {
+            "type": "string",
+            "title": "Slot Key"
+          },
+          "slot_level": {
+            "type": "string",
+            "title": "Slot Level"
+          },
+          "slot_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slot Description"
+          },
+          "executes_calls": {
+            "type": "boolean",
+            "title": "Executes Calls"
+          },
+          "is_project_scopable": {
+            "type": "boolean",
+            "title": "Is Project Scopable"
+          },
+          "prompt_version_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Version Id"
+          },
+          "version_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Number"
+          },
+          "resolved_from_scope": {
+            "type": "string",
+            "title": "Resolved From Scope"
+          },
+          "model_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Name"
+          },
+          "reasoning_effort": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reasoning Effort"
+          },
+          "temperature": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature"
+          },
+          "is_lazy": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Lazy"
+          }
+        },
+        "type": "object",
+        "required": [
+          "slot_key",
+          "slot_level",
+          "executes_calls",
+          "is_project_scopable",
+          "resolved_from_scope"
+        ],
+        "title": "ResolvedSlotConfig",
+        "description": "One row of GET /projects/{project_id}/prompt-resolution: what load_slots_for_project\nresolved for one slot, plus the slot's catalogue metadata (level/description/executes_calls/\nis_project_scopable) so the UI doesn't need a second round trip. `prompt_version_id` and\n`version_number` are None exactly when `resolved_from_scope == 'file'` \u2014 the on-disk fallback\nhas no DB-backed version."
+      },
+      "SingleParameterRequest": {
+        "properties": {
+          "current_user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "parameter": {
+            "type": "string",
+            "title": "Parameter"
+          },
+          "previous_metrics": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Metrics"
+          },
+          "user_hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Hint"
+          }
+        },
+        "type": "object",
+        "required": [
+          "current_user",
+          "parameter"
+        ],
+        "title": "SingleParameterRequest"
+      },
+      "SlotSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "slot_key": {
+            "type": "string",
+            "title": "Slot Key"
+          },
+          "slot_level": {
+            "type": "string",
+            "title": "Slot Level"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "required_placeholders": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Required Placeholders"
+          },
+          "is_project_scopable": {
+            "type": "boolean",
+            "title": "Is Project Scopable"
+          },
+          "executes_calls": {
+            "type": "boolean",
+            "title": "Executes Calls"
+          },
+          "current_version": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PromptVersion"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "current_model": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelAssignment"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "slot_key",
+          "slot_level",
+          "is_project_scopable",
+          "executes_calls"
+        ],
+        "title": "SlotSummary",
+        "description": "Task 5, Part A \u2014 response shape for GET /prompts/slots: a slot plus its current GLOBAL\nversion and (for AGENT slots) current GLOBAL model config, in one row so the admin picker\ndoesn't need a second round trip per slot."
+      },
+      "TemplateCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          },
+          "customer_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
+          },
+          "is_global": {
+            "type": "boolean",
+            "title": "Is Global",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "TemplateCreate"
+      },
+      "TemplateRule": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "template_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Template Id"
+          },
+          "parameter_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Parameter Id"
+          },
+          "canonical_name": {
+            "type": "string",
+            "title": "Canonical Name"
+          },
+          "custom_alias": {
+            "type": "string",
+            "title": "Custom Alias"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "description_override": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description Override"
+          },
+          "ai_instructions": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ai Instructions"
+          },
+          "expected_unit_override": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Unit Override"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "template_id",
+          "parameter_id",
+          "canonical_name",
+          "custom_alias",
+          "is_active",
+          "description_override",
+          "ai_instructions",
+          "expected_unit_override"
+        ],
+        "title": "TemplateRule"
+      },
+      "TemplateRuleUpsert": {
+        "properties": {
+          "parameter_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Parameter Id"
+          },
+          "custom_alias": {
+            "type": "string",
+            "title": "Custom Alias"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "default": true
+          },
+          "description_override": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description Override"
+          },
+          "ai_instructions": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ai Instructions"
+          },
+          "expected_unit_override": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Unit Override"
+          }
+        },
+        "type": "object",
+        "required": [
+          "parameter_id",
+          "custom_alias"
+        ],
+        "title": "TemplateRuleUpsert"
+      },
+      "TemplateWithRules": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          },
+          "customer_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
+          },
+          "is_global": {
+            "type": "boolean",
+            "title": "Is Global"
+          },
+          "is_system_default": {
+            "type": "boolean",
+            "title": "Is System Default"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/TemplateRule"
+            },
+            "type": "array",
+            "title": "Rules"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "user_id",
+          "customer_id",
+          "is_global",
+          "is_system_default",
+          "created_at"
+        ],
+        "title": "TemplateWithRules"
+      },
+      "UpdateSelectedCandidate": {
+        "properties": {
+          "flag_id": {
+            "type": "string",
+            "title": "Flag Id"
+          },
+          "resolved_by": {
+            "type": "string",
+            "title": "Resolved By"
+          }
+        },
+        "type": "object",
+        "required": [
+          "flag_id",
+          "resolved_by"
+        ],
+        "title": "UpdateSelectedCandidate"
+      },
+      "UpdateUserSettingsInput": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "template_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template Id"
+          },
+          "theme": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Theme"
+          },
+          "lang": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lang"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id"
+        ],
+        "title": "UpdateUserSettingsInput"
+      },
+      "User": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "User"
+      },
+      "UserFeedback": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id",
+            "description": "The UUID of the user providing feedback."
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "The UUID of the project for which feedback is being submitted."
+          },
+          "document_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Id",
+            "description": "The UUID of the document related to the feedback, if applicable."
+          },
+          "feedback_type": {
+            "type": "string",
+            "title": "Feedback Type",
+            "description": "The type of feedback being submitted (e.g., 'general', 'document-specific')."
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "An optional title for the feedback entry."
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "description": "The feedback text provided by the user."
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status",
+            "description": "The status of the feedback entry (e.g., 'new', 'reviewed', 'resolved'). Defaults to 'new'.",
+            "default": "new"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "Optional metadata related to the feedback entry, stored as a JSON object."
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "project_id",
+          "feedback_type",
+          "description"
+        ],
+        "title": "UserFeedback"
+      },
+      "UserRegistration": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Username"
+          },
+          "department": {
+            "$ref": "#/components/schemas/DepartmentEnum"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "department"
+        ],
+        "title": "UserRegistration"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VelocityMetric": {
+        "properties": {
+          "review_date": {
+            "type": "string",
+            "title": "Review Date"
+          },
+          "parameters_verified": {
+            "type": "integer",
+            "title": "Parameters Verified"
+          }
+        },
+        "type": "object",
+        "required": [
+          "review_date",
+          "parameters_verified"
+        ],
+        "title": "VelocityMetric"
+      },
+      "VersionCreate": {
+        "properties": {
+          "content": {
+            "type": "string",
+            "title": "Content"
+          },
+          "change_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Note"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          }
+        },
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "title": "VersionCreate"
+      }
+    }
+  }
+}

@@ -1,17 +1,16 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Box, ThemeProvider, CssBaseline, IconButton, ToggleButtonGroup, ToggleButton } from '@mui/material';
-import SettingsIcon from '@mui/icons-material/Settings';
+import { Box, Chip, ToggleButtonGroup, ToggleButton, Typography } from '@mui/material';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import FeedbackIcon from '@mui/icons-material/Feedback';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 
-import { theme } from '@/theme/theme';
-import { colors } from '@/theme/colors';
 import { useAdminData } from '@/hooks/AdminData';
 import { AdminSidebar } from '@/components/ProjectsSideBar/AdminSideBar';
-import { LayoutHeader } from '@/components/Headers/LayoutHeader'; 
-import { SettingsModal } from '@/components/SettingsModal';
+import { AppHeader } from '@/components/shell/AppHeader';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { SkeletonRows } from '@/components/ui/Skeletons';
 
 import GlobalOverview from './components/GlobalOverview';
 import ProjectSummary from './components/ProjectSummary';
@@ -33,10 +32,13 @@ export default function AdminPage() {
     setDateFilter,
     users,
     dashboardData,
-    feedbacks // Pulling feedbacks from your hook
+    feedbacks,
+    isLoading,
+    error,
+    feedbackError,
+    reload,
   } = adminData;
 
-  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   
   // State to toggle between views
   const [activeTab, setActiveTab] = useState<'projects' | 'feedback'>('projects');
@@ -50,21 +52,24 @@ export default function AdminPage() {
   };
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden', bgcolor: colors.background }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden', bgcolor: 'surface.canvas' }}>
         
-        <LayoutHeader 
-          title="Admin" 
-          settingsIcon={
+        {/* The shell header, with the admin view switcher in the breadcrumb
+            slot. Labelled unauthenticated per A2: /auth has no password or
+            token, so the UI must not imply permissions are enforced. */}
+        <AppHeader
+          breadcrumb={
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              {/* Added a toggle to switch between views cleanly */}
+              <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                Admin &middot; no authentication
+              </Typography>
+              <Chip size="small" icon={<LockOutlinedIcon />} label="Anyone can open this page" sx={{ bgcolor: 'status.warningBg', color: 'status.warning', '& .MuiChip-icon': { color: 'inherit' } }} />
               <ToggleButtonGroup
                 value={activeTab}
                 exclusive
                 onChange={handleTabChange}
                 size="small"
-                sx={{ bgcolor: colors.surface }}
+                sx={{ bgcolor: 'surface.panel' }}
               >
                 <ToggleButton value="projects" aria-label="projects view">
                   <AssignmentIcon fontSize="small" sx={{ mr: 1 }} />
@@ -75,24 +80,28 @@ export default function AdminPage() {
                   Feedback
                 </ToggleButton>
               </ToggleButtonGroup>
-
-              <IconButton edge="end" onClick={() => setIsSettingsOpen(true)}>
-                <SettingsIcon />
-              </IconButton>
             </Box>
-          } 
+          }
         />
 
         <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
           
+          {/* A failed projects load must not read as "no projects" (8.4). */}
+          {activeTab === 'projects' && error && (
+            <Box sx={{ flex: 1 }}>
+              <ErrorState title="Could not load the projects" description={error} onRetry={reload} />
+            </Box>
+          )}
+
           {/* Only show the sidebar if we are in the 'projects' view */}
-          {activeTab === 'projects' && (
+          {activeTab === 'projects' && !error && (
             <Box sx={{ 
               width: isExpanded ? '100%' : 350, 
               flexShrink: 0,
               transition: 'width 0.3s ease', 
-              borderRight: isExpanded ? 'none' : `1px solid ${colors.border}`, 
-              bgcolor: colors.surface, 
+              borderRight: isExpanded ? 'none' : '1px solid',
+              borderColor: 'border.subtle', 
+              bgcolor: 'surface.panel',
               display: 'flex', flexDirection: 'column', zIndex: 10 
             }}>
               <AdminSidebar 
@@ -112,16 +121,22 @@ export default function AdminPage() {
             </Box>
           )}
 
-          {!isExpanded && (
+          {!isExpanded && !(activeTab === 'projects' && error) && (
             <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 3, overflow: 'hidden' }}>
               {activeTab === 'feedback' ? (
-                <FeedbackArea feedbacks={feedbacks} />
+                feedbackError ? (
+                  <ErrorState title="Could not load the feedback" description={feedbackError} onRetry={reload} />
+                ) : (
+                  <FeedbackArea feedbacks={feedbacks} />
+                )
               ) : (
                 selectedProjectId ? (
                   <ProjectSummary 
                     projectId={selectedProjectId} 
                     onBack={() => setSelectedProjectId(null)} 
                   />
+                ) : isLoading ? (
+                  <SkeletonRows count={6} columns={3} />
                 ) : (
                   <GlobalOverview dashboardData={dashboardData} />
                 )
@@ -130,11 +145,6 @@ export default function AdminPage() {
           )}
 
         </Box>
-        <SettingsModal 
-          open={isSettingsOpen} 
-          onClose={() => setIsSettingsOpen(false)} 
-        />
-      </Box>
-    </ThemeProvider>
+    </Box>
   );
 }

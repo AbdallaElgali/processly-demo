@@ -2,26 +2,25 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { Box, Skeleton } from '@mui/material';
 import { useAuth } from '@/contexts/AuthContext';
-import { Box, CircularProgress } from '@mui/material';
+import { useHasMounted } from '@/hooks/useHasMounted';
 
-export default function Page() {
+/** The root sends you to the projects list, or to sign in (decision D4). */
+export default function RootPage() {
   const { user, isLoading } = useAuth();
+  const hasMounted = useHasMounted();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading) {
-      if (user) {
-        router.push('/bda');
-      } else {
-        router.push('/login');
-      }
-    }
-  }, [user, isLoading, router]);
+    if (!hasMounted || isLoading) return;
+    router.replace(user ? '/projects' : '/login');
+  }, [user, isLoading, hasMounted, router]);
 
   return (
-    <Box sx={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>
-      <CircularProgress />
+    <Box sx={{ p: 4 }}>
+      <Skeleton variant="text" width={220} height={40} />
+      <Skeleton variant="rounded" height={132} sx={{ mt: 2, maxWidth: 260 }} />
     </Box>
   );
 }

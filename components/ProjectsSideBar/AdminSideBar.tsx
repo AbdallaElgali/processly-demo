@@ -1,17 +1,19 @@
 import React from 'react';
 import { 
-  Box, Typography, Tooltip, IconButton, TextField, 
+  Box, Tooltip, IconButton, TextField, 
   FormControl, InputLabel, Select, MenuItem, Button
 } from '@mui/material';
 import { 
   Search as SearchIcon, OpenInFull as OpenInFullIcon, 
-  CloseFullscreen as CloseFullscreenIcon, Clear as ClearIcon 
+  CloseFullscreen as CloseFullscreenIcon, Clear as ClearIcon, FactCheckOutlined as AuditIcon 
 } from '@mui/icons-material';
+import Link from 'next/link';
 import { BaseSidebar } from './BaseSideBar';
+import type { ProjectMetrics } from '@/types/audit';
 
 // Props passed down from the AdminPage's useAdminData hook
 interface AdminSidebarProps {
-  projects: any[];
+  projects: ProjectMetrics[];
   selectedProjectId: string | null;
   setSelectedProjectId: (id: string | null) => void;
   isExpanded: boolean;
@@ -31,10 +33,14 @@ export const AdminSidebar = ({
   selectedUser, setSelectedUser, dateFilter, setDateFilter, users
 }: AdminSidebarProps) => {
 
+  // `p.users` is the real field on ProjectMetrics; the previous code read a
+  // non-existent `p.user`, which rendered the literal string "undefined".
   const formattedProjects = projects.map(p => ({
     id: p.id,
     primaryText: p.name,
-    secondaryText: `${p.user} | ${p.date}`
+    secondaryText: [p.users?.map(u => u?.username).filter(Boolean).join(', '), p.date]
+      .filter(Boolean)
+      .join(' | ')
   }));
 
   const handleProjectClick = (id: string) => {
@@ -49,6 +55,13 @@ export const AdminSidebar = ({
       selectedProjectId={selectedProjectId}
       onProjectClick={handleProjectClick}
       emptyStateMessage="No projects match your filters."
+      renderProjectActions={(id) => (
+        <Tooltip title="Open this project's Audit">
+          <IconButton component={Link} href={`/projects/${id}/audit`} size="small" aria-label="Open this project's Audit">
+            <AuditIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      )}
       headerAction={
         <Tooltip title={isExpanded ? "Collapse" : "Expand Fullscreen"}>
           <IconButton size="small" onClick={() => setIsExpanded(!isExpanded)}>
@@ -61,7 +74,7 @@ export const AdminSidebar = ({
           <TextField 
             size="small" fullWidth placeholder="Search projects..." 
             value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-            InputProps={{ startAdornment: <SearchIcon color="action" sx={{ mr: 1, fontSize: 20 }} /> }}
+            slotProps={{ input: { startAdornment: <SearchIcon color="action" sx={{ mr: 1, fontSize: 20 }} /> } }}
           />
 
           {isExpanded && (

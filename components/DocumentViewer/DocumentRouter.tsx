@@ -1,56 +1,43 @@
 'use client';
 
-import React from 'react';
-import { Box, Typography } from '@mui/material';
-import { colors } from '@/theme/colors';
+import { memo } from 'react';
+import { Box } from '@mui/material';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { PdfViewer } from './PdfViewer';
 import { ExcelViewer } from './ExcelViewer';
-import { ActiveHighlight } from '@/types';
+import type { ViewerHighlight } from './types';
 
 interface DocumentRouterProps {
-  fileUrl: string | null;
-  fileType: string | null;
-  activeHighlight: ActiveHighlight;
+  projectId: string;
+  documentId: string;
+  fileUrl: string;
+  mime: string;
+  highlight: ViewerHighlight | null;
+  /** Fetch the file again (the spreadsheet viewer offers it when the bytes cannot be read). */
+  onReload?: () => void;
 }
 
-export const DocumentRouter = ({ fileUrl, fileType, activeHighlight }: DocumentRouterProps) => {
-  if (!fileUrl || !fileType) {
-    return (
-      <Box sx={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', bgcolor: colors.surface }}>
-        <Typography sx={{ color: 'rgba(255,255,255,0.5)' }}>Upload a document to view</Typography>
-      </Box>
-    );
+/**
+ * Picks the viewer by MIME type. Each viewer is keyed by its file URL, so a
+ * new file always gets a fresh viewer (and a fresh pdf.js worker document)
+ * rather than inheriting the previous file's state.
+ */
+function DocumentRouterImpl({ projectId, documentId, fileUrl, mime, highlight, onReload }: DocumentRouterProps) {
+  const type = mime.toLowerCase();
+
+  if (type.includes('pdf')) {
+    return <PdfViewer key={fileUrl} fileUrl={fileUrl} projectId={projectId} documentId={documentId} highlight={highlight} />;
   }
 
-  const typeString = fileType.toLowerCase();
-
-  // THE FIX: Adding a unique 'key' based on fileUrl forces React to 
-  // hard-reset the component, killing any ghost PDF workers from the previous file.
-  if (typeString.includes('pdf')) {
-    return (
-      <PdfViewer 
-        key={fileUrl} // <--- THIS PREVENTS THE sendWithPromise ERROR
-        pdfDocument={fileUrl} 
-        activeHighlight={activeHighlight} 
-      />
-    );
-  }
-
-  if (typeString.includes('spreadsheet') || typeString.includes('excel') || typeString.includes('csv') || typeString.includes('sheet')) {
-    return (
-      <ExcelViewer 
-        key={fileUrl} // Same logic for Excel to prevent state bleed
-        excelDocument={fileUrl} 
-        activeHighlight={activeHighlight} 
-      />
-    );
+  if (type.includes('spreadsheet') || type.includes('excel') || type.includes('sheet') || type.includes('csv')) {
+    return <ExcelViewer key={fileUrl} fileUrl={fileUrl} projectId={projectId} documentId={documentId} highlight={highlight} onReload={onReload} />;
   }
 
   return (
-    <Box sx={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', bgcolor: colors.surface }}>
-      <Typography color="error">Unsupported file type: {fileType}</Typography>
+    <Box sx={{ height: '100%', bgcolor: 'surface.canvas' }}>
+      <EmptyState title="This file type cannot be shown" description={`The viewer shows PDF and Excel files; this one is ${mime}.`} />
     </Box>
   );
-};
+}
 
-export const MemoizedDocumentRouter = React.memo(DocumentRouter);
+export const DocumentRouter = memo(DocumentRouterImpl);

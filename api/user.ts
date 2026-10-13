@@ -12,7 +12,7 @@ export interface UserSettings {
     // Add other settings fields as needed
 }
 
-export const update_user_settings = async (userId: string, settings: UserSettings): Promise<Boolean> => {
+export const update_user_settings = async (userId: string, settings: UserSettings): Promise<boolean> => {
     const response = await fetch(`${API_BASE_URL}/update-user-settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },

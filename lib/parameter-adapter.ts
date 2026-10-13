@@ -9,14 +9,8 @@ import {
   Specification,
   SpecificationSource,
   ReviewAction,
-  SCHEMA_GROUPS,
 } from '@/types';
 import { ProjectParameter, ParameterInput } from '@/api/projects';
-
-// Flat lookup: parameter_key -> display label
-const FIELD_LABEL_MAP = new Map(
-  SCHEMA_GROUPS.flatMap(g => g.fields.map(f => [f.id, f.label] as const))
-);
 
 // Backend confidence is on a 0–1 scale; the UI works in 0–100.
 const toUiConfidence = (c: unknown): number | null =>
@@ -100,6 +94,10 @@ const candidateToSpecification = (item: Record<string, unknown>): Specification 
     rule_passed: !item.rule_violations || (item.rule_violations as unknown[]).length === 0,
     rule_violations: (item.rule_violations as string[]) || [],
     requires_review: (item.requires_review as boolean) || false,
+    expectedUnit: (item.expected_unit as string) ?? null,
+    extractionLogic: (item.extraction_logic as string) ?? null,
+    calculationLogic: (item.calculation_logic as string) ?? null,
+    runNumber: typeof item.run_number === 'number' ? item.run_number : null,
   };
 };
 
@@ -132,6 +130,7 @@ export const dbParamToInputField = (p: ProjectParameter): InputField => {
     flagReason: p.flag_reason ?? null,
     activeFlagId: p.active_flag_id ?? null,
     reviewAction: ((p.review_action as ReviewAction) || 'PENDING') as ReviewAction,
+    isHumanModified: !!p.is_human_modified,
   };
 
   const specifications = (p.candidates ?? []).map(c =>
@@ -153,7 +152,13 @@ export const dbParamToInputField = (p: ProjectParameter): InputField => {
       // saved value on the selected spec while keeping every candidate as an
       // alternative. Otherwise trust the candidate's own value and confidence.
       if (p.is_human_modified) {
-        const edited: Specification = { ...selected, value: finalValue, unit: finalUnit, confidence: null };
+        const edited: Specification = {
+          ...selected,
+          value: finalValue,
+          unit: finalUnit,
+          confidence: null,
+          original: { value: selected.value, unit: selected.unit, confidence: selected.confidence },
+        };
         return {
           ...base,
           specifications: specifications.map(s => (s.id === edited.id ? edited : s)),
@@ -188,27 +193,30 @@ export const inputFieldToParameterInput = (
   userId: string | null
 ): ParameterInput => {
   const activeSpec = f.specifications.find(s => s.id === f.selectedSpecId) ?? f.specifications[0];
-  const parsed = activeSpec?.value ? Number(activeSpec.value) : null;
+  const raw = activeSpec?.value ?? '';
+  const parsed = raw === '' ? null : Number(raw);
 
   return {
     project_parameter_id: f.dbId,
     parameter_key: f.id,
-    final_value: parsed !== null && !isNaN(parsed) ? parsed : null,
+    // A value that is not a number is sent as the string the engineer typed.
+    // It used to be coerced to null, which discarded it on save; the backend
+    // accepts number | string | null.
+    final_value: parsed === null ? null : Number.isNaN(parsed) ? raw : parsed,
     final_unit: activeSpec?.unit || null,
-    is_human_modified: f.reviewAction === 'MODIFIED',
+    // What the server had, changed only by an edit or a revert (lib/review/edits.ts).
+    is_human_modified: f.isHumanModified ?? f.reviewAction === 'MODIFIED',
     selected_candidate_id: activeSpec?.candidateId ?? null,
     flag: f.isFlagged,
     flag_reason: f.isFlagged ? f.flagReason : null,
     flagger_id: f.isFlagged ? userId : null,
+    // The row's real state: the server's, or what the person just did to it
+    // (edit -> MODIFIED, Accept -> ACCEPTED). Never a blanket PENDING.
     review_action: f.reviewAction,
   };
 };
 
 // --- Stream -> UI -----------------------------------------------------------
-
-const schemaLabelMap: Record<string, string> = Object.fromEntries(
-  SCHEMA_GROUPS.flatMap(g => g.fields.map(f => [f.id, f.label]))
-);
 
 // Maps the raw spec map streamed from /specs/stream-specs into transient
 // InputFields. Only `id` and `specifications` are consumed downstream by
@@ -223,7 +231,7 @@ export const specsStreamToInputFields = (rawSpecs: Record<string, unknown>): Inp
     extractedFields.push({
       id: fieldId,
       dbId: '', // transient — handlePopulateExtractedData only reads specifications
-      label: schemaLabelMap[fieldId] ?? fieldId,
+      label: fieldId, // transient, like dbId
       specifications: metricsArray.map((item: Record<string, unknown>) =>
         candidateToSpecification(item)
       ),

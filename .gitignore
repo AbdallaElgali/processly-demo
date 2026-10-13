@@ -39,3 +39,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Confidential customer test documents (see CLAUDE.md section 2). Never commit.
+test-data/
+
+# pdf.js worker, CMaps and fonts, copied from node_modules by scripts/copy-pdf-assets.mjs
+/public/pdfjs/
+
+# Written by `next dev` (Next 16.4); not ours
+/AGENTS.md

@@ -1,325 +1,320 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
-import { 
-  Box, CircularProgress, Table, TableBody, TableCell, TableContainer, TableHead,
-  TableRow, Paper, Typography, Tabs, Tab, IconButton, Divider, Tooltip
-} from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import RemoveIcon from '@mui/icons-material/Remove';
-import RestartAltIcon from '@mui/icons-material/RestartAlt';
-import FullscreenIcon from '@mui/icons-material/Fullscreen';
-import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
-import FormatQuoteIcon from '@mui/icons-material/FormatQuote';
-import * as XLSX from 'xlsx';
-import { colors } from '@/theme/colors';
-import { ActiveHighlight } from '@/types';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Box, Skeleton, Stack } from '@mui/material';
+import InsertChartOutlinedIcon from '@mui/icons-material/InsertChartOutlined';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { projectDataStore, type ExcelSheetView } from '@/lib/project-data/store';
+import { cellRef, type CellPos } from '@/lib/excel/address';
+import { loadWorkbook } from '@/lib/excel/cache';
+import { anchorOf, clampPos } from '@/lib/excel/grid';
+import { resolveExcelTarget, type ExcelTarget } from '@/lib/excel/highlight';
+import { matchNav } from '@/lib/excel/matchNav';
+import { cellKey, regionAt, type WorkbookModel } from '@/lib/excel/workbook';
+import type { ViewerHighlight } from './types';
+import { SheetGrid, type GridJump } from './excel/SheetGrid';
+import { FormulaBar } from './excel/FormulaBar';
+import { SheetBar, type SourceStatus } from './excel/SheetBar';
 
 interface ExcelViewerProps {
-  excelDocument: string;
-  activeHighlight?: ActiveHighlight;
+  fileUrl: string;
+  projectId: string;
+  documentId: string;
+  highlight: ViewerHighlight | null;
+  /** Fetch the file again; without it, Retry only parses the same bytes again. */
+  onReload?: () => void;
 }
 
-const getColumnLetter = (colIndex: number) => {
-  let letter = '';
-  let temp = colIndex;
-  while (temp >= 0) {
-    letter = String.fromCharCode((temp % 26) + 65) + letter;
-    temp = Math.floor(temp / 26) - 1;
+type Load = { key: string; status: 'loading' } | { key: string; status: 'ready'; wb: WorkbookModel } | { key: string; status: 'error'; error: string };
+
+/**
+ * The spreadsheet viewer (AM16, step 9b). Reads .xlsx and .xlsm as data only
+ * (no macros, no recalculation), and draws them like Excel: name box and
+ * value bar on top, the sheet in the middle, sheet tabs and zoom at the
+ * bottom. Sheet, scroll position and selected cell are kept per document
+ * (and per sheet) in the project-data store, like the PDF viewer's page.
+ */
+export function ExcelViewer({ fileUrl, projectId, documentId, highlight, onReload }: ExcelViewerProps) {
+  const [attempt, setAttempt] = useState(0);
+  const key = `${fileUrl}#${attempt}`;
+  const [load, setLoad] = useState<Load>({ key, status: 'loading' });
+
+  useEffect(() => {
+    let alive = true;
+    loadWorkbook(fileUrl).then(
+      (wb) => alive && setLoad({ key, status: 'ready', wb }),
+      (e: unknown) => alive && setLoad({ key, status: 'error', error: e instanceof Error ? e.message : 'The workbook could not be parsed.' }),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [fileUrl, key]);
+
+  const current: Load = load.key === key ? load : { key, status: 'loading' };
+
+  if (current.status === 'loading') {
+    return (
+      <Stack sx={{ height: '100%', bgcolor: 'document.canvas' }} aria-busy="true" aria-label="Loading spreadsheet">
+        <Skeleton variant="rectangular" height={38} sx={{ bgcolor: 'surface.panel' }} />
+        <Skeleton variant="rectangular" sx={{ flex: 1, bgcolor: 'document.page', m: 0 }} />
+        <Skeleton variant="rectangular" height={34} sx={{ bgcolor: 'surface.panel' }} />
+      </Stack>
+    );
   }
-  return letter;
-};
+  if (current.status === 'error') {
+    return (
+      <Box sx={{ height: '100%', bgcolor: 'surface.canvas' }}>
+        <ErrorState title="This spreadsheet could not be read" description={current.error} onRetry={() => (onReload ? onReload() : setAttempt((a) => a + 1))} />
+      </Box>
+    );
+  }
+  return <WorkbookView wb={current.wb} projectId={projectId} documentId={documentId} highlight={highlight} />;
+}
 
-export const ExcelViewer = ({ excelDocument, activeHighlight }: ExcelViewerProps) => {
-  const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
-  const [activeSheet, setActiveSheet] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  
-  // NEW: Viewport Controls
-  const [scale, setScale] = useState<number>(1.0);
-  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
-  
-  const highlightedCellRef = useRef<HTMLTableCellElement | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+interface View {
+  sheet: number;
+  sel: CellPos;
+  /** The highlight nonce last acted on (persisted, so a remount does not jump again). */
+  nonce: number | null;
+  jump: GridJump | null;
+  /** The sheet's saved scroll position, read when the sheet is entered. */
+  initialScroll: { top: number; left: number } | null;
+  /** Counter for local jumps (name box, "go to source"); negative nonces, never persisted. */
+  seq: number;
+  /** The highlight's `matchIndex` last acted on. */
+  match: number;
+}
 
-  // 1. Initial Parse
-  useEffect(() => {
-    setWorkbook(null);
-    setActiveSheet('');
+function firstVisibleSheet(wb: WorkbookModel): number {
+  const i = wb.sheets.findIndex((s) => !s.hidden && s.kind === 'sheet');
+  return i >= 0 ? i : 0;
+}
 
-    const parseExcel = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(excelDocument);
-        const arrayBuffer = await response.arrayBuffer();
-        const data = new Uint8Array(arrayBuffer);
-        const wb = XLSX.read(data, { type: 'array' });
-        
-        setWorkbook(wb);
-        if (wb.SheetNames.length > 0 && !activeHighlight?.pageNumber) {
-          setActiveSheet(wb.SheetNames[0]);
-        }
-      } catch (err) {
-        console.error('Error parsing Excel:', err);
-        setError('Failed to load spreadsheet data.');
-      } finally {
-        setLoading(false);
-      }
+function savedSheet(projectId: string, documentId: string, name: string): ExcelSheetView | undefined {
+  return projectDataStore.getDocumentView(projectId, documentId)?.sheets?.[name];
+}
+
+/** Where a jump lands: the current matching cell, else the region's top-left. */
+function jumpFor(target: ExcelTarget, wb: WorkbookModel, nonce: number, match = 0): { sel: CellPos | null; jump: GridJump | null } {
+  const sheet = wb.sheets[target.sheetIndex];
+  if (!target.region) return { sel: null, jump: null };
+  const sel = anchorOf(sheet, target.matches[match] ?? target.matches[0] ?? { r: target.region.r1, c: target.region.c1 });
+  return { sel, jump: { nonce, focus: regionAt(sheet, sel), region: target.region } };
+}
+
+function WorkbookView({ wb, projectId, documentId, highlight }: { wb: WorkbookModel; projectId: string; documentId: string; highlight: ViewerHighlight | null }) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(() => projectDataStore.getDocumentView(projectId, documentId)?.scale ?? 1);
+  const [fullscreen, setFullscreen] = useState(false);
+
+  const [view, setView] = useState<View>(() => {
+    const saved = projectDataStore.getDocumentView(projectId, documentId);
+    const byName = saved?.sheet ? wb.sheets.findIndex((s) => s.name === saved.sheet) : -1;
+    const sheet = byName >= 0 ? byName : firstVisibleSheet(wb);
+    const sv = saved?.sheets?.[wb.sheets[sheet].name];
+    return {
+      sheet,
+      sel: sv ? { r: sv.r, c: sv.c } : { r: 0, c: 0 },
+      nonce: saved?.handledNonce ?? null,
+      jump: null,
+      initialScroll: sv ? { top: sv.top, left: sv.left } : null,
+      seq: 0,
+      match: highlight?.matchIndex ?? 0,
     };
-    if (excelDocument) parseExcel();
-  }, [excelDocument]);
+  });
 
-  // 2. Intelligent Sheet Switching
-  useEffect(() => {
-    if (activeHighlight?.pageNumber !== undefined && activeHighlight?.pageNumber !== null && workbook) {
-      const targetIdentifier = activeHighlight.pageNumber.toString();
-      let newSheetName = null;
+  // Keyed on what the highlight points at, not on the object: stepping
+  // through matches makes a new highlight with the same source.
+  const hlSource = highlight?.source;
+  const hlValue = highlight?.value;
+  const target = useMemo(() => (hlSource ? resolveExcelTarget(hlSource, wb, hlValue) : null), [hlSource, hlValue, wb]);
+  const matchIndex = highlight?.matchIndex ?? 0;
 
-      if (workbook.SheetNames.includes(targetIdentifier)) {
-        newSheetName = targetIdentifier; // Exact name match
-      } else {
-        const parsedIndex = parseInt(targetIdentifier, 10);
-        if (!isNaN(parsedIndex)) {
-          const zeroBasedIndex = parsedIndex > 0 ? parsedIndex - 1 : 0;
-          newSheetName = workbook.SheetNames[zeroBasedIndex];
-        }
-      }
-
-      if (newSheetName && newSheetName !== activeSheet) {
-        setActiveSheet(newSheetName);
-      }
-    }
-  }, [activeHighlight, workbook, activeSheet]);
-
-  // 3. Transform Bounds into a 2D Block
-  // 3. Transform Bounds into a 2D Block
-  const highlightRange = useMemo(() => {
-    if (!activeHighlight) return null;
-
-    if (activeHighlight.boundingBox) {
-      let x0, y0, x1, y1;
-      const bbox = activeHighlight.boundingBox;
-      
-      if (Array.isArray(bbox)) {
-        [x0, y0, x1, y1] = bbox;
-      } else {
-        // { x, y, width, height } payload
-        x0 = bbox.x;
-        y0 = bbox.y - 1;
-        x1 = bbox.x + (bbox.width || 0);
-        y1 = bbox.y + (bbox.height || 0);
-      }
-
-      if (x0 !== undefined && y0 !== undefined && x1 !== undefined && y1 !== undefined) {
-        return {
-          r1: Math.min(Math.floor(y0), Math.floor(y1)) + 1,
-          r2: Math.max(Math.floor(y0), Math.floor(y1)) + 1, 
-          c1: Math.min(Math.floor(x0), Math.floor(x1)) + 1,
-          c2: Math.max(Math.floor(x0), Math.floor(x1)) + 1 
-        };
-      }
-    }
-
-    if (activeHighlight.cellCoordinates && activeHighlight.cellCoordinates.row !== -1) {
-      return {
-        r1: activeHighlight.cellCoordinates.row,
-        r2: activeHighlight.cellCoordinates.row,
-        c1: activeHighlight.cellCoordinates.column,
-        c2: activeHighlight.cellCoordinates.column
-      };
-    }
-    return null;
-  }, [activeHighlight]);
-
-  // 4. Scroll Execution
-  useEffect(() => {
-    if (highlightedCellRef.current && !loading) {
-      const timer = setTimeout(() => {
-        highlightedCellRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
-      }, 200);
-      return () => clearTimeout(timer);
-    }
-  }, [highlightRange, activeSheet, loading, scale]);
-
-  // Fullscreen Logic
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
-
-  const toggleFullScreen = () => {
-    if (!document.fullscreenElement) {
-      containerRef.current?.requestFullscreen().catch(err => {
-        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+  // A new jump from the parameter table: switch to its sheet and select the
+  // matched cell. Adjusted during render, once per nonce (no effect needed).
+  if (highlight && highlight.nonce !== view.nonce) {
+    if (target) {
+      const { sel, jump } = jumpFor(target, wb, highlight.nonce, matchIndex);
+      const name = wb.sheets[target.sheetIndex].name;
+      const fallback = savedSheet(projectId, documentId, name);
+      setView({
+        ...view,
+        sheet: target.sheetIndex,
+        sel: sel ?? (fallback ? { r: fallback.r, c: fallback.c } : { r: 0, c: 0 }),
+        nonce: highlight.nonce,
+        jump,
+        initialScroll: fallback ? { top: fallback.top, left: fallback.left } : null,
+        match: matchIndex,
       });
     } else {
-      document.exitFullscreen();
+      setView({ ...view, nonce: highlight.nonce, match: matchIndex });
     }
+  } else if (highlight && target?.region && matchIndex !== view.match) {
+    // "N of M" in the source bar: move to another matching cell of the same
+    // jump. A local (negative) nonce, so it is never persisted as handled.
+    const { sel, jump } = jumpFor(target, wb, -(view.seq + 1), matchIndex);
+    setView({ ...view, sheet: target.sheetIndex, sel: sel ?? view.sel, seq: view.seq + 1, jump: jump && { ...jump, region: null }, initialScroll: null, match: matchIndex });
+  }
+
+  // Publish the match count for the source bar's "N of M".
+  const hlNonce = highlight?.nonce;
+  const matchCount = target?.region ? target.matches.length : 0;
+  const matchTruncated = !!target?.truncated;
+  useEffect(() => {
+    if (hlNonce === undefined) matchNav.clear(projectId, documentId);
+    else matchNav.set(projectId, documentId, { nonce: hlNonce, count: matchCount, truncated: matchTruncated });
+  }, [projectId, documentId, hlNonce, matchCount, matchTruncated]);
+  useEffect(() => () => matchNav.clear(projectId, documentId), [projectId, documentId]);
+
+  const sheet = wb.sheets[view.sheet];
+  const sel = sheet.kind === 'sheet' ? clampPos(sheet, view.sel) : { r: 0, c: 0 };
+
+  // ---- persistence (non-reactive store, written as the user moves) ----------
+  const saveSheet = useCallback(
+    (name: string, patch: Partial<ExcelSheetView>) => {
+      const cur = projectDataStore.getDocumentView(projectId, documentId);
+      const prev = cur?.sheets?.[name] ?? { top: 0, left: 0, r: 0, c: 0 };
+      projectDataStore.setDocumentView(projectId, documentId, { sheets: { ...cur?.sheets, [name]: { ...prev, ...patch } } });
+    },
+    [projectId, documentId],
+  );
+
+  useEffect(() => {
+    projectDataStore.setDocumentView(projectId, documentId, { sheet: sheet.name });
+  }, [projectId, documentId, sheet.name]);
+
+  const onSelect = useCallback((pos: CellPos) => setView((v) => ({ ...v, sel: pos })), []);
+
+  const onScrollChange = useCallback((top: number, left: number) => saveSheet(sheet.name, { top, left }), [saveSheet, sheet.name]);
+
+  const onJumpHandled = useCallback(
+    (nonce: number) => {
+      if (nonce >= 0) projectDataStore.setDocumentView(projectId, documentId, { handledNonce: nonce });
+      // Done: a remount of this sheet later restores the saved place instead of jumping again.
+      setView((v) => (v.jump?.nonce === nonce ? { ...v, jump: null } : v));
+    },
+    [projectId, documentId],
+  );
+
+  // Selected cell and scroll are saved with the sheet they belong to, so a
+  // jump's selection is remembered too.
+  useEffect(() => {
+    if (sheet.kind === 'sheet') saveSheet(sheet.name, { r: sel.r, c: sel.c });
+  }, [saveSheet, sheet.name, sheet.kind, sel.r, sel.c]);
+
+  const selectSheet = (i: number) => {
+    if (i === view.sheet) return;
+    const sv = savedSheet(projectId, documentId, wb.sheets[i].name);
+    setView((v) => ({
+      ...v,
+      sheet: i,
+      sel: sv ? { r: sv.r, c: sv.c } : { r: 0, c: 0 },
+      jump: null,
+      initialScroll: sv ? { top: sv.top, left: sv.left } : null,
+    }));
   };
 
-  const { sheetData, colHeaders } = useMemo(() => {
-    if (!workbook || !activeSheet) return { sheetData: [], colHeaders: [] };
-    const worksheet = workbook.Sheets[activeSheet];
-    if (!worksheet) return { sheetData: [], colHeaders: [] };
+  const focusGrid = () => rootRef.current?.querySelector<HTMLElement>('[data-sheet-body]')?.focus();
 
-    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' }) as unknown[][];
-    let maxCols = 0;
-    jsonData.forEach(row => { if (row.length > maxCols) maxCols = row.length; });
-    const headers = Array.from({ length: maxCols }, (_, i) => getColumnLetter(i));
+  const jumpToCell = (pos: CellPos) => {
+    if (sheet.kind !== 'sheet') return;
+    const p = anchorOf(sheet, clampPos(sheet, pos));
+    setView((v) => ({ ...v, sel: p, seq: v.seq + 1, jump: { nonce: -(v.seq + 1), focus: regionAt(sheet, p), region: null } }));
+    requestAnimationFrame(focusGrid);
+  };
 
-    const normalizedData = jsonData.map(row => {
-      const paddedRow = [...row];
-      while (paddedRow.length < maxCols) paddedRow.push('');
-      return paddedRow;
-    });
+  const goToSource = () => {
+    if (!target || !highlight) return;
+    const { sel: s, jump } = jumpFor(target, wb, -(view.seq + 1), view.match);
+    setView((v) => ({ ...v, sheet: target.sheetIndex, sel: s ?? { r: 0, c: 0 }, seq: v.seq + 1, jump, initialScroll: null }));
+  };
 
-    return { sheetData: normalizedData, colHeaders: headers };
-  }, [workbook, activeSheet]);
+  const changeScale = (s: number) => {
+    setScale(s);
+    projectDataStore.setDocumentView(projectId, documentId, { scale: s });
+  };
 
-  if (loading) return <Box sx={{ display: 'flex', height: '100%', justifyContent: 'center', alignItems: 'center' }}><CircularProgress /></Box>;
-  if (error) return <Typography color="error" sx={{ p: 3 }}>{error}</Typography>;
+  // ---- full screen ----------------------------------------------------------
+  useEffect(() => {
+    const onChange = () => setFullscreen(document.fullscreenElement === rootRef.current);
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void rootRef.current?.requestFullscreen().catch(() => undefined);
+  };
+
+  // ---- what the highlight covers --------------------------------------------
+  const onThisSheet = !!target && target.sheetIndex === view.sheet;
+  let status: SourceStatus | null = null;
+  if (highlight && !target) {
+    status = { text: `The source names sheet ${highlight.source.pageNumber ?? '?'}, which this workbook does not have` };
+  } else if (highlight && target && !onThisSheet) {
+    status = { text: '', goTo: { label: `Source is on “${wb.sheets[target.sheetIndex].name}”`, onClick: goToSource } };
+  } else if (highlight && target && !target.region) {
+    status = { text: 'Source: this sheet (no cell range recorded)' };
+  } else if (highlight && target?.region) {
+    const range = `${cellRef({ r: target.region.r1, c: target.region.c1 })}:${cellRef({ r: target.region.r2, c: target.region.c2 })}`;
+    const n = `${target.matches.length}${target.truncated ? '+' : ''}`;
+    const one = target.matches.length === 1 && !target.truncated;
+    status = {
+      text: `${range} · ${target.matches.length === 0 ? 'no match' : `${n} ${one ? 'match' : 'matches'}`}`,
+      detail: `The source names the table ${range}, not a cell. ${
+        target.matches.length === 0
+          ? 'No cell in it matches the value.'
+          : one
+            ? 'One cell in it matches the value and is marked.'
+            : `${n} cells in it match the value. The current one is marked strongly, the others lightly; step through them with the arrows above the viewer.`
+      }`,
+    };
+  }
+
+  const merge = sheet.kind === 'sheet' ? sheet.mergeAt.get(cellKey(sel.r, sel.c)) : undefined;
 
   return (
-    <Box ref={containerRef} sx={{ height: '100%', width: '100%', bgcolor: colors.surface, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      
-      {/* TOOLBAR */}
-      <Box sx={{ p: 1, bgcolor: colors.surface, borderBottom: `1px solid ${colors.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-        <Tooltip title="Zoom Out">
-          <IconButton onClick={() => setScale(p => Math.max(p - 0.2, 0.5))} size="small"><RemoveIcon /></IconButton>
-        </Tooltip>
-        <Typography variant="body2" sx={{ minWidth: '45px', textAlign: 'center', fontWeight: 'bold' }}>{Math.round(scale * 100)}%</Typography>
-        <Tooltip title="Zoom In">
-          <IconButton onClick={() => setScale(p => Math.min(p + 0.2, 3.0))} size="small"><AddIcon /></IconButton>
-        </Tooltip>
-        <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
-        <Tooltip title="Reset Zoom">
-          <IconButton onClick={() => setScale(1.0)} size="small"><RestartAltIcon /></IconButton>
-        </Tooltip>
-        <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
-        <Tooltip title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}>
-          <IconButton onClick={toggleFullScreen} size="small">
-            {isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
-          </IconButton>
-        </Tooltip>
-      </Box>
-
-      {/* EXCEL GRID */}
-      <TableContainer component={Paper} sx={{ flex: 1, overflow: 'auto', bgcolor: colors.surface, borderRadius: 0 }}>
-        {/* We apply CSS zoom to the table to scale the grid while keeping standard DOM behavior */}
-        <Table stickyHeader size="small" sx={{ minWidth: 'max-content', borderCollapse: 'collapse', zoom: scale }}>
-          
-          <TableHead>
-            <TableRow>
-              <TableCell sx={{ bgcolor: 'action.hover', borderRight: `1px solid ${colors.border}`, borderBottom: `2px solid ${colors.border}`, position: 'sticky', top: 0, left: 0, zIndex: 4 }} />
-              {colHeaders.map((header, index) => {
-                 const isColHighlighted = highlightRange && (index + 1) >= highlightRange.c1 && (index + 1) <= highlightRange.c2;
-                 return (
-                  <TableCell 
-                    key={index} align="center"
-                    sx={{ 
-                      bgcolor: isColHighlighted ? 'rgba(25, 118, 210, 0.1)' : 'action.hover', 
-                      color: isColHighlighted ? colors.primary : 'text.secondary', 
-                      fontWeight: 'bold', borderRight: `1px solid ${colors.border}`, borderBottom: `2px solid ${colors.border}`, minWidth: 80,
-                      position: 'sticky', top: 0, zIndex: 3
-                    }}
-                  >
-                    {header}
-                  </TableCell>
-                )
-              })}
-            </TableRow>
-          </TableHead>
-
-          <TableBody>
-            {sheetData.map((row, rowIndex) => {
-              const currentUIrow = rowIndex + 1;
-              const isRowInHighlight = highlightRange && currentUIrow >= highlightRange.r1 && currentUIrow <= highlightRange.r2;
-
-              return (
-              <TableRow key={rowIndex} hover>
-                <TableCell 
-                  sx={{ 
-                    bgcolor: isRowInHighlight ? 'rgba(25, 118, 210, 0.1)' : 'action.hover', 
-                    color: isRowInHighlight ? colors.primary : 'text.secondary', 
-                    fontWeight: 'bold', borderRight: `2px solid ${colors.border}`, borderBottom: `1px solid ${colors.border}`,
-                    position: 'sticky', left: 0, zIndex: 2, textAlign: 'center', minWidth: 50
-                  }}
-                >
-                  {currentUIrow}
-                </TableCell>
-                
-                {row.map((cell, colIndex) => {
-                  const currentUIcol = colIndex + 1;
-                  const isHighlightedCell = isRowInHighlight && currentUIcol >= highlightRange.c1 && currentUIcol <= highlightRange.c2;
-                  
-                  const isTopLeft = highlightRange && currentUIrow === highlightRange.r1 && currentUIcol === highlightRange.c1;
-                  
-                  const isTopEdge = isHighlightedCell && currentUIrow === highlightRange.r1;
-                  const isBottomEdge = isHighlightedCell && currentUIrow === highlightRange.r2;
-                  const isLeftEdge = isHighlightedCell && currentUIcol === highlightRange.c1;
-                  const isRightEdge = isHighlightedCell && currentUIcol === highlightRange.c2;
-
-                  return (
-                  <TableCell 
-                    key={colIndex} 
-                    ref={isTopLeft ? highlightedCellRef : null}
-                    sx={{ 
-                      borderRight: `1px solid ${colors.border}`,
-                      borderBottom: `1px solid ${colors.border}`,
-                      color: 'text.primary',
-                      whiteSpace: 'nowrap', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis',
-                      
-                      ...(isHighlightedCell && {
-                        bgcolor: 'rgba(25, 118, 210, 0.15)',
-                        color: colors.primary,
-                        fontWeight: '600',
-                        ...(isTopEdge && { borderTop: `2px solid ${colors.primary} !important` }),
-                        ...(isBottomEdge && { borderBottom: `2px solid ${colors.primary} !important` }),
-                        ...(isLeftEdge && { borderLeft: `2px solid ${colors.primary} !important` }),
-                        ...(isRightEdge && { borderRight: `2px solid ${colors.primary} !important` })
-                      })
-                    }}
-                    title={String(cell)}
-                  >
-                    {String(cell ?? '')}
-                  </TableCell>
-                )})}
-              </TableRow>
-            )})}
-          </TableBody>
-        </Table>
-      </TableContainer>
-
-      {/* TABS */}
-      {workbook && workbook.SheetNames.length > 1 && (
-        <Box sx={{ borderTop: `1px solid ${colors.border}`, bgcolor: 'background.paper' }}>
-          <Tabs value={activeSheet} onChange={(e, v) => setActiveSheet(v)} variant="scrollable" scrollButtons="auto" sx={{ minHeight: 40 }}>
-            {workbook.SheetNames.map(sheet => (
-              <Tab key={sheet} label={sheet} value={sheet} sx={{ minHeight: 40, textTransform: 'none', fontWeight: activeSheet === sheet ? 'bold' : 'normal', borderRight: `1px solid ${colors.border}` }} />
-            ))}
-          </Tabs>
+    <Box ref={rootRef} sx={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', bgcolor: 'surface.panel' }}>
+      <FormulaBar
+        selection={sel}
+        cell={sheet.kind === 'sheet' ? sheet.cells.get(cellKey(sel.r, sel.c)) : undefined}
+        merged={merge ? `${cellRef({ r: merge.r1, c: merge.c1 })}:${cellRef({ r: merge.r2, c: merge.c2 })}` : null}
+        onJump={jumpToCell}
+        fullscreen={fullscreen}
+        onToggleFullscreen={toggleFullscreen}
+        disabled={sheet.kind !== 'sheet'}
+      />
+      {sheet.kind === 'chart' ? (
+        <Box sx={{ flex: 1, minHeight: 0, bgcolor: 'surface.canvas', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <EmptyState icon={InsertChartOutlinedIcon} title="Chart sheet" description="This sheet holds a chart. The viewer shows the workbook's data, not its charts." />
+        </Box>
+      ) : (
+        <Box sx={{ flex: 1, minHeight: 0, display: 'flex' }}>
+          <SheetGrid
+            key={view.sheet}
+            sheet={sheet}
+            styles={wb.styles}
+            scale={scale}
+            selection={sel}
+            onSelect={onSelect}
+            highlight={onThisSheet && target ? { region: target.region, matches: target.matches, current: target.matches[view.match] ?? target.matches[0] ?? null } : null}
+            jump={view.jump}
+            onJumpHandled={onJumpHandled}
+            initialScroll={view.initialScroll}
+            onScrollChange={onScrollChange}
+            label={`Sheet ${sheet.name}`}
+          />
         </Box>
       )}
-
-      {/* TEXT SNIPPET BOX */}
-      {activeHighlight?.textSnippet && (
-        <Paper elevation={6} sx={{ p: 2, borderTop: `1px solid ${colors.border}`, bgcolor: colors.surface, zIndex: 20 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: colors.primary }}>
-            <FormatQuoteIcon fontSize="small" />
-            <Typography variant="caption" fontWeight="bold" sx={{ textTransform: 'uppercase' }}>
-              Matched Text (Sheet: {activeSheet})
-            </Typography>
-          </Box>
-          <Typography variant="body2" sx={{ pl: 3.5, fontStyle: 'italic', color: 'text.secondary', borderLeft: `2px solid ${colors.border}`, ml: 0.5, py: 0.5 }}>
-            &quot;{activeHighlight.textSnippet}&quot;
-          </Typography>
-        </Paper>
-      )}
-
+      <SheetBar
+        sheets={wb.sheets}
+        active={view.sheet}
+        onSelect={selectSheet}
+        sourceSheet={target ? target.sheetIndex : null}
+        status={status}
+        scale={scale}
+        onScale={changeScale}
+      />
     </Box>
   );
-};
+}

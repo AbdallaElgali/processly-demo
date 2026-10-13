@@ -1,11 +1,5 @@
 export type BoundingBox = { x: number; y: number; width: number; height: number };
 
-export interface SchemaField {
-  id: string;
-  label: string;
-  unit: string;
-}
-
 export interface SpecificationSource {
   documentId: string | null;
   textSnippet: string | null;
@@ -18,7 +12,7 @@ export interface SpecificationSource {
 
 // Review lifecycle for a parameter. PENDING = untouched AI value,
 // MODIFIED = a human edited the value, ACCEPTED = approved (backend-owned).
-export type ReviewAction = 'PENDING' | 'MODIFIED' | 'ACCEPTED';
+export type ReviewAction = 'PENDING' | 'MODIFIED' | 'ACCEPTED' | 'REJECTED';
 
 export interface Specification {
   // Stable id used for React keys and `selectedSpecId`. For an AI candidate this
@@ -35,69 +29,50 @@ export interface Specification {
   rule_passed: boolean;
   rule_violations: string[];
   requires_review: boolean;
+  /** The unit the parameter dictionary expects, when the candidate carries one. */
+  expectedUnit?: string | null;
+  /**
+   * The model's written rationale for this value (`extraction_logic`). On a
+   * null-valued candidate it instead carries one of the four reason codes
+   * (lib/review/reasonCodes.ts). Not the model's internal chain of thought,
+   * which the API never returns (AM15).
+   */
+  extractionLogic?: string | null;
+  /** How the value was computed, when `calculated` is true. */
+  calculationLogic?: string | null;
+  /**
+   * The AI candidate's own value, unit and confidence, kept when a person
+   * edits the value: shown as "Extracted: …" and restored by Revert. Absent
+   * on an unedited candidate and on a value a person typed with no candidate.
+   */
+  original?: { value: string; unit: string | null; confidence: number | null };
+  /** The extraction run this candidate came from (`run_number` in the project payload). */
+  runNumber?: number | null;
 }
 
 export interface InputField {
   id: string;       // parameter_key (e.g. "U_MIN")
   dbId: string;     // ProjectParameter row id
   label: string;
+  // Mirrored from the backend ProjectParameter row (see api/projects.ts).
+  // `dbParamToInputField` already populates these; declaring them keeps the
+  // consumers type-safe instead of casting the field to `any`.
+  parameter_alias?: string | null;
+  description_override?: string | null;
+  ai_instructions?: string | null;
   specifications: Specification[];
   selectedSpecId?: string;
   isFlagged: boolean;
   flagReason: string | null;
   activeFlagId: string | null; // id of the active flag ticket; chained as parent on re-flag
   reviewAction: ReviewAction;
+  /**
+   * `project_parameters.is_human_modified`: the saved value is a person's, not
+   * the candidate's. Kept separately from `reviewAction` because an edited row
+   * that was then accepted is ACCEPTED and still human-modified.
+   */
+  isHumanModified?: boolean;
 }
-
-export const SCHEMA_GROUPS: { group: string; fields: SchemaField[] }[] = [
-  {
-    group: "Voltage Specs",
-    fields: [
-      { id: "U_MIN", label: "U_MIN", unit: "V" },
-      { id: "U_MAX", label: "U_MAX", unit: "V" },
-      { id: "U_MIN_DYN", label: "U_MIN_DYN", unit: "V" },
-      { id: "U_MAX_DYN", label: "U_MAX_DYN", unit: "V" },
-      { id: "U_MIN_PULSE", label: "U_MIN_PULSE", unit: "V" },
-      { id: "U_MAX_PULSE", label: "U_MAX_PULSE", unit: "V" },
-      { id: "U_MIN_SAFETY", label: "U_MIN_SAFETY", unit: "V" },
-      { id: "U_MAX_SAFETY", label: "U_MAX_SAFETY", unit: "V" },
-    ]
-  },
-  {
-    group: "Current Specs",
-    fields: [
-      { id: "I_MAX_CHA_CONTINUOUS", label: "I_MAX_CHA_CONTINUOUS", unit: "A" },
-      { id: "I_MAX_DCH_CONTINUOUS", label: "I_MAX_DCH_CONTINUOUS", unit: "A" },
-      { id: "I_MAX_CHA_PULSE", label: "I_MAX_CHA_PULSE", unit: "A" },
-      { id: "I_MAX_DCH_PULSE", label: "I_MAX_DCH_PULSE", unit: "A" },
-    ]
-  },
-  {
-    group: "Temperature Specs",
-    fields: [
-      { id: "T_MIN_BODY", label: "T_MIN_BODY", unit: "°C" },
-      { id: "T_MAX_BODY", label: "T_MAX_BODY", unit: "°C" },
-      { id: "T_MIN_BODY_SAFETY", label: "T_MIN_BODY_SAFETY", unit: "°C" },
-      { id: "T_MAX_BODY_SAFETY", label: "T_MAX_BODY_SAFETY", unit: "°C" },
-      { id: "T_MIN_TERMINAL", label: "T_MIN_TERMINAL", unit: "°C" },
-      { id: "T_MAX_TERMINAL", label: "T_MAX_TERMINAL", unit: "°C" },
-      { id: "T_MIN_TERMINAL_SAFETY", label: "T_MIN_TERMINAL_SAFETY", unit: "°C" },
-      { id: "T_MAX_TERMINAL_SAFETY", label: "T_MAX_TERMINAL_SAFETY", unit: "°C" },
-    ]
-  },
-  {
-    group: "Capacity Specs",
-    fields: [
-      { id: "C_NOMINAL_AH", label: "C_NOMINAL_AH", unit: "Ah" },
-      { id: "E_NOMINAL_WH", label: "E_NOMINAL_WH", unit: "Wh" },
-      { id: "EOL_FCE", label: "EOL_FCE", unit: "" },
-      { id: "EOL_CYCLES", label: "EOL_CYCLES", unit: "" },
-      { id: "EOL_SOH_NOM", label: "EOL_SOH_NOM", unit: "%" },
-      { id: "EOL_SOH_REAL", label: "EOL_SOH_REAL", unit: "%" },
-      { id: "EOL_RI", label: "EOL_RI", unit: "%" },
-    ]
-  }
-];
 
 // PDFSource and ExcelSource represent the resolved highlight target passed to viewers.
 // Fields that may be absent at runtime are explicitly nullable.

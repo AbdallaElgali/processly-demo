@@ -18,9 +18,9 @@ export interface TemplateRuleUpsert {
     parameter_id: string; // UUID
     custom_alias: string;
     is_active?: boolean;
-    description_override?: string;
-    ai_instructions?: string;
-    expected_unit_override?: string;
+    description_override?: string | null;
+    ai_instructions?: string | null;
+    expected_unit_override?: string | null;
 }
 
 export interface ProjectToTemplate {
@@ -30,34 +30,51 @@ export interface ProjectToTemplate {
 }
 
 // Response Interfaces (Inferred from your backend types)
+/**
+ * GET /extraction-templates/parameters -- the canonical parameter dictionary.
+ * Typed in openapi.json as CanonicalParameter; this mirrors it exactly.
+ *
+ * `category` is the field decision D5 depends on: until the backend returns a
+ * category with each project parameter (Task B item B4), the Parameters and
+ * Review screens group by joining this dictionary on `name` == parameter_key.
+ * The previous type declared a `description` field that does not exist and
+ * omitted `category` entirely, so the join was impossible.
+ */
 export interface CanonicalParameter {
     id: string;
     name: string;
-    description?: string;
-    expected_unit?: string;
-    // ... add other fields based on your DB schema
+    category: string | null;
+    default_description: string | null;
+    expected_unit: string | null;
 }
 
+/**
+ * Mirrors the ExtractionTemplateBase schema exactly. `updated_at` was declared
+ * here but the backend never returns it, so any code trusting it read
+ * undefined; the nullable fields are now typed as nullable rather than merely
+ * optional.
+ */
 export interface ExtractionTemplateBase {
     id: string;
     name: string;
-    user_id?: string;
-    customer_id?: string;
+    user_id: string | null;
+    customer_id: string | null;
     is_system_default: boolean;
     is_global: boolean;
-    created_at: string; // ISO Date string
-    updated_at: string; // ISO Date string
+    created_at: string;
 }
 
 export interface TemplateRule {
     id: string;
     template_id: string;
     parameter_id: string;
+    /** Required by the backend schema; was missing from this type. */
+    canonical_name: string;
     custom_alias: string;
     is_active: boolean;
-    description_override?: string;
-    ai_instructions?: string;
-    expected_unit_override?: string;
+    description_override: string | null;
+    ai_instructions: string | null;
+    expected_unit_override: string | null;
 }
 
 export interface TemplateWithRules extends ExtractionTemplateBase {
@@ -65,6 +82,22 @@ export interface TemplateWithRules extends ExtractionTemplateBase {
 }
 
 // --- API Client Functions ---
+
+/**
+ * The backend wraps every failure as `{ "detail": "..." }`. The old wrappers
+ * threw `response.statusText` ("Internal Server Error"), which told the person
+ * nothing about WHY, e.g. a duplicate alias. Use the detail when there is one.
+ */
+async function failure(response: Response, what: string): Promise<Error> {
+    let detail = '';
+    try {
+        const body = await response.json();
+        if (typeof body?.detail === 'string') detail = body.detail;
+    } catch {
+        /* not JSON; fall back to the status text */
+    }
+    return new Error(detail ? `${what}: ${detail}` : `${what}: ${response.statusText || response.status}`);
+}
 
 /**
  * Fetches the core dictionary of canonical parameters.
@@ -75,7 +108,7 @@ export async function getParameters(): Promise<CanonicalParameter[]> {
         headers: { 'Content-Type': 'application/json' },
     });
 
-    if (!response.ok) throw new Error(`Failed to fetch parameters: ${response.statusText}`);
+    if (!response.ok) throw await failure(response, 'Failed to fetch parameters');
     return response.json();
 }
 
@@ -89,7 +122,7 @@ export async function createTemplate(data: TemplateCreate): Promise<ExtractionTe
         body: JSON.stringify(data),
     });
 
-    if (!response.ok) throw new Error(`Failed to create template: ${response.statusText}`);
+    if (!response.ok) throw await failure(response, 'Failed to create template');
     return response.json();
 }
 
@@ -102,7 +135,7 @@ export async function getUserTemplates(userId: string): Promise<ExtractionTempla
         headers: { 'Content-Type': 'application/json' },
     });
 
-    if (!response.ok) throw new Error(`Failed to fetch user templates: ${response.statusText}`);
+    if (!response.ok) throw await failure(response, 'Failed to fetch user templates');
     return response.json();
 }
 
@@ -115,7 +148,7 @@ export async function getTemplateDetails(templateId: string): Promise<TemplateWi
         headers: { 'Content-Type': 'application/json' },
     });
 
-    if (!response.ok) throw new Error(`Failed to fetch template details: ${response.statusText}`);
+    if (!response.ok) throw await failure(response, 'Failed to fetch template details');
     return response.json();
 }
 
@@ -132,7 +165,7 @@ export async function upsertTemplateRule(
         body: JSON.stringify(data),
     });
 
-    if (!response.ok) throw new Error(`Failed to upsert template rule: ${response.statusText}`);
+    if (!response.ok) throw await failure(response, 'Failed to upsert template rule');
     return response.json();
 }
 
@@ -145,7 +178,7 @@ export async function deleteTemplate(templateId: string): Promise<void> {
         headers: { 'Content-Type': 'application/json' },
     });
 
-    if (!response.ok) throw new Error(`Failed to delete template: ${response.statusText}`);
+    if (!response.ok) throw await failure(response, 'Failed to delete template');
     // No content returned on 204
 }
 
@@ -159,6 +192,6 @@ export async function createTemplateFromProject(data: ProjectToTemplate): Promis
         body: JSON.stringify(data),
     });
 
-    if (!response.ok) throw new Error(`Failed to create template from project: ${response.statusText}`);
+    if (!response.ok) throw await failure(response, 'Failed to create template from project');
     return response.json();
 }
