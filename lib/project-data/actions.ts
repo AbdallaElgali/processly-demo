@@ -143,30 +143,26 @@ export async function addAuditor(projectId: string, username: string): Promise<v
   await apiAddAuditor(projectId, username);
 }
 
-/** The backend answered 200 to a status change but the project still has the old status (proposed B22). */
+/** The route answered 200 but stored a different status than the one requested. */
 export class StatusNotAppliedError extends Error {
   constructor(requested: ProjectStatus, actual: ProjectStatus | undefined) {
-    super(
-      `The backend accepted the request but the status is still ${actual ?? 'unchanged'}, not ${requested}. ` +
-        'Nothing was changed (backend item B22: the route never writes the status).',
-    );
+    super(`The backend stored ${actual ?? 'no status'} instead of ${requested}. Nothing was changed.`);
     this.name = 'StatusNotAppliedError';
   }
 }
 
 /**
- * Sets the project's status, then **reads it back** before telling anyone.
- * `POST /projects/update-project-status` currently answers 200 without ever
- * writing the status (its route body only builds the response; proposed
- * backend item B22), so trusting the 200 would show a success that did not
- * happen. Only a status the backend really reports reaches the project list.
- * Does NOT touch review state: Approve and the status are separate (B10).
+ * Sets the project's status and uses the `status` the route returns (the value
+ * now in the database, backend step 3.1) for the project list; the project is
+ * refreshed in the background. A 404 or 422 throws with the backend's text
+ * (`errorMessage` unwraps it). Does NOT touch review state: Approve and the
+ * status are separate (B10).
  */
 export async function changeProjectStatus(projectId: string, status: ProjectStatus): Promise<void> {
-  await apiUpdateProjectStatus(projectId, status);
-  const details = await loadProjectDetails(projectId, { background: true });
-  if (details) projectsIndex.updateStatus(projectId, details.status);
-  if (details?.status !== status) throw new StatusNotAppliedError(status, details?.status);
+  const stored = await apiUpdateProjectStatus(projectId, status);
+  projectsIndex.updateStatus(projectId, stored);
+  void loadProjectDetails(projectId, { background: true });
+  if (stored !== status) throw new StatusNotAppliedError(status, stored);
 }
 
 export async function updateParameterMetadata(

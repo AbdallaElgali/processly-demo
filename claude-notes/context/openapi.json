@@ -116,7 +116,7 @@
           "specs"
         ],
         "summary": "Stream Single Parameter",
-        "description": "Fast-path corrective re-extraction of ONE flagged parameter.\nDoes not replace /stream-specs — that remains the batch correction path.",
+        "description": "Fast-path corrective re-extraction of ONE flagged parameter.\nDoes not replace /stream-specs \u2014 that remains the batch correction path.",
         "operationId": "stream_single_parameter_specs_stream_parameter_post",
         "parameters": [
           {
@@ -842,7 +842,7 @@
           "System Setup"
         ],
         "summary": "Reset Database",
-        "description": "⚠️ DANGER: Completely wipes all data from the database.\nRetains the table structures, indexes, and custom types.",
+        "description": "\u26a0\ufe0f DANGER: Completely wipes all data from the database.\nRetains the table structures, indexes, and custom types.",
         "operationId": "reset_database_system_reset_database_delete",
         "parameters": [
           {
@@ -1700,7 +1700,7 @@
           "prompt-management"
         ],
         "summary": "List Slots",
-        "description": "All slots, each with its current GLOBAL version and (for AGENT slots) current GLOBAL\nmodel config — the catalogue view for an admin picker.",
+        "description": "All slots, each with its current GLOBAL version and (for AGENT slots) current GLOBAL\nmodel config \u2014 the catalogue view for an admin picker.",
         "operationId": "list_slots_prompts_slots_get",
         "responses": {
           "200": {
@@ -1781,7 +1781,7 @@
           "prompt-management"
         ],
         "summary": "Create Version",
-        "description": "Creates a new version of a slot's prompt text. Rejected placeholder validation returns\n422 naming exactly which required placeholders are missing — not a generic 400.",
+        "description": "Creates a new version of a slot's prompt text. Rejected placeholder validation returns\n422 naming exactly which required placeholders are missing \u2014 not a generic 400.",
         "operationId": "create_version_prompts_slots__slot_key__versions_post",
         "parameters": [
           {
@@ -1834,7 +1834,7 @@
           "prompt-management"
         ],
         "summary": "Get Assignment",
-        "description": "The current assignment for a slot at one exact scope target — not the project ->\ncustomer -> global lookup, an exact read.",
+        "description": "The current assignment for a slot at one exact scope target \u2014 not the project ->\ncustomer -> global lookup, an exact read.",
         "operationId": "get_assignment_prompts_slots__slot_key__assignment_get",
         "parameters": [
           {
@@ -1926,7 +1926,7 @@
           "prompt-management"
         ],
         "summary": "Set Assignment",
-        "description": "Points a scope at a specific version — updates the existing row for that scope target in\nplace, or creates one. Rejected if the slot's level doesn't allow the requested scope (AGENT\nslots are GLOBAL only).",
+        "description": "Points a scope at a specific version \u2014 updates the existing row for that scope target in\nplace, or creates one. Rejected if the slot's level doesn't allow the requested scope (AGENT\nslots are GLOBAL only).",
         "operationId": "set_assignment_prompts_slots__slot_key__assignment_put",
         "parameters": [
           {
@@ -1979,7 +1979,7 @@
           "prompt-management"
         ],
         "summary": "Get Model Assignment",
-        "description": "Same shape as GET .../assignment, for model_assignments. 404 if the slot doesn't execute\ncalls — model config only applies to AGENT slots that do.",
+        "description": "Same shape as GET .../assignment, for model_assignments. 404 if the slot doesn't execute\ncalls \u2014 model config only applies to AGENT slots that do.",
         "operationId": "get_model_assignment_prompts_slots__slot_key__model_assignment_get",
         "parameters": [
           {
@@ -2071,7 +2071,7 @@
           "prompt-management"
         ],
         "summary": "Set Model Assignment",
-        "description": "Sets model/reasoning_effort/temperature at a scope. The temperature/reasoning_effort\nconstraint is the model_assignments CHECK constraint's job, not re-implemented here — a\nviolation surfaces as a clean 422, not a raw 500.",
+        "description": "Sets model/reasoning_effort/temperature at a scope. The temperature/reasoning_effort\nconstraint is the model_assignments CHECK constraint's job, not re-implemented here \u2014 a\nviolation surfaces as a clean 422, not a raw 500.",
         "operationId": "set_model_assignment_prompts_slots__slot_key__model_assignment_put",
         "parameters": [
           {
@@ -2124,7 +2124,7 @@
           "prompt-management"
         ],
         "summary": "Get Project Prompt Pins",
-        "description": "The project's full pin set — every slot, its pinned version content, model, and resolved\nscope. What this project actually ran.",
+        "description": "The project's full pin set \u2014 every slot, its pinned version content, model, and resolved\nscope. What this project actually ran.",
         "operationId": "get_project_prompt_pins_projects__project_id__prompt_pins_get",
         "parameters": [
           {
@@ -2502,10 +2502,17 @@
         "properties": {
           "project_id": {
             "type": "string",
+            "format": "uuid",
             "title": "Project Id"
           },
           "new_status": {
             "type": "string",
+            "enum": [
+              "NEW",
+              "PENDING_REVIEW",
+              "IN_REVIEW",
+              "APPROVED"
+            ],
             "title": "New Status"
           }
         },
@@ -2831,7 +2838,7 @@
           "extraction_type"
         ],
         "title": "ExtractionRun",
-        "description": "One row of the per-attempt audit table. model_name/reasoning_effort/temperature (Task 5,\nPart B) record what a specific ITERATIVE/SINGLE_PARAM correction actually used — NULL for\nMAIN_MULTI_AGENT runs and any row that predates the migration adding these columns."
+        "description": "One row of the per-attempt audit table. model_name/reasoning_effort/temperature (Task 5,\nPart B) record what a specific ITERATIVE/SINGLE_PARAM correction actually used \u2014 NULL for\nMAIN_MULTI_AGENT runs and any row that predates the migration adding these columns."
       },
       "ExtractionTemplateBase": {
         "properties": {
@@ -3285,7 +3292,7 @@
           "pinned_at"
         ],
         "title": "PinDetail",
-        "description": "Task 5, Part A — one row of GET /projects/{project_id}/prompt-pins: a pin joined with its\nslot_key and the pinned version's content, so the response is directly readable without a\nsecond lookup per row."
+        "description": "Task 5, Part A \u2014 one row of GET /projects/{project_id}/prompt-pins: a pin joined with its\nslot_key and the pinned version's content, so the response is directly readable without a\nsecond lookup per row."
       },
       "ProjectCreateInput": {
         "properties": {
@@ -3668,7 +3675,7 @@
           "resolved_from_scope"
         ],
         "title": "ResolvedSlotConfig",
-        "description": "One row of GET /projects/{project_id}/prompt-resolution: what load_slots_for_project\nresolved for one slot, plus the slot's catalogue metadata (level/description/executes_calls/\nis_project_scopable) so the UI doesn't need a second round trip. `prompt_version_id` and\n`version_number` are None exactly when `resolved_from_scope == 'file'` — the on-disk fallback\nhas no DB-backed version."
+        "description": "One row of GET /projects/{project_id}/prompt-resolution: what load_slots_for_project\nresolved for one slot, plus the slot's catalogue metadata (level/description/executes_calls/\nis_project_scopable) so the UI doesn't need a second round trip. `prompt_version_id` and\n`version_number` are None exactly when `resolved_from_scope == 'file'` \u2014 the on-disk fallback\nhas no DB-backed version."
       },
       "SingleParameterRequest": {
         "properties": {
@@ -3784,7 +3791,7 @@
           "executes_calls"
         ],
         "title": "SlotSummary",
-        "description": "Task 5, Part A — response shape for GET /prompts/slots: a slot plus its current GLOBAL\nversion and (for AGENT slots) current GLOBAL model config, in one row so the admin picker\ndoesn't need a second round trip per slot."
+        "description": "Task 5, Part A \u2014 response shape for GET /prompts/slots: a slot plus its current GLOBAL\nversion and (for AGENT slots) current GLOBAL model config, in one row so the admin picker\ndoesn't need a second round trip per slot."
       },
       "TemplateCreate": {
         "properties": {

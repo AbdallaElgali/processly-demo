@@ -187,13 +187,16 @@ export const apiAddAuditor = (projectId: string, username: string): Promise<void
  * declares `Body_update_project_status_...` as
  * `application/x-www-form-urlencoded` with `project_id` and `new_status`.
  */
-export const apiUpdateProjectStatus = async (projectId: string, status: ProjectStatus): Promise<void> => {
+export const apiUpdateProjectStatus = async (projectId: string, status: ProjectStatus): Promise<ProjectStatus> => {
   const response = await fetch(`${API_BASE_URL}/update-project-status`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: statusFormBody(projectId, status).toString(),
   });
   if (!response.ok) throw new Error(await response.text());
+  // `{message, status}`: `status` is what the database now holds (backend step 3.1).
+  const body: { status: ProjectStatus } = await response.json();
+  return body.status;
 };
 
 /**

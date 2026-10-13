@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { config } from '@/api/config';
 import type { ProjectMetrics } from '@/types/audit';
 import type { FeedbackItem } from '@/api/audit/feedback';
@@ -12,6 +12,9 @@ export function useAdminData() {
   const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>([]); 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const reload = useCallback(() => setReloadKey((k) => k + 1), []);
 
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   
@@ -26,6 +29,7 @@ export function useAdminData() {
     const fetchProjects = async () => {
       try {
         setIsLoading(true);
+        setError(null);
         const response = await fetch(`${config.api}/audit/projects`);
 
         if (!response.ok) {
@@ -43,16 +47,17 @@ export function useAdminData() {
 
     const fetchFeedbacks = async () => {
       try {
+        setFeedbackError(null);
         const feedbackResponse = await fetch_all_feedback({});
         setFeedbacks(feedbackResponse.feedbacks);
       } catch (err: unknown) {
-        console.error(err instanceof Error ? err.message : 'An unknown error occurred while fetching feedbacks.');
+        setFeedbackError(err instanceof Error ? err.message : 'An unknown error occurred while fetching feedback.');
       }
     }
         
     fetchFeedbacks();
     fetchProjects();
-  }, []);
+  }, [reloadKey]);
 
   // --- Dynamically Derive the Users List for the Dropdown ---
   const uniqueUsers = useMemo(() => {
@@ -129,8 +134,10 @@ export function useAdminData() {
   return {
     projects,
     filteredProjects,
-    isLoading,         // Make sure your UI checks this!
-    error,             // Make sure your UI checks this!
+    isLoading,
+    error,
+    feedbackError,
+    reload,
     selectedProjectId,
     setSelectedProjectId,
     isExpanded,

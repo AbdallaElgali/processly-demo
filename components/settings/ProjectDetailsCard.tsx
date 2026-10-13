@@ -59,7 +59,7 @@ export function ProjectDetailsCard({ details, userId }: { details: FullProjectDe
         {details.description || <Typography component="span" variant="body2" sx={{ color: 'text.muted', fontStyle: 'italic' }}>No description.</Typography>}
       </Fact>
       <Typography variant="caption" sx={{ color: 'text.muted' }}>
-        Read-only: the backend has no route to change a project&apos;s name or description. The status is shown as stored; changing it is off for now (backend B22).
+        Read-only: the backend has no route to change a project&apos;s name or description. The status is changed on the Overview.
       </Typography>
     </Card>
   );

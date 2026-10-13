@@ -74,7 +74,7 @@ export const AdminSidebar = ({
           <TextField 
             size="small" fullWidth placeholder="Search projects..." 
             value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-            InputProps={{ startAdornment: <SearchIcon color="action" sx={{ mr: 1, fontSize: 20 }} /> }}
+            slotProps={{ input: { startAdornment: <SearchIcon color="action" sx={{ mr: 1, fontSize: 20 }} /> } }}
           />
 
           {isExpanded && (

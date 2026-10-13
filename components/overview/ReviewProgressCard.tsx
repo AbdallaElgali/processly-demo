@@ -7,12 +7,12 @@ import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import OutlinedFlagIcon from '@mui/icons-material/OutlinedFlag';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import { acceptedPercent, type ReviewProgress } from '@/lib/overview/progress';
+import { reviewedPercent, type ReviewProgress } from '@/lib/overview/progress';
 import { Card } from './Card';
 
 const SEGMENTS = [
-  { key: 'accepted', label: 'Accepted', hint: 'Approved or accepted by a reviewer', icon: CheckCircleOutlineIcon, bg: 'status.success', fg: 'status.success' },
-  { key: 'pending', label: 'Pending', hint: 'Has a value, not accepted yet', icon: HourglassEmptyIcon, bg: 'status.info', fg: 'status.info' },
+  { key: 'reviewed', label: 'Reviewed', hint: 'Accepted, edited or rejected by a reviewer', icon: CheckCircleOutlineIcon, bg: 'status.success', fg: 'status.success' },
+  { key: 'pending', label: 'Pending', hint: 'Has a value, no decision yet', icon: HourglassEmptyIcon, bg: 'status.info', fg: 'status.info' },
   { key: 'flagged', label: 'Flagged', hint: 'An open flag raised by a reviewer', icon: OutlinedFlagIcon, bg: 'status.danger', fg: 'status.danger' },
   { key: 'empty', label: 'Empty', hint: 'No value: not extracted, or not found', icon: RemoveCircleOutlineIcon, bg: 'status.neutral', fg: 'text.secondary' },
 ] as const;
@@ -23,8 +23,8 @@ const SEGMENTS = [
  * numbers and an icon per bucket, so no meaning rests on colour alone (8.3).
  */
 export function ReviewProgressCard({ progress }: { progress: ReviewProgress }) {
-  const percent = acceptedPercent(progress);
-  const summary = `${progress.accepted} accepted, ${progress.pending} pending, ${progress.flagged} flagged, ${progress.empty} empty, of ${progress.total} parameters`;
+  const percent = reviewedPercent(progress);
+  const summary = `${progress.reviewed} reviewed, ${progress.pending} pending, ${progress.flagged} flagged, ${progress.empty} empty, of ${progress.total} parameters`;
 
   return (
     <Card title="Review progress" icon={FactCheckOutlinedIcon} id="review-progress" sx={{ gridColumn: { xs: 'auto', lg: 'span 2' } }}>
@@ -39,7 +39,7 @@ export function ReviewProgressCard({ progress }: { progress: ReviewProgress }) {
               {percent}%
             </Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              accepted · {progress.accepted} of {progress.total} parameters
+              reviewed · {progress.reviewed} of {progress.total} parameters
             </Typography>
           </Stack>
 

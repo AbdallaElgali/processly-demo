@@ -12,14 +12,14 @@ export function isProjectStatus(value: string): value is ProjectStatus {
 }
 
 /**
- * The status-change control is wired end to end (`changeProjectStatus`, the
- * form in `StatusCard`) but hidden: `POST /projects/update-project-status`
- * answers 200 and never writes (backend item B22, owner decision after step
- * 12). Flip this to `true` when the backend is fixed.
+ * The status-change control. It was hidden while `POST
+ * /projects/update-project-status` answered 200 and wrote nothing (backend
+ * item B22); backend step 3.1 fixed that and the route now returns the stored
+ * status, so the control is on. Flip to `false` to hide it again.
  */
-export const STATUS_CHANGE_AVAILABLE = false;
+export const STATUS_CHANGE_AVAILABLE = true;
 export const STATUS_CHANGE_UNAVAILABLE =
-  'Changing the status is turned off for now: the backend accepts the request but does not save it (backend item B22). The status is shown as stored.';
+  'Changing the status is turned off for now. The status is shown as stored.';
 
 /** The form-encoded body of `POST /projects/update-project-status`. */
 export function statusFormBody(projectId: string, status: ProjectStatus): URLSearchParams {
