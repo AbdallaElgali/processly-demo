@@ -198,15 +198,40 @@ describe('reviewer_id and user_id on the wire (step 4)', () => {
     expect(calls[1].body).toEqual({ reviewer_id: null });
   });
 
-  it('removing a flag and resolving one send user_id', async () => {
+  it('removing a flag and resolving one send user_id; resolving is one call with resolved_by (3.2)', async () => {
     const { clearHumanFlag, resolveHumanFlag } = await import('./flagging');
     await clearHumanFlag('f1', 'user-1');
     await resolveHumanFlag('f2', 'cand-1', 'user-1');
     const unflags = calls.filter((c) => c.url.endsWith('/ai-unflag-parameter')).map((c) => c.body);
     expect(unflags).toEqual([
       { flag_id: 'f1', resolved_by: null, status: 'DISMISSED', user_id: 'user-1' },
-      { flag_id: 'f2', resolved_by: null, status: 'RESOLVED', user_id: 'user-1' },
+      { flag_id: 'f2', resolved_by: 'cand-1', status: 'RESOLVED', user_id: 'user-1' },
     ]);
+    // The old workaround's second route is gone.
+    expect(calls.some((c) => c.url.endsWith('/select-correct-ai-candidate'))).toBe(false);
+    expect(calls).toHaveLength(2);
+  });
+
+  it('resolving a flag with a typed value (no candidate) sends resolved_by null', async () => {
+    const { resolveHumanFlag } = await import('./flagging');
+    await resolveHumanFlag('f3', null, 'user-1');
+    expect(calls.map((c) => c.body)).toEqual([{ flag_id: 'f3', resolved_by: null, status: 'RESOLVED', user_id: 'user-1' }]);
+  });
+
+  it('raising a flag sends the real user id', async () => {
+    const { raiseHumanFlag } = await import('./flagging');
+    respond = () => ({ status: 200, body: { flag_id: 'f9' } });
+    await raiseHumanFlag({ projectParameterId: 'pp-1', userId: 'user-1', candidateId: 'c1', parentFlagId: null, reason: 'wrong' });
+    expect(calls[0].url).toMatch(/\/ai-flag-parameter$/);
+    expect(calls[0].body).toMatchObject({ user_id: 'user-1', parameter_id: 'pp-1', ai_metric_candidate_id: 'c1' });
+  });
+
+  it('an unknown user_id on unflag (422) surfaces the backend text', async () => {
+    const { resolveHumanFlag } = await import('./flagging');
+    const { errorMessage } = await import('@/lib/errors');
+    respond = () => ({ status: 422, body: { detail: 'Unknown user_id' } });
+    const err = await resolveHumanFlag('f2', 'cand-1', 'ghost').catch((e) => e);
+    expect(errorMessage(err)).toBe('Unknown user_id');
   });
 
   it('an unknown reviewer (422) surfaces the backend text and is not retried', async () => {

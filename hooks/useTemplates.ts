@@ -9,11 +9,13 @@ import {
   getUserTemplates,
   upsertTemplateRule,
   type ExtractionTemplateBase,
+  type TemplateRule,
   type TemplateRuleUpsert,
   type TemplateWithRules,
 } from '@/api/templates';
 import { useAuth } from '@/contexts/AuthContext';
 import { errorMessage } from '@/lib/errors';
+import { saveTemplateCopy } from '@/lib/templates/copy';
 
 /**
  * The signed-in user's extraction templates and the one that is open.
@@ -103,6 +105,17 @@ export function useTemplates() {
     [userId],
   );
 
+  /** "Save a copy" of a template the user cannot change (the system default). */
+  const saveCopy = useCallback(
+    async (source: ExtractionTemplateBase, rules: TemplateRule[], name: string) => {
+      if (!userId) throw new Error('Sign in to create a template.');
+      const made = await saveTemplateCopy(userId, source, rules, name);
+      setTemplates((prev) => [made, ...(prev ?? [])]);
+      return made;
+    },
+    [userId],
+  );
+
   const remove = useCallback(
     async (templateId: string) => {
       await deleteTemplate(templateId);
@@ -144,6 +157,7 @@ export function useTemplates() {
     closeTemplate,
     create,
     saveProjectAsTemplate,
+    saveCopy,
     remove,
     saveRule,
     setDefault,

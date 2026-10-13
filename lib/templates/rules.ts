@@ -3,38 +3,40 @@ import type { CanonicalParameter, ExtractionTemplateBase, TemplateRule, Template
 export const RULE_ALIAS_MAX = 50;
 
 /**
- * "Save this project as a template" is wired end to end (`useTemplates`,
- * `NameDialog`), but `POST /extraction-templates/from-project` fails on the
- * current backend: `save_project_as_template` selects `custom_alias` from
- * `project_parameters`, whose column is `parameter_alias`, so the insert is
- * rolled back and nothing is created (proposed backend item B17, found in
- * step 11). The action stays a labelled placeholder until that is fixed;
- * flip this to `true` then.
+ * "Save this project as a template" works since backend step 3.3 (B17 fixed):
+ * `POST /extraction-templates/from-project` copies the project's parameters
+ * (alias, description, AI instructions, the configured expected unit). An
+ * unknown project is a 404, a project with no parameters or an unknown user a
+ * 422; the dialog shows the backend's text.
  */
-export const SAVE_AS_TEMPLATE_AVAILABLE = false;
-export const SAVE_AS_TEMPLATE_UNAVAILABLE =
-  'Unavailable: the backend route that saves a project as a template fails (proposed backend item B17).';
+export const SAVE_AS_TEMPLATE_AVAILABLE = true;
 
 export interface TemplateAccess {
   editable: boolean;
+  /**
+   * The template cannot be changed here but can be copied into one the user
+   * owns ("Save a copy"). True for the system default only: the backend now
+   * refuses to change or delete it (403, step 3.4).
+   */
+  copyable?: boolean;
   /** Why not, in a sentence the UI can show next to the disabled action. */
   reason?: string;
 }
 
 /**
  * Whether the signed-in user may edit or delete a template. **The backend
- * does not check this** (no route compares the caller to `user_id`, and the
- * system default can be deleted by anyone), so the UI refuses on its own:
+ * does not check this** (no route compares the caller to `user_id`), so the UI refuses on its own:
  * the system default is shared by every project, and someone else's template
- * is not ours to change. There is no authentication to enforce it either
+ * is not ours to change (the backend refuses the system default with a 403
+ * since step 3.4, but still checks no ownership). There is no authentication to enforce it either
  * (CLAUDE.md section 4).
  */
 export function templateAccess(template: ExtractionTemplateBase, userId: string | null | undefined): TemplateAccess {
   if (template.is_system_default) {
-    return { editable: false, reason: 'System default template, shared by every project. Read-only here.' };
+    return { editable: false, copyable: true, reason: 'System default template, shared by every project. It cannot be changed; save a copy to make your own.' };
   }
-  if (userId && template.user_id === userId) return { editable: true };
-  return { editable: false, reason: 'Belongs to someone else. Read-only here.' };
+  if (userId && template.user_id === userId) return { editable: true, copyable: false };
+  return { editable: false, copyable: false, reason: 'Belongs to someone else. Read-only here.' };
 }
 
 /** What a template is, for the scope chip. */
@@ -102,4 +104,24 @@ export function buildRuleUpsert(draft: RuleDraft): TemplateRuleUpsert {
     ai_instructions: blankToNull(draft.aiInstructions),
     expected_unit_override: blankToNull(draft.expectedUnit),
   };
+}
+
+/** Name proposed for a copy of a template. */
+export function copyName(name: string): string {
+  return `${name.trim()} (copy)`;
+}
+
+/**
+ * The upserts that reproduce a template's rules in another one. The upsert
+ * overwrites every column, so all of them are sent, active flag included.
+ */
+export function ruleCopies(rules: TemplateRule[]): TemplateRuleUpsert[] {
+  return rules.map((r) => ({
+    parameter_id: r.parameter_id,
+    custom_alias: r.custom_alias,
+    is_active: r.is_active,
+    description_override: r.description_override,
+    ai_instructions: r.ai_instructions,
+    expected_unit_override: r.expected_unit_override,
+  }));
 }

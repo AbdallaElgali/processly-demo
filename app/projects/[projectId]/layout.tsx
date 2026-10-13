@@ -13,7 +13,6 @@ import { useProjectData } from '@/lib/jobs/hooks';
 import { loadProjectDetails } from '@/lib/project-data/actions';
 import { projectsIndex } from '@/lib/project-data/projects-index';
 import { useProjectsIndex } from '@/lib/project-data/provider';
-import { useCustomers } from '@/hooks/Customers';
 import { ToastHost } from '@/components/ui/Toast';
 import { UnsavedChangesGuard } from '@/components/workspace/UnsavedChangesGuard';
 
@@ -33,7 +32,6 @@ export default function ProjectLayout({ children }: { children: ReactNode }) {
   const { projects } = useProjectsIndex();
   const projectState = useProjectData(projectId);
   const details = projectState?.details ?? null;
-  const { customers, loadCustomers } = useCustomers();
 
   // Remembered across sessions and shared with other tabs.
   const [collapsed, setCollapsed] = useLocalStorageFlag(RAIL_COLLAPSED_KEY, false);
@@ -51,16 +49,13 @@ export default function ProjectLayout({ children }: { children: ReactNode }) {
     if (!details) void loadProjectDetails(projectId);
   }, [projectId, details]);
 
-  useEffect(() => { loadCustomers(); }, [loadCustomers]);
-
   if (!hasMounted || !user) return null;
 
-  // D6: prefer the project payload's customer, else join GET /customers/ by
-  // customer_id, else show the project alone.
+  // The payload carries the customer's alias since backend step 3.5. The list
+  // entry covers the moment before the details have loaded. No customer: the
+  // project is shown alone.
   const customerName =
-    details?.customer ??
-    customers.find((c) => c.id === details?.customer_id)?.alias_name ??
-    null;
+    details?.customer ?? projects.find((p) => p.id === projectId)?.customer ?? null;
 
   const projectName =
     details?.alias_id ?? projects.find((p) => p.id === projectId)?.alias_id ?? null;

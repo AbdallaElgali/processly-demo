@@ -12,9 +12,12 @@ import { isPendingReview } from '@/lib/review/approval';
  * Every parameter lands in exactly one bucket, so the four numbers add up to
  * `total`. Precedence, most urgent first:
  *   flagged  -- an open human flag (the colleague's objection is unresolved)
- *   empty    -- no value: never extracted, or a reason-code row (CLAUDE.md 7)
- *   pending  -- has a value and `review_action` is PENDING (`isPendingReview`,
- *               the rule Approve uses)
+ *   pending  -- `review_action` is PENDING (`isPendingReview`, the rule
+ *               Approve uses), **with or without a value** (F0c: an empty row
+ *               nobody has decided on still needs a review)
+ *   empty    -- no value, and someone has already decided (ACCEPTED,
+ *               MODIFIED or REJECTED): never extracted or a reason-code row
+ *               (CLAUDE.md 7)
  *   reviewed -- has a value and a person has decided: ACCEPTED, MODIFIED or
  *               REJECTED
  */
@@ -34,8 +37,8 @@ export function reviewProgress(fields: readonly InputField[]): ReviewProgress {
     const state = rowState(field);
     if (state.primary === 'bounds' || state.secondary.includes('bounds')) progress.outOfBounds += 1;
     if (field.isFlagged) progress.flagged += 1;
-    else if (state.primary === 'empty' || state.primary === 'no_run') progress.empty += 1;
     else if (isPendingReview(field)) progress.pending += 1;
+    else if (state.primary === 'empty' || state.primary === 'no_run') progress.empty += 1;
     else progress.reviewed += 1;
   }
   return progress;

@@ -8,7 +8,6 @@ import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useHasMounted } from '@/hooks/useHasMounted';
-import { useCustomers } from '@/hooks/Customers';
 import { AppHeader } from '@/components/shell/AppHeader';
 import { NewProjectDialog } from '@/components/projects/NewProjectDialog';
 import { ProjectCard } from '@/components/ui/ProjectCard';
@@ -36,7 +35,6 @@ export default function ProjectsPage() {
   const hasMounted = useHasMounted();
   const { user, isLoading: authLoading } = useAuth();
   const { projects, loading, error } = useProjectsIndex();
-  const { customers, loadCustomers } = useCustomers();
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<Set<ProjectStatus>>(new Set());
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -44,13 +42,6 @@ export default function ProjectsPage() {
   useEffect(() => {
     if (hasMounted && !authLoading && !user) router.push('/login');
   }, [hasMounted, authLoading, user, router]);
-
-  useEffect(() => { loadCustomers(); }, [loadCustomers]);
-
-  const customerById = useMemo(
-    () => new Map(customers.map((c) => [c.id, c.alias_name])),
-    [customers],
-  );
 
   const toggleStatus = (status: ProjectStatus) => {
     setStatusFilter((prev) => {
@@ -68,11 +59,11 @@ export default function ProjectsPage() {
       if (!q) return true;
       return (
         p.alias_id?.toLowerCase().includes(q) ||
-        (p.customer_id ? (customerById.get(p.customer_id) ?? '').toLowerCase().includes(q) : false) ||
+        (p.customer ?? '').toLowerCase().includes(q) ||
         p.status?.toLowerCase().includes(q)
       );
     });
-  }, [projects, query, statusFilter, customerById]);
+  }, [projects, query, statusFilter]);
 
   if (!hasMounted || !user) return null;
 
@@ -173,7 +164,7 @@ export default function ProjectsPage() {
               <ProjectCard
                 key={p.id}
                 project={p}
-                customerName={p.customer_id ? customerById.get(p.customer_id) : undefined}
+                customerName={p.customer ?? undefined}
               />
             ))}
           </Box>

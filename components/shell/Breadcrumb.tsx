@@ -7,10 +7,9 @@ import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 /**
  * `Projects › Customer › Project` (RFC section 2, decision D6).
  *
- * The customer is resolved by the caller: the project payload's `customer` is
- * always null today (Task B item B2), so D6 falls back to joining
- * GET /customers/ by customer_id, and shows the project alone if neither
- * resolves. Nothing is invented to fill the slot.
+ * The customer is the project payload's `customer` (the alias, populated by
+ * the backend since step 3.5). With none, the project is shown alone; nothing
+ * is invented to fill the slot.
  */
 export function Breadcrumb({
   customer,

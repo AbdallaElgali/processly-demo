@@ -117,6 +117,11 @@ export interface ProjectParameter {
   // Extras
   description_override: string | null;
   ai_instructions: string | null;
+
+  /** Canonical `parameters.id`. NOT unique per project: key on `id`, never on this. */
+  parameter_id?: string | null;
+  /** Since backend step 3.5. Null or absent groups the row under "Other". */
+  category?: string | null;
 }
 
 export interface Project {

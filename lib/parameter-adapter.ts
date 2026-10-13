@@ -122,6 +122,7 @@ export const dbParamToInputField = (p: ProjectParameter): InputField => {
     dbId: p.id,  // The backend's unique identifier for this parameter row
     
     label: p.parameter_alias,
+    category: p.category ?? null,
     parameter_alias: p.parameter_alias,
     description_override: p.description_override,
     ai_instructions: p.ai_instructions,

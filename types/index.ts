@@ -54,6 +54,8 @@ export interface InputField {
   id: string;       // parameter_key (e.g. "U_MIN")
   dbId: string;     // ProjectParameter row id
   label: string;
+  /** The parameter's category from the project payload (backend step 3.5); null/absent -> "Other". */
+  category?: string | null;
   // Mirrored from the backend ProjectParameter row (see api/projects.ts).
   // `dbParamToInputField` already populates these; declaring them keeps the
   // consumers type-safe instead of casting the field to `any`.
