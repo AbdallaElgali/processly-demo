@@ -25,6 +25,7 @@ import { addParameterToProject, editParameterMetadata, loadProjectDetails, remov
 import type { CanonicalParameter } from '@/api/templates';
 import type { InputField } from '@/types';
 import { ParameterEditDialog } from './ParameterEditDialog';
+import { NewParameterDialog } from './NewParameterDialog';
 
 /**
  * The project's parameter schema (plan-A 6.5, AM14): this project's
@@ -49,6 +50,7 @@ export function ProjectParameters({ projectId }: { projectId: string }) {
   const [removeBusy, setRemoveBusy] = useState(false);
   const [showAvailable, setShowAvailable] = useState(false);
   const [adding, setAdding] = useState<string | null>(null);
+  const [defining, setDefining] = useState(false);
 
   // Removing while an extraction or correction runs would pull a row out from under its save.
   const writing = [activity.running, activity.queued?.job].find((j) => j && j.kind !== 'upload');
@@ -226,14 +228,24 @@ export function ProjectParameters({ projectId }: { projectId: string }) {
                       </Typography>
                     )}
                     {available.length === 0 ? (
-                      <Typography variant="body2" sx={{ px: 2, py: 1.25, color: 'text.muted' }}>
-                        {query.trim() ? 'No dictionary parameter matches.' : 'This project has every parameter in the dictionary.'}
-                      </Typography>
+                      <Box sx={{ px: 2, py: 1.25 }}>
+                        <Typography variant="body2" sx={{ color: 'text.muted' }}>
+                          {query.trim() ? 'No dictionary parameter matches.' : 'This project has every parameter in the dictionary.'}
+                        </Typography>
+                        <Button size="small" startIcon={<AddIcon />} onClick={() => setDefining(true)} sx={{ mt: 0.5 }}>
+                          Define a new parameter
+                        </Button>
+                      </Box>
                     ) : (
-                      <Box role="list">
-                        {available.map((p) => (
-                          <AvailableItem key={p.id} parameter={p} busy={adding === p.id} disabled={adding !== null} onAdd={() => void addParameter(p)} />
-                        ))}
+                      <Box>
+                        <Box role="list">
+                          {available.map((p) => (
+                            <AvailableItem key={p.id} parameter={p} busy={adding === p.id} disabled={adding !== null} onAdd={() => void addParameter(p)} />
+                          ))}
+                        </Box>
+                        <Box sx={{ px: 2, py: 1 }}>
+                          <Button size="small" startIcon={<AddIcon />} onClick={() => setDefining(true)}>Define a new parameter</Button>
+                        </Box>
                       </Box>
                     )}
                   </Box>
@@ -243,6 +255,16 @@ export function ProjectParameters({ projectId }: { projectId: string }) {
           </>
         )}
       </Box>
+
+      {defining && (
+        <NewParameterDialog
+          onClose={() => setDefining(false)}
+          addToProject={async (p) => {
+            const added = await addParameterToProject(projectId, p.id, user?.id ?? null);
+            toast.show(`${metaOf(added).alias} added to this project.`, { severity: 'success' });
+          }}
+        />
+      )}
 
       {editing && (
         <ParameterEditDialog

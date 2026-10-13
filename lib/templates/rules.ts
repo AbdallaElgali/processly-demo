@@ -1,6 +1,6 @@
 import type { CanonicalParameter, ExtractionTemplateBase, TemplateRule, TemplateRuleUpsert } from '@/api/templates';
 
-export const RULE_ALIAS_MAX = 50;
+export const RULE_ALIAS_MAX = 100;
 
 /**
  * "Save this project as a template" works since backend step 3.3 (B17 fixed):
@@ -53,8 +53,10 @@ export function parametersWithoutRule(canonical: CanonicalParameter[], rules: Te
 }
 
 /**
- * `(template_id, custom_alias)` is unique in the database, and a violation
- * comes back as a bare 500. Check it first. `editingId` is the rule being
+ * `(template_id, custom_alias)` is unique in the database. A violation comes
+ * back as a 409 whose `detail` names the alias (backend S1; it used to be a
+ * bare 500), and the dialog shows that text. Checking first saves the round
+ * trip. `editingId` is the rule being
  * edited, which may keep its own alias.
  */
 export function validateRuleAlias(alias: string, rules: TemplateRule[], editingId?: string): string | null {

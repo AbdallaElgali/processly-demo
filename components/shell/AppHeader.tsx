@@ -9,6 +9,7 @@ import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined
 import LogoutIcon from '@mui/icons-material/Logout';
 import PersonAddAltOutlinedIcon from '@mui/icons-material/PersonAddAltOutlined';
 import AdminPanelSettingsOutlinedIcon from '@mui/icons-material/AdminPanelSettingsOutlined';
+import { usePathname } from 'next/navigation';
 import { layout } from '@/theme/layout';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemeToggle } from './ThemeToggle';
@@ -22,6 +23,7 @@ import { JobTray } from '@/components/jobs/JobTray';
 export function AppHeader({ breadcrumb }: { breadcrumb?: React.ReactNode }) {
   const { user, logout } = useAuth();
   const [anchor, setAnchor] = useState<null | HTMLElement>(null);
+  const pathname = usePathname();
 
   return (
     <Box
@@ -52,6 +54,27 @@ export function AppHeader({ breadcrumb }: { breadcrumb?: React.ReactNode }) {
         Voltavision{' '}
         <Box component="span" sx={{ color: 'accent.text' }}>BDA</Box>
       </Typography>
+
+      <Stack component="nav" aria-label="Main" direction="row" spacing={0.5}>
+        {[
+          { href: '/projects', label: 'Projects', active: pathname === '/projects' || pathname.startsWith('/projects/') },
+          { href: '/library', label: 'Library', active: pathname.startsWith('/library') },
+        ].map((item) => (
+          <Box
+            key={item.href}
+            component={Link}
+            href={item.href}
+            aria-current={item.active ? 'page' : undefined}
+            sx={{
+              px: 1.25, py: 0.5, borderRadius: 1, typography: 'body2', fontWeight: 600, textDecoration: 'none',
+              color: item.active ? 'accent.text' : 'text.secondary',
+              '&:hover': { color: 'text.primary', bgcolor: 'surface.sunken' },
+            }}
+          >
+            {item.label}
+          </Box>
+        ))}
+      </Stack>
 
       <Box sx={{ minWidth: 0, flex: 1 }}>{breadcrumb}</Box>
 
