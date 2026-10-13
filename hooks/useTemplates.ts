@@ -16,6 +16,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { errorMessage } from '@/lib/errors';
 import { saveTemplateCopy } from '@/lib/templates/copy';
+import { setRuleCount } from '@/hooks/useTemplateRuleCounts';
 
 /**
  * The signed-in user's extraction templates and the one that is open.
@@ -71,6 +72,7 @@ export function useTemplates() {
     setOpenError(null);
     try {
       const details = await getTemplateDetails(templateId);
+      setRuleCount(details.id, details.rules.length);
       if (request === openRequest.current) setOpen(details);
     } catch (e) {
       if (request === openRequest.current) setOpenError(errorMessage(e, 'Failed to load the template.'));
@@ -88,6 +90,7 @@ export function useTemplates() {
     async (name: string) => {
       if (!userId) throw new Error('Sign in to create a template.');
       const made = await createTemplate({ name: name.trim(), user_id: userId, is_global: false });
+      setRuleCount(made.id, 0);
       setTemplates((prev) => [made, ...(prev ?? [])]);
       return made;
     },
@@ -131,6 +134,7 @@ export function useTemplates() {
       if (!open) throw new Error('No template is open.');
       await upsertTemplateRule(open.id, data);
       const fresh = await getTemplateDetails(open.id);
+      setRuleCount(fresh.id, fresh.rules.length);
       setOpen((prev) => (prev?.id === fresh.id ? fresh : prev));
     },
     [open],

@@ -46,6 +46,30 @@ export interface CanonicalParameter {
     category: string | null;
     default_description: string | null;
     expected_unit: string | null;
+    /** Not in the list response yet (backend step S3 adds it). Absent means unknown. */
+    is_builtin?: boolean;
+}
+
+/** POST /extraction-templates/parameters (CanonicalParameterCreate). */
+export interface CanonicalParameterCreate {
+    name: string;
+    category: string;
+    expected_unit: string | null;
+    default_description: string;
+}
+
+/** PUT /extraction-templates/parameters/{id}: only the keys sent change. */
+export interface CanonicalParameterUpdate {
+    default_description?: string | null;
+    expected_unit?: string | null;
+}
+
+/** An error that keeps the HTTP status, so a caller can tell a 409 from a 422. */
+export class HttpError extends Error {
+    constructor(message: string, readonly status: number) {
+        super(message);
+        this.name = 'HttpError';
+    }
 }
 
 /**
@@ -96,7 +120,35 @@ async function failure(response: Response, what: string): Promise<Error> {
     } catch {
         /* not JSON; fall back to the status text */
     }
-    return new Error(detail ? `${what}: ${detail}` : `${what}: ${response.statusText || response.status}`);
+    return new HttpError(detail ? `${what}: ${detail}` : `${what}: ${response.statusText || response.status}`, response.status);
+}
+
+/** The body as written (JSON text), so `errorMessage` can unwrap a string or a 422 `detail` list. */
+async function rawFailure(response: Response): Promise<HttpError> {
+    const text = await response.text().catch(() => '');
+    return new HttpError(text || response.statusText || String(response.status), response.status);
+}
+
+/** `POST /extraction-templates/parameters`: define a new canonical parameter. 409 name taken, 422 invalid. */
+export async function createCanonicalParameter(data: CanonicalParameterCreate): Promise<CanonicalParameter> {
+    const response = await fetch(`${API_BASE_URL}/parameters`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
+    if (!response.ok) throw await rawFailure(response);
+    return response.json();
+}
+
+/** `PUT /extraction-templates/parameters/{id}`: description and unit. 409 for the 27 built-in parameters. */
+export async function updateCanonicalParameter(parameterId: string, data: CanonicalParameterUpdate): Promise<CanonicalParameter> {
+    const response = await fetch(`${API_BASE_URL}/parameters/${parameterId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
+    if (!response.ok) throw await rawFailure(response);
+    return response.json();
 }
 
 /**
@@ -153,7 +205,7 @@ export async function getTemplateDetails(templateId: string): Promise<TemplateWi
 }
 
 /**
- * Inserts a new rule for a template, or updates it if the alias already exists.
+ * Adds or edits a rule (backend S1): 409 with the text "Another rule in this template is already named '<alias>'." for a duplicate name.
  */
 export async function upsertTemplateRule(
     templateId: string, 

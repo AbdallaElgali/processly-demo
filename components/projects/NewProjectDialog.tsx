@@ -2,12 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import {
-  Box, Button, FormControl, InputLabel, MenuItem, Select, TextField,
+  Box, Button, FormControl, FormHelperText, InputLabel, Link as MuiLink, MenuItem, Select, TextField,
 } from '@mui/material';
+import NextLink from 'next/link';
 import AddIcon from '@mui/icons-material/Add';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCustomers } from '@/hooks/Customers';
 import { getUserTemplates, type ExtractionTemplateBase } from '@/api/templates';
+import { useTemplateRuleCounts } from '@/hooks/useTemplateRuleCounts';
+import { projectTemplateOptions } from '@/lib/templates/library';
 import { createProject } from '@/lib/project-data/actions';
 import { buildCreateInput, canCreateProject } from '@/lib/projects/create';
 import { errorMessage } from '@/lib/errors';
@@ -41,6 +44,8 @@ export function NewProjectDialog({
   const [templates, setTemplates] = useState<ExtractionTemplateBase[]>([]);
   const [newCustomer, setNewCustomer] = useState('');
   const [addingCustomer, setAddingCustomer] = useState(false);
+  const ruleCounts = useTemplateRuleCounts(open ? templates : null);
+  const { options: templateOptions } = projectTemplateOptions(templates, ruleCounts, user?.template_id);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,9 +56,8 @@ export function NewProjectDialog({
       getUserTemplates(user.id)
         .then((list) => {
           setTemplates(list);
-          // Default to the user's own template, else the system default.
-          const preferred = user.template_id ?? list.find((t) => t.is_system_default)?.id ?? '';
-          setTemplateId(preferred);
+          // Default to the user's default template, else the system default.
+          setTemplateId(projectTemplateOptions(list, {}, user.template_id).selectedId);
         })
         .catch(() => setTemplates([]));
     }
@@ -156,12 +160,16 @@ export function NewProjectDialog({
           labelId="template-label" label="Template" value={templateId}
           onChange={(e) => setTemplateId(e.target.value)}
         >
-          {templates.map((t) => (
+          {templateOptions.map((t) => (
             <MenuItem key={t.id} value={t.id}>
-              {t.name}{t.is_system_default ? ' (default)' : ''}
+              {t.name}{t.rules ? ` · ${t.rules}` : ''}{t.isDefault ? ' · my default' : ''}
             </MenuItem>
           ))}
         </Select>
+        <FormHelperText>
+          The project starts with this template&apos;s parameters.{' '}
+          <MuiLink component={NextLink} href="/library" onClick={handleClose}>Manage templates</MuiLink>
+        </FormHelperText>
       </FormControl>
 
       <TextField

@@ -22,7 +22,9 @@ import { Skeleton } from '@mui/material';
 import { toast } from '@/components/ui/Toast';
 import { useCanonicalParameters } from '@/hooks/useCanonicalParameters';
 import { useTemplates } from '@/hooks/useTemplates';
+import { useTemplateRuleCounts } from '@/hooks/useTemplateRuleCounts';
 import { errorMessage } from '@/lib/errors';
+import { ruleCountLabel } from '@/lib/templates/library';
 import { SAVE_AS_TEMPLATE_AVAILABLE, copyName, templateAccess, templateScope } from '@/lib/templates/rules';
 import type { ExtractionTemplateBase, TemplateRule } from '@/api/templates';
 import { NameDialog } from './NameDialog';
@@ -40,11 +42,14 @@ type Dialog =
  * The templates side of the Parameters screen (plan-A 6.5): list, create,
  * open one to edit its rules, delete, set as default, and save this project
  * as a template. Master/detail in one narrow pane: the list, or the open
- * template with a back button.
+ * template with a back button. Without a `projectId` (the Library) there is
+ * no project to save from, and the panel does everything else.
  */
-export function TemplatesPanel({ projectId, projectName, parameterCount }: { projectId: string; projectName: string | null; parameterCount: number }) {
+export function TemplatesPanel({ projectId, projectName = null, parameterCount = 0 }: { projectId?: string; projectName?: string | null; parameterCount?: number }) {
   const t = useTemplates();
   const { parameters: canonical } = useCanonicalParameters();
+  const ruleCounts = useTemplateRuleCounts(t.templates);
+  const canSaveProject = !!projectId && SAVE_AS_TEMPLATE_AVAILABLE;
   const [dialog, setDialog] = useState<Dialog>(null);
   const [showInactive, setShowInactive] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
@@ -98,7 +103,7 @@ export function TemplatesPanel({ projectId, projectName, parameterCount }: { pro
             {summary.name}
           </Typography>
           <Chip size="small" variant="outlined" label={templateScope(summary, t.userId)} sx={{ height: 22 }} />
-          {isDefault(summary.id) && <Chip size="small" color="warning" variant="outlined" icon={<StarIcon />} label="Your default" sx={{ height: 22 }} />}
+          {isDefault(summary.id) && <Chip size="small" color="warning" variant="outlined" icon={<StarIcon />} label="My default" sx={{ height: 22 }} />}
           <Box sx={{ flex: 1 }} />
           {!isDefault(summary.id) && (
             <Button size="small" startIcon={<StarBorderIcon />} onClick={() => void setDefault(summary)}>
@@ -130,15 +135,17 @@ export function TemplatesPanel({ projectId, projectName, parameterCount }: { pro
       ) : (
         <>
           <Typography variant="subtitle2" sx={{ color: 'text.primary', flex: 1 }}>Templates</Typography>
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={<SaveAltOutlinedIcon />}
-            onClick={() => setDialog({ kind: 'saveProject' })}
-            disabled={!SAVE_AS_TEMPLATE_AVAILABLE || parameterCount === 0}
-          >
-            Save this project as template
-          </Button>
+          {projectId && (
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<SaveAltOutlinedIcon />}
+              onClick={() => setDialog({ kind: 'saveProject' })}
+              disabled={!SAVE_AS_TEMPLATE_AVAILABLE || parameterCount === 0}
+            >
+              Save this project as template
+            </Button>
+          )}
           <Button size="small" variant="contained" disableElevation startIcon={<AddIcon />} onClick={() => setDialog({ kind: 'create' })}>
             New template
           </Button>
@@ -155,8 +162,9 @@ export function TemplatesPanel({ projectId, projectName, parameterCount }: { pro
       value: (x) => x.name,
       render: (x) => (
         <Stack direction="row" spacing={0.75} alignItems="center">
-          {isDefault(x.id) && <StarIcon sx={{ fontSize: 16, color: 'status.warning' }} titleAccess="Your default template" />}
+          {isDefault(x.id) && <StarIcon sx={{ fontSize: 16, color: 'status.warning' }} titleAccess="My default template" />}
           <Typography variant="body2" sx={{ fontWeight: 600 }}>{x.name}</Typography>
+          {isDefault(x.id) && <Chip size="small" color="warning" variant="outlined" label="My default" sx={{ height: 20 }} />}
         </Stack>
       ),
     },
@@ -166,6 +174,14 @@ export function TemplatesPanel({ projectId, projectName, parameterCount }: { pro
       sortable: true,
       value: (x) => templateScope(x, t.userId),
       render: (x) => <Chip size="small" variant="outlined" label={templateScope(x, t.userId)} sx={{ height: 22 }} />,
+    },
+    {
+      key: 'rules',
+      label: 'Rules',
+      sortable: true,
+      align: 'right',
+      value: (x) => ruleCounts[x.id] ?? -1,
+      render: (x) => <Typography variant="body2" sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>{ruleCountLabel(ruleCounts[x.id]) || '…'}</Typography>,
     },
   ];
 
@@ -312,9 +328,9 @@ export function TemplatesPanel({ projectId, projectName, parameterCount }: { pro
       <EmptyState
         icon={DataObjectIcon}
         title="Create your first template"
-        description={`A template is a reusable set of parameters with their aliases and AI instructions. ${SAVE_AS_TEMPLATE_AVAILABLE ? 'Start from this project or from scratch.' : 'Start from scratch.'}`}
+        description={`A template is a reusable set of parameters with their aliases and AI instructions. ${canSaveProject ? 'Start from this project or from scratch.' : 'Start from scratch.'}`}
         action={{ label: 'New template', onClick: () => setDialog({ kind: 'create' }) }}
-        secondaryAction={SAVE_AS_TEMPLATE_AVAILABLE && parameterCount > 0 ? { label: 'Save this project as template', onClick: () => setDialog({ kind: 'saveProject' }) } : undefined}
+        secondaryAction={canSaveProject && parameterCount > 0 ? { label: 'Save this project as template', onClick: () => setDialog({ kind: 'saveProject' }) } : undefined}
       />
     );
   } else {
@@ -354,7 +370,7 @@ export function TemplatesPanel({ projectId, projectName, parameterCount }: { pro
           }}
         />
       )}
-      {dialog?.kind === 'saveProject' && (
+      {dialog?.kind === 'saveProject' && projectId && (
         <NameDialog
           title="Save this project as a template"
           description={`Copies this project's ${parameterCount} ${parameterCount === 1 ? 'parameter' : 'parameters'} (alias, description, AI instructions and unit) into a new personal template. Extracted values and documents are not copied. The unit copied is each parameter's current unit.`}

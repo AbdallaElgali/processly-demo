@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { FormControlLabel, MenuItem, Switch, TextField, Typography } from '@mui/material';
+import { Box, Button, FormControlLabel, MenuItem, Switch, TextField, Typography } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import { NewParameterDialog } from './NewParameterDialog';
 import { FormDialog } from '@/components/ui/FormDialog';
 import { resolveCategory } from '@/lib/categories';
 import { errorMessage } from '@/lib/errors';
@@ -36,6 +38,7 @@ export function RuleDialog({
   const [aliasTouched, setAliasTouched] = useState(editing);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [defining, setDefining] = useState(false);
 
   const selected = canonical.find((p) => p.id === draft.parameterId);
   const free = editing ? canonical : parametersWithoutRule(canonical, rules);
@@ -45,8 +48,8 @@ export function RuleDialog({
   const aliasError = validateRuleAlias(draft.alias, rules, rule?.id);
   const canSubmit = !!draft.parameterId && !aliasError;
 
-  const pickParameter = (id: string) => {
-    const param = canonical.find((p) => p.id === id);
+  const pickParameter = (id: string, known?: CanonicalParameter) => {
+    const param = known ?? canonical.find((p) => p.id === id);
     // Pre-fill the alias with the canonical name until the person types their own.
     setDraft((d) => ({ ...d, parameterId: id, alias: aliasTouched ? d.alias : param?.name ?? '' }));
   };
@@ -65,6 +68,7 @@ export function RuleDialog({
   };
 
   return (
+    <>
     <FormDialog
       open
       onClose={onClose}
@@ -100,6 +104,13 @@ export function RuleDialog({
           </MenuItem>
         ))}
       </TextField>
+      {!editing && (
+        <Box sx={{ mt: -1 }}>
+          <Button type="button" size="small" startIcon={<AddIcon />} onClick={() => setDefining(true)}>
+            Define a new parameter
+          </Button>
+        </Box>
+      )}
       <TextField
         label="Alias"
         value={draft.alias}
@@ -144,5 +155,13 @@ export function RuleDialog({
         label={<Typography variant="body2">{draft.active ? 'Active: projects made from this template include it' : 'Inactive: left out of new projects'}</Typography>}
       />
     </FormDialog>
+      {/* A sibling, not a child: React forwards a portal's submit event to the parent <form>, which would save the rule. */}
+      {defining && (
+        <NewParameterDialog
+          onClose={() => setDefining(false)}
+          onCreated={(p) => pickParameter(p.id, p)}
+        />
+      )}
+    </>
   );
 }

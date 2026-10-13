@@ -42,7 +42,7 @@ describe('validateRuleAlias', () => {
   const rules = [rule(), rule({ id: 'r2', parameter_id: 'p2', custom_alias: 'Max voltage' })];
   it('rejects empty, over-long and duplicate aliases', () => {
     expect(validateRuleAlias(' ', rules)).toMatch(/empty/);
-    expect(validateRuleAlias('x'.repeat(51), rules)).toMatch(/50/);
+    expect(validateRuleAlias('x'.repeat(101), rules)).toMatch(/100/);
     expect(validateRuleAlias('Max voltage', rules)).toMatch(/already uses/);
   });
   it('lets a rule keep its own alias', () => {
