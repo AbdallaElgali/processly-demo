@@ -15,23 +15,23 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { SearchField } from '@/components/ui/SearchField';
 import { toast } from '@/components/ui/Toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { useCanonicalParameters } from '@/hooks/useCanonicalParameters';
 import { useProjectActivity, useProjectData } from '@/lib/jobs/hooks';
 import { groupFields, resolveCategory } from '@/lib/categories';
 import { errorMessage } from '@/lib/errors';
 import { matchesQuery, metaOf, parametersNotInProject, REMOVE_PARAMETER_AVAILABLE, REMOVE_PARAMETER_UNAVAILABLE } from '@/lib/parameters/meta';
-import { editParameterMetadata, loadProjectDetails, removeParameter } from '@/lib/project-data/actions';
+import { addParameterToProject, editParameterMetadata, loadProjectDetails, removeParameter } from '@/lib/project-data/actions';
 import type { CanonicalParameter } from '@/api/templates';
 import type { InputField } from '@/types';
 import { ParameterEditDialog } from './ParameterEditDialog';
-
-const B1 = 'Unavailable: the backend route that adds a parameter to a project fails (backend item B1).';
 
 /**
  * The project's parameter schema (plan-A 6.5, AM14): this project's
  * parameters grouped by category, with the alias, description and AI
  * instructions editable and a parameter removable after a confirmation.
- * "Add parameter" is a labelled placeholder until the backend route works.
+ * "Add parameter" (backend 3.10) lists the dictionary parameters this project
+ * does not have and adds the chosen one in place.
  */
 export function ProjectParameters({ projectId }: { projectId: string }) {
   const state = useProjectData(projectId);
@@ -41,12 +41,14 @@ export function ProjectParameters({ projectId }: { projectId: string }) {
   const loadError = state?.error ?? null;
   const { parameters: canonical, error: canonicalError } = useCanonicalParameters();
   const activity = useProjectActivity(projectId);
+  const { user } = useAuth();
 
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<InputField | null>(null);
   const [removing, setRemoving] = useState<InputField | null>(null);
   const [removeBusy, setRemoveBusy] = useState(false);
   const [showAvailable, setShowAvailable] = useState(false);
+  const [adding, setAdding] = useState<string | null>(null);
 
   // Removing while an extraction or correction runs would pull a row out from under its save.
   const writing = [activity.running, activity.queued?.job].find((j) => j && j.kind !== 'upload');
@@ -83,6 +85,19 @@ export function ProjectParameters({ projectId }: { projectId: string }) {
     }
   };
 
+  const addParameter = async (parameter: CanonicalParameter) => {
+    setAdding(parameter.id);
+    try {
+      const added = await addParameterToProject(projectId, parameter.id, user?.id ?? null);
+      toast.show(`${metaOf(added).alias} added to this project.`, { severity: 'success' });
+    } catch (e) {
+      // 404, 409 ("already in the project") and 422 carry the backend's own text.
+      toast.show(`Could not add ${parameter.name}: ${errorMessage(e)}`, { severity: 'error' });
+    } finally {
+      setAdding(null);
+    }
+  };
+
   const total = fields?.length ?? 0;
 
   return (
@@ -101,12 +116,16 @@ export function ProjectParameters({ projectId }: { projectId: string }) {
           </Typography>
         </Typography>
         <SearchField value={query} onChange={setQuery} placeholder="Search parameters" aria-label="Search parameters" sx={{ flex: 1, minWidth: 180 }} />
-        <Stack direction="row" spacing={1} alignItems="center">
-          <Button size="small" variant="outlined" startIcon={<AddIcon />} disabled>
-            Add parameter
-          </Button>
-          <Chip size="small" variant="outlined" color="warning" label="Unavailable (backend B1)" title={B1} />
-        </Stack>
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<AddIcon />}
+          disabled={!canonical}
+          onClick={() => setShowAvailable(true)}
+          aria-controls="available-parameters"
+        >
+          Add parameter
+        </Button>
       </Stack>
 
       {REMOVE_PARAMETER_AVAILABLE ? (
@@ -134,7 +153,7 @@ export function ProjectParameters({ projectId }: { projectId: string }) {
           <EmptyState
             icon={TuneOutlinedIcon}
             title="This project has no parameters"
-            description="Parameters are copied from a template when the project is created. Adding one by hand is unavailable until the backend route is fixed (B1)."
+            description="Parameters are copied from a template when the project is created."
           />
         ) : (
           <>
@@ -201,9 +220,11 @@ export function ProjectParameters({ projectId }: { projectId: string }) {
                 </Box>
                 {showAvailable && (
                   <Box id="available-parameters">
-                    <Typography variant="caption" sx={{ display: 'block', px: 2, py: 0.75, color: 'status.warning', bgcolor: 'status.warningBg', fontWeight: 600 }}>
-                      {B1}
-                    </Typography>
+                    {writing && (
+                      <Typography variant="caption" role="note" sx={{ display: 'block', px: 2, py: 0.75, color: 'status.info', bgcolor: 'status.infoBg', fontWeight: 600 }}>
+                        A run in progress will not fill a parameter added now; the next run will.
+                      </Typography>
+                    )}
                     {available.length === 0 ? (
                       <Typography variant="body2" sx={{ px: 2, py: 1.25, color: 'text.muted' }}>
                         {query.trim() ? 'No dictionary parameter matches.' : 'This project has every parameter in the dictionary.'}
@@ -211,7 +232,7 @@ export function ProjectParameters({ projectId }: { projectId: string }) {
                     ) : (
                       <Box role="list">
                         {available.map((p) => (
-                          <AvailableItem key={p.id} parameter={p} />
+                          <AvailableItem key={p.id} parameter={p} busy={adding === p.id} disabled={adding !== null} onAdd={() => void addParameter(p)} />
                         ))}
                       </Box>
                     )}
@@ -338,7 +359,14 @@ function ParameterItem({
   );
 }
 
-function AvailableItem({ parameter }: { parameter: CanonicalParameter }) {
+function AvailableItem({
+  parameter, busy, disabled, onAdd,
+}: {
+  parameter: CanonicalParameter;
+  busy: boolean;
+  disabled: boolean;
+  onAdd: () => void;
+}) {
   return (
     <Box role="listitem" sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 2, py: 1, borderBottom: 1, borderColor: 'border.subtle' }}>
       <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -351,8 +379,8 @@ function AvailableItem({ parameter }: { parameter: CanonicalParameter }) {
           <Typography variant="caption" sx={{ color: 'text.muted', display: 'block', mt: 0.25 }}>{parameter.default_description}</Typography>
         )}
       </Box>
-      <Button size="small" variant="outlined" startIcon={<AddIcon />} disabled aria-label={`Add ${parameter.name} (unavailable)`}>
-        Add
+      <Button size="small" variant="outlined" startIcon={<AddIcon />} disabled={disabled} onClick={onAdd} aria-label={`Add ${parameter.name}`}>
+        {busy ? 'Adding…' : 'Add'}
       </Button>
     </Box>
   );

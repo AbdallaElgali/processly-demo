@@ -7,6 +7,7 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { useProjectActivity } from '@/lib/jobs/hooks';
 import { JobBanner } from '@/components/jobs/JobBanner';
 import { jobKindLabel, runningJobText } from '@/lib/jobs/label';
+import { KEEP_TAB_OPEN_TEXT, hasRunningAnalysis } from '@/lib/jobs/closeGuard';
 
 type Tone = 'info' | 'warning' | 'danger' | 'success';
 
@@ -51,6 +52,8 @@ export function JobStatusLine({ projectId }: { projectId: string }) {
     return null;
   }
 
+  const keepOpen = !!running && hasRunningAnalysis([running]);
+
   const color = { info: 'status.info', warning: 'status.warning', danger: 'status.danger', success: 'status.success' }[tone];
   const bg = { info: 'status.infoBg', warning: 'status.warningBg', danger: 'status.dangerBg', success: 'status.successBg' }[tone];
 
@@ -60,14 +63,14 @@ export function JobStatusLine({ projectId }: { projectId: string }) {
         onClick={(e) => setAnchorEl(e.currentTarget)}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={`${text}. Show details`}
+        aria-label={`${text}${keepOpen ? `. ${KEEP_TAB_OPEN_TEXT}` : ''}. Show details`}
         sx={{
           px: 1.25,
           py: 0.5,
           borderRadius: 999,
           bgcolor: bg,
           color,
-          maxWidth: 420,
+          maxWidth: { xs: 420, lg: 640 },
           '&:hover': { filter: 'brightness(0.97)' },
           '&:focus-visible': { outline: '2px solid', outlineColor: 'accent.focus', outlineOffset: 2 },
         }}
@@ -86,6 +89,11 @@ export function JobStatusLine({ projectId }: { projectId: string }) {
           <Typography variant="body2" noWrap sx={{ fontWeight: 600, color: 'inherit' }}>
             {text}
           </Typography>
+          {keepOpen && (
+            <Typography variant="caption" noWrap sx={{ color: 'inherit', opacity: 0.85, display: { xs: 'none', lg: 'block' } }}>
+              · {KEEP_TAB_OPEN_TEXT}
+            </Typography>
+          )}
           {warnings > 0 && (
             <Stack direction="row" spacing={0.25} alignItems="center" sx={{ color: 'status.warning' }}>
               <WarningAmberIcon sx={{ fontSize: 15 }} />

@@ -181,6 +181,17 @@ export class ProjectDataStore {
   }
 
   /**
+   * Adds a row without a reload (a parameter just added to the project). Other
+   * rows and unsaved edits are untouched; a row already held (same `dbId`, e.g.
+   * a background reload got there first) is not added twice.
+   */
+  appendField(projectId: string, field: InputField) {
+    this.update(projectId, (prev) =>
+      prev.fields.some((f) => f.dbId === field.dbId) ? prev : { ...prev, fields: [...prev.fields, field] },
+    );
+  }
+
+  /**
    * Change one parameter. `dirty: true` records an unsaved edit.
    * Works on the CURRENT state, so concurrent updates to other rows (a run's
    * partial results, another row's flag) are never overwritten by a stale copy.

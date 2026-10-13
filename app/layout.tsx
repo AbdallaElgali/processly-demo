@@ -6,6 +6,7 @@ import './globals.css';
 
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ProjectDataProvider } from '@/lib/project-data/provider';
+import { RunningJobGuard } from '@/components/jobs/RunningJobGuard';
 import { ThemeRegistry } from '@/theme/ThemeRegistry';
 
 // One font for the whole app. latin-ext carries the umlauts and eszett in the
@@ -47,7 +48,10 @@ export default function RootLayout({
         <AppRouterCacheProvider>
           <ThemeRegistry>
             <AuthProvider>
-              <ProjectDataProvider>{children}</ProjectDataProvider>
+              <ProjectDataProvider>
+                <RunningJobGuard />
+                {children}
+              </ProjectDataProvider>
             </AuthProvider>
           </ThemeRegistry>
         </AppRouterCacheProvider>

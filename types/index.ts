@@ -53,6 +53,8 @@ export interface Specification {
 export interface InputField {
   id: string;       // parameter_key (e.g. "U_MIN")
   dbId: string;     // ProjectParameter row id
+  /** Canonical `parameters.id` (backend 3.10). Not unique per project; null/absent on older payloads. */
+  parameterId?: string | null;
   label: string;
   /** The parameter's category from the project payload (backend step 3.5); null/absent -> "Other". */
   category?: string | null;

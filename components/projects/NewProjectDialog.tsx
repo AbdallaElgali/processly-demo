@@ -9,6 +9,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCustomers } from '@/hooks/Customers';
 import { getUserTemplates, type ExtractionTemplateBase } from '@/api/templates';
 import { createProject } from '@/lib/project-data/actions';
+import { buildCreateInput, canCreateProject } from '@/lib/projects/create';
+import { errorMessage } from '@/lib/errors';
 import { FormDialog } from '@/components/ui/FormDialog';
 
 /**
@@ -84,22 +86,19 @@ export function NewProjectDialog({
   };
 
   const handleCreate = async () => {
-    if (!alias.trim() || !user?.id) return;
+    if (!canCreateProject({ alias, customerId, userId: user?.id })) return;
     setBusy(true);
     setError(null);
     try {
-      const project = await createProject({
-        alias_id: alias.trim(),
-        description: description.trim(),
-        customer_id: customerId || null,
-        user_id: user.id,
-        template_id: templateId || null,
-      });
+      const project = await createProject(
+        buildCreateInput({ alias, customerId, userId: user?.id, templateId, description }),
+      );
       if (!project) throw new Error('The project was not created.');
       reset();
       onCreated(project.id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not create the project.');
+      // A stale customer id comes back as a 422 whose `detail` says so.
+      setError(errorMessage(e, 'Could not create the project.'));
     } finally {
       setBusy(false);
     }
@@ -113,7 +112,7 @@ export function NewProjectDialog({
       error={error}
       onSubmit={() => void handleCreate()}
       submitLabel="Create project"
-      submitDisabled={!alias.trim()}
+      submitDisabled={!canCreateProject({ alias, customerId, userId: user?.id })}
       busy={busy}
     >
       <TextField
@@ -134,7 +133,7 @@ export function NewProjectDialog({
         </Box>
       ) : (
         <Box sx={{ display: 'flex', gap: 1 }}>
-          <FormControl fullWidth>
+          <FormControl fullWidth required>
             <InputLabel id="customer-label">Customer</InputLabel>
             <Select
               labelId="customer-label" label="Customer" value={customerId}

@@ -1,5 +1,6 @@
 'use client';
 
+import { KEEP_TAB_OPEN_TEXT } from '@/lib/jobs/closeGuard';
 import { useState } from 'react';
 import { Alert, Box, Button, LinearProgress, Stack, Typography } from '@mui/material';
 import { useProjectActivity } from '@/lib/jobs/hooks';
@@ -90,7 +91,12 @@ export function JobBanner({ projectId, padded = true }: { projectId: string | nu
               <LinearProgress sx={{ borderRadius: 1 }} />
             </>
           ) : (
-            <RunTimeline job={running} />
+            <>
+              <RunTimeline job={running} />
+              <Typography variant="caption" role="note" sx={{ display: 'block', mt: 0.5, fontWeight: 600 }}>
+                {KEEP_TAB_OPEN_TEXT}
+              </Typography>
+            </>
           )}
         </Alert>
       )}

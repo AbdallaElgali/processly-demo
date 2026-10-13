@@ -1,6 +1,7 @@
 import {
   apiAddAuditor,
   apiAddContributor,
+  apiAddProjectParameter,
   apiUpdateProjectStatus,
   apiApproveProjectParameters,
   apiCreateProject,
@@ -17,6 +18,7 @@ import type { FullProjectDetails, ProjectBase, ProjectStatus } from '@/api/types
 import type { InputField } from '@/types';
 import { dbParamToInputField, inputFieldToParameterInput } from '@/lib/parameter-adapter';
 import type { ProjectParameter } from '@/api/projects';
+import { buildAddParameterBody } from '@/lib/parameters/meta';
 import { projectDataStore } from './store';
 import { projectsIndex } from './projects-index';
 
@@ -122,6 +124,23 @@ export async function approveProject(projectId: string, userId: string | null = 
  */
 export function reloadAfterRun(projectId: string): Promise<FullProjectDetails | null> {
   return loadProjectDetails(projectId, { background: true });
+}
+
+/**
+ * Adds one canonical parameter to a project (`POST /projects/{id}/parameters`,
+ * backend 3.10). The 201 row goes through the same adapter as a loaded
+ * parameter and is appended in place, with no reload, so unsaved edits on other
+ * rows are untouched. Errors (404, 409, 422) throw with the backend's body.
+ */
+export async function addParameterToProject(
+  projectId: string,
+  parameterId: string,
+  userId: string | null,
+): Promise<InputField> {
+  const row = await apiAddProjectParameter(projectId, buildAddParameterBody(parameterId, userId));
+  const field = dbParamToInputField(row);
+  projectDataStore.appendField(projectId, field);
+  return field;
 }
 
 export async function createProject(input: ProjectCreateInput): Promise<ProjectBase | undefined> {

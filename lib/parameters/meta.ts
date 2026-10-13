@@ -1,6 +1,6 @@
 import type { InputField } from '@/types';
 import type { CanonicalParameter } from '@/api/templates';
-import type { updateProjectParameter } from '@/api/projects';
+import type { AddParameterBody, updateProjectParameter } from '@/api/projects';
 
 /**
  * "Remove parameter" is wired end to end (`removeParameter`, the confirmation
@@ -72,8 +72,23 @@ export function matchesQuery(field: InputField, canonical: CanonicalParameter | 
     .some((text) => text.toLowerCase().includes(q));
 }
 
-/** Canonical parameters this project does not have yet. */
+/**
+ * Canonical parameters this project does not have yet (backend 3.10).
+ * Matches on the canonical `parameter_id`; `parameter_id` is not assumed to be
+ * unique per project, so any row carrying it hides the parameter. A row that
+ * carries no `parameter_id` (older payloads) falls back to the key.
+ */
 export function parametersNotInProject(canonical: CanonicalParameter[], fields: InputField[]): CanonicalParameter[] {
-  const have = new Set(fields.map((f) => f.id));
-  return canonical.filter((p) => !have.has(p.name));
+  const haveIds = new Set<string>();
+  const haveKeys = new Set<string>();
+  for (const f of fields) {
+    if (f.parameterId) haveIds.add(f.parameterId);
+    else haveKeys.add(f.id);
+  }
+  return canonical.filter((p) => !haveIds.has(p.id) && !haveKeys.has(p.name));
+}
+
+/** The body for `POST /projects/{id}/parameters`. */
+export function buildAddParameterBody(parameterId: string, userId: string | null): AddParameterBody {
+  return { parameter_id: parameterId, user_id: userId };
 }
