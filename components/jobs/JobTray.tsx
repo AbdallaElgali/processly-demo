@@ -7,6 +7,7 @@ import {
 } from '@mui/material';
 import WorkHistoryOutlinedIcon from '@mui/icons-material/WorkHistoryOutlined';
 import { useJobs, useJobTray } from '@/lib/jobs/hooks';
+import { KEEP_TAB_OPEN_TEXT, hasRunningAnalysis } from '@/lib/jobs/closeGuard';
 import { JobBadge, type BadgeKind } from './JobBadge';
 import { useProjectsIndex } from '@/lib/project-data/provider';
 
@@ -31,6 +32,7 @@ export function JobTray() {
   const { projects } = useProjectsIndex();
 
   const active = jobs.filter((j) => STATUS_BADGE[j.status]);
+  const keepOpen = hasRunningAnalysis(jobs);
   const total = counts.running + counts.queued + counts.failed;
   const nameOf = (projectId: string) =>
     projects.find((p) => p.id === projectId)?.alias_id ?? 'Project';
@@ -70,6 +72,11 @@ export function JobTray() {
           </Typography>
         </Box>
         <Divider />
+        {keepOpen && (
+          <Typography variant="caption" role="note" sx={{ display: 'block', px: 2, py: 0.75, bgcolor: 'status.infoBg', color: 'status.info', fontWeight: 600 }}>
+            {KEEP_TAB_OPEN_TEXT}
+          </Typography>
+        )}
         {active.length === 0 ? (
           <Box sx={{ px: 2, py: 3, textAlign: 'center' }}>
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>

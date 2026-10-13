@@ -11,13 +11,13 @@ const API_BASE_URL = API_URL + '/projects';
  * POST /projects/ — exactly the fields ProjectCreateInput declares in
  * openapi.json. `title` and `customer` used to be here and were sent on every
  * create; the backend has no such fields and silently dropped them.
- * `customer_id` is nullable in the schema, so a project can be created before
- * its customer is known.
+ * `customer_id` is required since backend step 3.13 (422 when missing, null or
+ * unknown); old projects may still have `customer: null`, but a new one never.
  */
 export interface ProjectCreateInput {
   alias_id: string;
   description?: string | null;
-  customer_id?: string | null;
+  customer_id: string;
   user_id: string;
   template_id: string | null;
 }
@@ -93,7 +93,8 @@ export interface ProjectParameter {
   
   parameter_alias: string;  // Display name for the parameter, can be customized by user
  
-  final_value: number | null;
+  /** Shortest-form decimal since backend 3.6: a JSON string ("3.65") or a number. */
+  final_value: number | string | null;
   final_unit: string | null;
   is_human_modified: boolean;
   selected_candidate_id: string | null;
@@ -144,6 +145,30 @@ export const apiCreateProject = async (data: ProjectCreateInput): Promise<{ proj
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error(await response.text());
+  return response.json();
+};
+
+/** Body of POST /projects/{id}/parameters (AddParameterInput). */
+export interface AddParameterBody {
+  parameter_id: string;
+  user_id: string | null;
+}
+
+/**
+ * POST /projects/{id}/parameters (backend 3.10): adds one canonical parameter
+ * and answers 201 with the new row in the shape of a GET /projects/{id}
+ * `parameters` entry. 404 (project), 409 ("already in the project") and 422
+ * (unknown parameter or user) throw with the backend's body; `errorMessage`
+ * turns that into the `detail` text. The old `PUT .../project-parameter/{id}/add`
+ * is no longer used by the app (the backend removes it later).
+ */
+export const apiAddProjectParameter = async (projectId: string, body: AddParameterBody): Promise<ProjectParameter> => {
+  const response = await fetch(`${API_BASE_URL}/${projectId}/parameters`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
   });
   if (!response.ok) throw new Error(await response.text());
   return response.json();
