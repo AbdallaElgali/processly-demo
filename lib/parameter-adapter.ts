@@ -97,6 +97,7 @@ const candidateToSpecification = (item: Record<string, unknown>): Specification 
     expectedUnit: (item.expected_unit as string) ?? null,
     extractionLogic: (item.extraction_logic as string) ?? null,
     calculationLogic: (item.calculation_logic as string) ?? null,
+    runNumber: typeof item.run_number === 'number' ? item.run_number : null,
   };
 };
 
@@ -129,6 +130,7 @@ export const dbParamToInputField = (p: ProjectParameter): InputField => {
     flagReason: p.flag_reason ?? null,
     activeFlagId: p.active_flag_id ?? null,
     reviewAction: ((p.review_action as ReviewAction) || 'PENDING') as ReviewAction,
+    isHumanModified: !!p.is_human_modified,
   };
 
   const specifications = (p.candidates ?? []).map(c =>
@@ -202,11 +204,14 @@ export const inputFieldToParameterInput = (
     // accepts number | string | null.
     final_value: parsed === null ? null : Number.isNaN(parsed) ? raw : parsed,
     final_unit: activeSpec?.unit || null,
-    is_human_modified: f.reviewAction === 'MODIFIED',
+    // What the server had, changed only by an edit or a revert (lib/review/edits.ts).
+    is_human_modified: f.isHumanModified ?? f.reviewAction === 'MODIFIED',
     selected_candidate_id: activeSpec?.candidateId ?? null,
     flag: f.isFlagged,
     flag_reason: f.isFlagged ? f.flagReason : null,
     flagger_id: f.isFlagged ? userId : null,
+    // The row's real state: the server's, or what the person just did to it
+    // (edit -> MODIFIED, Accept -> ACCEPTED). Never a blanket PENDING.
     review_action: f.reviewAction,
   };
 };

@@ -80,9 +80,9 @@ export async function loadProjectDetails(
  * the background. `silent` keeps the toolbar's Save spinner out of a
  * row-level save (Accept).
  *
- * Backend behaviour to know (B15): the batch save ignores `review_action`
- * and writes PENDING on every row it touches, so saving a row that was
- * approved returns it to pending.
+ * Each row goes with its real review state (lib/parameter-adapter.ts) and
+ * `userId` as `reviewer_id`. An unknown reviewer is a 422 whose text the caller
+ * shows; nothing here retries.
  */
 export async function saveFields(
   projectId: string,
@@ -94,7 +94,7 @@ export async function saveFields(
   const parameters: ParameterInput[] = fields.map((f) => inputFieldToParameterInput(f, userId));
   if (!options.silent) projectDataStore.setLoading(projectId, 'save', true);
   try {
-    await apiSaveProjectParameters(projectId, parameters);
+    await apiSaveProjectParameters(projectId, parameters, userId);
     projectDataStore.markSaved(projectId, fields);
     await loadProjectDetails(projectId, { background: true });
   } finally {
@@ -102,11 +102,26 @@ export async function saveFields(
   }
 }
 
-/** `POST /projects/{id}/approve`: every PENDING parameter becomes ACCEPTED. Returns how many. */
-export async function approveProject(projectId: string): Promise<number> {
-  const result = await apiApproveProjectParameters(projectId);
+/**
+ * `POST /projects/{id}/approve`: every PENDING parameter becomes ACCEPTED (a
+ * MODIFIED or REJECTED row is left alone). Returns how many. The project is
+ * read back at once, so the next save starts from what the backend now holds.
+ */
+export async function approveProject(projectId: string, userId: string | null = null): Promise<number> {
+  const result = await apiApproveProjectParameters(projectId, userId);
   await loadProjectDetails(projectId, { background: true });
   return typeof result?.parameters_approved === 'number' ? result.parameters_approved : 0;
+}
+
+/**
+ * Reads the project back when an extraction or correction run has ended, however
+ * it ended. A stream applies partial results to the rows in memory before the
+ * backend has saved anything (D9), and a re-extraction leaves human-touched
+ * rows as they were: only the stored state is a safe base for the next save.
+ * Unsaved edits survive the reload (`mergeLocalEdits`).
+ */
+export function reloadAfterRun(projectId: string): Promise<FullProjectDetails | null> {
+  return loadProjectDetails(projectId, { background: true });
 }
 
 export async function createProject(input: ProjectCreateInput): Promise<ProjectBase | undefined> {

@@ -12,7 +12,7 @@ export interface SpecificationSource {
 
 // Review lifecycle for a parameter. PENDING = untouched AI value,
 // MODIFIED = a human edited the value, ACCEPTED = approved (backend-owned).
-export type ReviewAction = 'PENDING' | 'MODIFIED' | 'ACCEPTED';
+export type ReviewAction = 'PENDING' | 'MODIFIED' | 'ACCEPTED' | 'REJECTED';
 
 export interface Specification {
   // Stable id used for React keys and `selectedSpecId`. For an AI candidate this
@@ -46,6 +46,8 @@ export interface Specification {
    * on an unedited candidate and on a value a person typed with no candidate.
    */
   original?: { value: string; unit: string | null; confidence: number | null };
+  /** The extraction run this candidate came from (`run_number` in the project payload). */
+  runNumber?: number | null;
 }
 
 export interface InputField {
@@ -64,6 +66,12 @@ export interface InputField {
   flagReason: string | null;
   activeFlagId: string | null; // id of the active flag ticket; chained as parent on re-flag
   reviewAction: ReviewAction;
+  /**
+   * `project_parameters.is_human_modified`: the saved value is a person's, not
+   * the candidate's. Kept separately from `reviewAction` because an edited row
+   * that was then accepted is ACCEPTED and still human-modified.
+   */
+  isHumanModified?: boolean;
 }
 
 // PDFSource and ExcelSource represent the resolved highlight target passed to viewers.

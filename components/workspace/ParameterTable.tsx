@@ -52,7 +52,6 @@ export function ParameterTable({
   job,
   rowBusy,
   dirty,
-  accepted,
   density,
   onDensityChange,
   reviewFirst,
@@ -68,8 +67,6 @@ export function ParameterTable({
   rowBusy: Readonly<Record<string, RowBusy>>;
   /** Rows with unsaved edits. */
   dirty: readonly string[];
-  /** Rows accepted in this session. */
-  accepted: readonly string[];
   density: Density;
   onDensityChange: (d: Density) => void;
   reviewFirst: boolean;
@@ -83,7 +80,7 @@ export function ParameterTable({
 
   const groups: Group[] = useMemo(() => {
     const withState = (list: InputField[]) => {
-      const rows = list.map((field) => ({ field, state: rowState(field, { acceptedLocally: accepted.includes(field.id) }) }));
+      const rows = list.map((field) => ({ field, state: rowState(field) }));
       if (reviewFirst) {
         // Stable: ties keep the backend's own order (category, then name).
         rows.sort((a, b) => reviewOrder(a.state.primary) - reviewOrder(b.state.primary));
@@ -92,7 +89,7 @@ export function ParameterTable({
     };
     if (!canonical) return [{ category: null, found: 0, rows: withState(fields) }];
     return groupFields(fields, canonical).map((g) => ({ category: g.category, found: g.found, rows: withState(g.fields) }));
-  }, [fields, canonical, reviewFirst, accepted]);
+  }, [fields, canonical, reviewFirst]);
 
   const order = useMemo(() => groups.flatMap((g) => g.rows.map((r) => r.field.id)), [groups]);
   const activeKey = focusedKey && order.includes(focusedKey) ? focusedKey : order[0] ?? null;
@@ -275,7 +272,6 @@ export function ParameterTable({
                     focused={field.id === activeKey}
                     busy={rowBusy[field.id] ?? null}
                     dirty={dirty.includes(field.id)}
-                    accepted={accepted.includes(field.id)}
                     density={density}
                     handlers={rowHandlers}
                   />

@@ -19,7 +19,7 @@ import { flagParameter, unFlagParameter, updateResolvedBy } from '@/api/paramete
  *
  * `project_parameters` has no `human_flagged` column at all -- the field the
  * API returns is derived from a LATERAL join on open flags. And
- * `save_project_parameters_batch_db` writes only final_value, final_unit,
+ * the human batch save (`save_human_parameters_db`) writes only final_value, final_unit,
  * is_human_modified, selected_candidate_id and review_action: it accepts the
  * `flag` fields in its request schema and then ignores them.
  *
@@ -71,9 +71,9 @@ export async function raiseHumanFlag(input: RaiseFlagInput): Promise<RaiseFlagRe
  * a legitimate no-op: without a ticket the parameter was never flagged in the
  * backend's eyes either.
  */
-export async function clearHumanFlag(activeFlagId: string | null): Promise<void> {
+export async function clearHumanFlag(activeFlagId: string | null, userId: string | null = null): Promise<void> {
   if (!activeFlagId) return;
-  await unFlagParameter(activeFlagId, null, 'DISMISSED');
+  await unFlagParameter(activeFlagId, null, 'DISMISSED', userId);
 }
 
 /**
@@ -92,7 +92,7 @@ export async function clearHumanFlag(activeFlagId: string | null): Promise<void>
  * and the flag is then closed through the branch without `resolved_by`,
  * which works. Lost until B16 is fixed: `resolved_at_run_id`.
  */
-export async function resolveHumanFlag(activeFlagId: string, candidateId: string | null): Promise<void> {
+export async function resolveHumanFlag(activeFlagId: string, candidateId: string | null, userId: string | null = null): Promise<void> {
   if (candidateId) await updateResolvedBy(activeFlagId, candidateId);
-  await unFlagParameter(activeFlagId, null, 'RESOLVED');
+  await unFlagParameter(activeFlagId, null, 'RESOLVED', userId);
 }

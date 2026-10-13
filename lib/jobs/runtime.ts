@@ -1,4 +1,4 @@
-import { loadProjectDetails } from '@/lib/project-data/actions';
+import { reloadAfterRun } from '@/lib/project-data/actions';
 import {
   deletePendingFiles,
   loadPendingFiles,
@@ -251,6 +251,9 @@ export class JobRuntime {
 
     // A cancelled job keeps its status; do not overwrite it.
     if (jobStore.getJob(job.id)?.status === 'cancelled') {
+      // A stream aborted part-way has already put partial candidates into the
+      // rows in memory; the backend saved none of them (D9).
+      if (job.payload.kind === 'extraction' || job.payload.kind === 'correction') await reloadAfterRun(job.projectId);
       this.releaseJobLock(job.id);
       void this.pump();
       return;
@@ -260,7 +263,7 @@ export class JobRuntime {
       await deletePendingFiles(job.id);
       // Completion refreshes that project in the background and never
       // navigates (CLAUDE.md 8.1).
-      await loadProjectDetails(job.projectId, { background: true });
+      await reloadAfterRun(job.projectId);
       jobStore.dispatch({
         type: 'complete',
         jobId: job.id,
@@ -269,6 +272,7 @@ export class JobRuntime {
         warnings: outcome.warnings,
       });
     } else {
+      if (job.payload.kind === 'extraction' || job.payload.kind === 'correction') await reloadAfterRun(job.projectId);
       jobStore.dispatch({
         type: 'fail',
         jobId: job.id,
