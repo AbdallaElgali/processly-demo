@@ -1,9 +1,11 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import { useColorScheme } from '@mui/material/styles';
 import { config } from '@/api/config';
 import { update_user_settings, UserSettings } from '@/api/user';
+import { settingsPayload, storedThemeMode } from '@/lib/auth/settings';
 
 const API_URL = config.api;
 
@@ -33,6 +35,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const { setMode } = useColorScheme();
+  // The latest settings, updated before a request goes out, so two changes in
+  // quick succession each start from the other's result (S2).
+  const userRef = useRef<User | null>(null);
+  useEffect(() => { userRef.current = user; }, [user]);
 
   const logout = useCallback(() => {
     setUser(null);
@@ -78,26 +85,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [logout]);
 
   const updateUserSettings = async (settings: Partial<UserSettings>) => {
-      if (!user) throw new Error("No user logged in");
-      const updatedSettings = { user_id: user.id, ...user, ...settings };
-      
+      const current = userRef.current;
+      if (!current) throw new Error("No user logged in");
+      const payload = settingsPayload(current, settings);
+      const updatedUserObj: User = { ...current, template_id: payload.template_id, theme: payload.theme, lang: payload.lang };
+
+      userRef.current = updatedUserObj;
       try {
-          const updated = await update_user_settings(user.id, updatedSettings);
+          const updated = await update_user_settings(current.id, payload);
           if (!updated) throw new Error("Failed to update settings");
 
-          // CREATE the new object first
-          const updatedUserObj: User = {
-            ...user, 
-            template_id: settings.template_id !== undefined ? settings.template_id : user.template_id, 
-            theme: settings.theme !== undefined ? settings.theme : user.theme, 
-            lang: settings.lang !== undefined ? settings.lang : user.lang
-          };
-
-          // SET the new object to BOTH state and local storage simultaneously 
           setUser(updatedUserObj);
           localStorage.setItem('bda_user', JSON.stringify(updatedUserObj));
-          
       } catch (err: unknown) {
+          if (userRef.current === updatedUserObj) userRef.current = current;
           throw new Error(err instanceof Error ? err.message : String(err));
       }
     }
@@ -119,9 +120,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           settings_last_updated_at: data.settings_last_updated_at
         };
         
+        userRef.current = currentUser;
         setUser(currentUser);
         localStorage.setItem('bda_user', JSON.stringify(currentUser));
-        
+        // S1: the stored choice follows the person to this browser. Only at
+        // login, so a local choice is not overridden on every reload.
+        const storedMode = storedThemeMode(currentUser.theme);
+        if (storedMode) setMode(storedMode);
+
         return; 
       } 
       

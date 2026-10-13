@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { 
   Box, Typography, Card, Button, TextField, 
-  MenuItem, Select, FormControl, InputLabel, CircularProgress, Chip 
+  MenuItem, Select, FormControl, InputLabel, Chip 
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SearchIcon from '@mui/icons-material/Search';
@@ -10,6 +10,8 @@ import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
 import { useProjectSummary } from '@/hooks/useProjectSummary'; 
 import { ProjectSummary as ProjectSummaryType } from '@/types/audit';
 import { formatDisplayValue } from '@/lib/review/format';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { SkeletonRows } from '@/components/ui/Skeletons';
 
 interface ParameterRowProps {
   parameter: ProjectSummaryType;
@@ -58,7 +60,7 @@ const ParameterRow: React.FC<ParameterRowProps> = ({ parameter, href }) => {
       {/* 2. Final Value */}
       <Box sx={{ flex: '1 1 25%', pr: 2, borderLeft: '1px solid', borderColor: 'border.subtle', pl: 2 }}>
         <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
-          Final Value
+          Final value
         </Typography>
         <Typography variant="body2" fontWeight="bold" color={parameter.finalValue !== null ? 'text.primary' : 'text.disabled'} sx={{ fontVariantNumeric: 'tabular-nums' }}>
           {parameter.finalValue !== null ? formatDisplayValue(parameter.finalValue) : 'Unassigned'}
@@ -68,10 +70,10 @@ const ParameterRow: React.FC<ParameterRowProps> = ({ parameter, href }) => {
       {/* 3. Micro-Stats (Candidates / Runs / Flags) */}
       <Box sx={{ flex: '1 1 25%', pr: 2, borderLeft: '1px solid', borderColor: 'border.subtle', pl: 2 }}>
         <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
-          Extraction Stats
+          Activity
         </Typography>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <span><b>{parameter.totalCandidates}</b> cands</span>
+          <span><b>{parameter.totalCandidates}</b> candidates</span>
           <span>•</span>
           <span><b>{parameter.totalExtractionRuns}</b> runs</span>
           <span>•</span>
@@ -85,12 +87,12 @@ const ParameterRow: React.FC<ParameterRowProps> = ({ parameter, href }) => {
       <Box sx={{ flex: '1 1 25%', display: 'flex', justifyContent: 'flex-end', gap: 1, alignItems: 'center' }}>
         {parameter.isAiAccepted && (
           <Typography variant="caption" fontWeight="bold" sx={{ color: 'status.success', border: '1px solid', borderColor: 'status.success', px: 1, py: 0.25, borderRadius: 1 }}>
-            AI Won
+            From AI
           </Typography>
         )}
         {parameter.isHumanModified && (
           <Typography variant="caption" fontWeight="bold" sx={{ color: 'status.warning', border: '1px solid', borderColor: 'status.warning', px: 1, py: 0.25, borderRadius: 1 }}>
-            Human Edited
+            Edited
           </Typography>
         )}
         <Chip 
@@ -111,7 +113,7 @@ interface ProjectSummaryProps {
 }
 
 const ProjectSummary: React.FC<ProjectSummaryProps> = ({ projectId, onBack }) => {
-  const { summaryData, isLoading, error } = useProjectSummary(projectId);
+  const { summaryData, isLoading, error, reload } = useProjectSummary(projectId);
   const auditHref = `/projects/${projectId}/audit`;
   
   // Search and Filter States
@@ -127,7 +129,8 @@ const ProjectSummary: React.FC<ProjectSummaryProps> = ({ projectId, onBack }) =>
       const matchesSearch = param.parameterKey.toLowerCase().includes(searchQuery.toLowerCase());
       
       // Review Status
-      const matchesReview = reviewFilter === 'ALL' || param.reviewAction === reviewFilter;
+      // A row with no stored action is shown as PENDING, so it filters as PENDING.
+      const matchesReview = reviewFilter === 'ALL' || (param.reviewAction ?? 'PENDING') === reviewFilter;
       
       // Extraction Runs Logic
       let matchesRuns = true;
@@ -145,11 +148,18 @@ const ProjectSummary: React.FC<ProjectSummaryProps> = ({ projectId, onBack }) =>
   }, [summaryData, searchQuery, reviewFilter, runsFilter, flagsFilter]);
 
   if (isLoading) {
-    return <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box>;
+    return <Box sx={{ p: 1 }} aria-busy="true"><SkeletonRows count={8} columns={4} /></Box>;
   }
 
   if (error) {
-    return <Typography color="error">Error loading project details: {error}</Typography>;
+    return (
+      <Box sx={{ flex: 1 }}>
+        <Button startIcon={<ArrowBackIcon />} onClick={onBack} sx={{ textTransform: 'none', color: 'text.secondary' }}>
+          Back to Overview
+        </Button>
+        <ErrorState title="Could not load this project's parameters" description={error} onRetry={reload} />
+      </Box>
+    );
   }
 
   return (
@@ -180,9 +190,7 @@ const ProjectSummary: React.FC<ProjectSummaryProps> = ({ projectId, onBack }) =>
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           sx={{ flex: 1, minWidth: 200, bgcolor: 'surface.panel' }}
-          InputProps={{
-            startAdornment: <SearchIcon sx={{ color: 'text.secondary', mr: 1 }} />
-          }}
+          slotProps={{ input: { startAdornment: <SearchIcon sx={{ color: 'text.secondary', mr: 1 }} /> } }}
         />
         
         {/* Review Status Filter */}
@@ -194,6 +202,7 @@ const ProjectSummary: React.FC<ProjectSummaryProps> = ({ projectId, onBack }) =>
             onChange={(e) => setReviewFilter(e.target.value)}
           >
             <MenuItem value="ALL">All Statuses</MenuItem>
+            <MenuItem value="PENDING">Pending</MenuItem>
             <MenuItem value="ACCEPTED">Accepted</MenuItem>
             <MenuItem value="MODIFIED">Modified</MenuItem>
             <MenuItem value="REJECTED">Rejected</MenuItem>

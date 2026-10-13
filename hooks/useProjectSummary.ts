@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { fetch_project_summary } from '@/api/audit/project_metrics'; // Adjust path
 import type { ProjectSummary } from '@/types/audit';
 
@@ -6,6 +6,8 @@ export function useProjectSummary(projectId: string) {
   const [summaryData, setSummaryData] = useState<ProjectSummary[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const reload = useCallback(() => setReloadKey((k) => k + 1), []);
 
   useEffect(() => {
     let isMounted = true;
@@ -36,7 +38,7 @@ export function useProjectSummary(projectId: string) {
     return () => {
       isMounted = false; // Cleanup to prevent state updates if component unmounts
     };
-  }, [projectId]);
+  }, [projectId, reloadKey]);
 
-  return { summaryData, isLoading, error };
+  return { summaryData, isLoading, error, reload };
 }

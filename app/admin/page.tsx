@@ -9,6 +9,8 @@ import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import { useAdminData } from '@/hooks/AdminData';
 import { AdminSidebar } from '@/components/ProjectsSideBar/AdminSideBar';
 import { AppHeader } from '@/components/shell/AppHeader';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { SkeletonRows } from '@/components/ui/Skeletons';
 
 import GlobalOverview from './components/GlobalOverview';
 import ProjectSummary from './components/ProjectSummary';
@@ -30,7 +32,11 @@ export default function AdminPage() {
     setDateFilter,
     users,
     dashboardData,
-    feedbacks // Pulling feedbacks from your hook
+    feedbacks,
+    isLoading,
+    error,
+    feedbackError,
+    reload,
   } = adminData;
 
   
@@ -80,8 +86,15 @@ export default function AdminPage() {
 
         <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
           
+          {/* A failed projects load must not read as "no projects" (8.4). */}
+          {activeTab === 'projects' && error && (
+            <Box sx={{ flex: 1 }}>
+              <ErrorState title="Could not load the projects" description={error} onRetry={reload} />
+            </Box>
+          )}
+
           {/* Only show the sidebar if we are in the 'projects' view */}
-          {activeTab === 'projects' && (
+          {activeTab === 'projects' && !error && (
             <Box sx={{ 
               width: isExpanded ? '100%' : 350, 
               flexShrink: 0,
@@ -108,16 +121,22 @@ export default function AdminPage() {
             </Box>
           )}
 
-          {!isExpanded && (
+          {!isExpanded && !(activeTab === 'projects' && error) && (
             <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 3, overflow: 'hidden' }}>
               {activeTab === 'feedback' ? (
-                <FeedbackArea feedbacks={feedbacks} />
+                feedbackError ? (
+                  <ErrorState title="Could not load the feedback" description={feedbackError} onRetry={reload} />
+                ) : (
+                  <FeedbackArea feedbacks={feedbacks} />
+                )
               ) : (
                 selectedProjectId ? (
                   <ProjectSummary 
                     projectId={selectedProjectId} 
                     onBack={() => setSelectedProjectId(null)} 
                   />
+                ) : isLoading ? (
+                  <SkeletonRows count={6} columns={3} />
                 ) : (
                   <GlobalOverview dashboardData={dashboardData} />
                 )

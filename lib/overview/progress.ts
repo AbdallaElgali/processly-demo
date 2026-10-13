@@ -1,5 +1,6 @@
 import type { InputField } from '@/types';
 import { rowState } from '@/lib/review/rowState';
+import { isPendingReview } from '@/lib/review/approval';
 
 /**
  * Review progress for the Overview (step 12), separate from the project's
@@ -12,12 +13,14 @@ import { rowState } from '@/lib/review/rowState';
  * `total`. Precedence, most urgent first:
  *   flagged  -- an open human flag (the colleague's objection is unresolved)
  *   empty    -- no value: never extracted, or a reason-code row (CLAUDE.md 7)
- *   accepted -- `review_action === 'ACCEPTED'` (Approve, or a saved Accept)
- *   pending  -- has a value, not accepted yet (includes edited rows)
+ *   pending  -- has a value and `review_action` is PENDING (`isPendingReview`,
+ *               the rule Approve uses)
+ *   reviewed -- has a value and a person has decided: ACCEPTED, MODIFIED or
+ *               REJECTED
  */
 export interface ReviewProgress {
   total: number;
-  accepted: number;
+  reviewed: number;
   pending: number;
   flagged: number;
   empty: number;
@@ -26,19 +29,19 @@ export interface ReviewProgress {
 }
 
 export function reviewProgress(fields: readonly InputField[]): ReviewProgress {
-  const progress: ReviewProgress = { total: fields.length, accepted: 0, pending: 0, flagged: 0, empty: 0, outOfBounds: 0 };
+  const progress: ReviewProgress = { total: fields.length, reviewed: 0, pending: 0, flagged: 0, empty: 0, outOfBounds: 0 };
   for (const field of fields) {
     const state = rowState(field);
     if (state.primary === 'bounds' || state.secondary.includes('bounds')) progress.outOfBounds += 1;
     if (field.isFlagged) progress.flagged += 1;
     else if (state.primary === 'empty' || state.primary === 'no_run') progress.empty += 1;
-    else if (field.reviewAction === 'ACCEPTED') progress.accepted += 1;
-    else progress.pending += 1;
+    else if (isPendingReview(field)) progress.pending += 1;
+    else progress.reviewed += 1;
   }
   return progress;
 }
 
-/** Share of parameters accepted, 0-100, rounded down so 100 means all of them. */
-export function acceptedPercent(progress: ReviewProgress): number {
-  return progress.total === 0 ? 0 : Math.floor((progress.accepted / progress.total) * 100);
+/** Share of parameters reviewed, 0-100, rounded down so 100 means all of them. */
+export function reviewedPercent(progress: ReviewProgress): number {
+  return progress.total === 0 ? 0 : Math.floor((progress.reviewed / progress.total) * 100);
 }

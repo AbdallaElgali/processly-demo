@@ -130,7 +130,7 @@ export function TemplatesPanel({ projectId, projectName, parameterCount }: { pro
             Save this project as template
           </Button>
           {!SAVE_AS_TEMPLATE_AVAILABLE && (
-            <Chip size="small" variant="outlined" color="warning" label="Unavailable (backend B17)" title={SAVE_AS_TEMPLATE_UNAVAILABLE} />
+            <Chip size="small" variant="outlined" color="warning" label="Unavailable" title={SAVE_AS_TEMPLATE_UNAVAILABLE} />
           )}
           <Button size="small" variant="contained" disableElevation startIcon={<AddIcon />} onClick={() => setDialog({ kind: 'create' })}>
             New template

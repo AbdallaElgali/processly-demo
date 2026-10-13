@@ -22,6 +22,16 @@ import { rowState } from './rowState';
  */
 export const REVIEW_STATE_PERSISTED = true;
 
+/**
+ * The one rule for "still to be reviewed": the stored `review_action` is
+ * PENDING. ACCEPTED, MODIFIED and REJECTED are a person's decision. Approve's
+ * gate and the Overview's review progress both read this, so they cannot
+ * disagree.
+ */
+export function isPendingReview(field: Pick<InputField, 'reviewAction'>): boolean {
+  return field.reviewAction === 'PENDING';
+}
+
 export interface ApprovalCheck {
   openFlags: string[];
   bounds: string[];
@@ -43,7 +53,7 @@ export function approvalCheck(
 ): ApprovalCheck {
   const check: ApprovalCheck = { openFlags: [], bounds: [], empty: [], needsReview: [], unsaved: opts.unsaved, jobBusy: opts.jobBusy, pending: 0 };
   for (const f of fields) {
-    if (f.reviewAction === 'PENDING') check.pending += 1;
+    if (isPendingReview(f)) check.pending += 1;
     const st = rowState(f);
     if (f.isFlagged) check.openFlags.push(f.id);
     if (st.primary === 'bounds' || st.secondary.includes('bounds')) check.bounds.push(f.id);

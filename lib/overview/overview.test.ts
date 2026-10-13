@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { InputField, Specification } from '@/types';
-import { acceptedPercent, reviewProgress } from './progress';
+import { reviewedPercent, reviewProgress } from './progress';
+import { approvalCheck } from '@/lib/review/approval';
 import { PROJECT_STATUSES, isProjectStatus, statusFormBody } from './status';
 import { COMPACT_KEY, REVIEW_FIRST_KEY } from '@/lib/review/preferences';
 
@@ -42,8 +43,8 @@ describe('reviewProgress (step 12, B10)', () => {
       field({ id: 'F' }, [spec({ value: '', candidateId: 'x', id: 'x' })]),
     ];
     const p = reviewProgress(fields);
-    expect(p).toMatchObject({ total: 6, accepted: 1, pending: 2, flagged: 1, empty: 2 });
-    expect(p.accepted + p.pending + p.flagged + p.empty).toBe(p.total);
+    expect(p).toMatchObject({ total: 6, reviewed: 2, pending: 1, flagged: 1, empty: 2 });
+    expect(p.reviewed + p.pending + p.flagged + p.empty).toBe(p.total);
   });
 
   it('counts an open flag as flagged even when the row is also accepted or empty', () => {
@@ -51,11 +52,28 @@ describe('reviewProgress (step 12, B10)', () => {
       field({ id: 'A', isFlagged: true, reviewAction: 'ACCEPTED' }),
       field({ id: 'B', isFlagged: true }, [spec({ value: '' })]),
     ]);
-    expect(p).toMatchObject({ flagged: 2, accepted: 0, empty: 0 });
+    expect(p).toMatchObject({ flagged: 2, reviewed: 0, empty: 0 });
   });
 
-  it('does not let Approve change anything but review_action: an approved row is accepted, whatever the project status', () => {
-    expect(reviewProgress([field({ reviewAction: 'ACCEPTED' })]).accepted).toBe(1);
+  it('does not let Approve change anything but review_action: an approved row is reviewed, whatever the project status', () => {
+    expect(reviewProgress([field({ reviewAction: 'ACCEPTED' })]).reviewed).toBe(1);
+  });
+
+  it('counts ACCEPTED, MODIFIED and REJECTED as reviewed and only PENDING as pending (F0b)', () => {
+    const p = reviewProgress([
+      field({ id: 'A', reviewAction: 'ACCEPTED' }),
+      field({ id: 'B', reviewAction: 'MODIFIED' }),
+      field({ id: 'C', reviewAction: 'REJECTED' }),
+      field({ id: 'D', reviewAction: 'PENDING' }),
+    ]);
+    expect(p).toMatchObject({ reviewed: 3, pending: 1 });
+  });
+
+  it('agrees with the Approve gate on what is pending (one rule)', () => {
+    const fields = ['ACCEPTED', 'MODIFIED', 'REJECTED', 'PENDING', 'PENDING'].map((reviewAction, i) =>
+      field({ id: `F${i}`, reviewAction: reviewAction as InputField['reviewAction'] }),
+    );
+    expect(reviewProgress(fields).pending).toBe(approvalCheck(fields, { unsaved: 0, jobBusy: false }).pending);
   });
 
   it('counts out-of-bounds rows as a warning on top of the buckets, never as a bucket', () => {
@@ -64,20 +82,20 @@ describe('reviewProgress (step 12, B10)', () => {
       field({ id: 'B', reviewAction: 'ACCEPTED' }, [spec({ rule_violations: ['below min'] })]),
     ]);
     expect(p.outOfBounds).toBe(2);
-    expect(p.accepted + p.pending + p.flagged + p.empty).toBe(2);
+    expect(p.reviewed + p.pending + p.flagged + p.empty).toBe(2);
   });
 
   it('handles a project with no parameters', () => {
     const p = reviewProgress([]);
-    expect(p).toEqual({ total: 0, accepted: 0, pending: 0, flagged: 0, empty: 0, outOfBounds: 0 });
-    expect(acceptedPercent(p)).toBe(0);
+    expect(p).toEqual({ total: 0, reviewed: 0, pending: 0, flagged: 0, empty: 0, outOfBounds: 0 });
+    expect(reviewedPercent(p)).toBe(0);
   });
 });
 
-describe('acceptedPercent', () => {
+describe('reviewedPercent', () => {
   it('rounds down, so 100 means every parameter', () => {
-    expect(acceptedPercent({ total: 3, accepted: 2, pending: 1, flagged: 0, empty: 0, outOfBounds: 0 })).toBe(66);
-    expect(acceptedPercent({ total: 3, accepted: 3, pending: 0, flagged: 0, empty: 0, outOfBounds: 0 })).toBe(100);
+    expect(reviewedPercent({ total: 3, reviewed: 2, pending: 1, flagged: 0, empty: 0, outOfBounds: 0 })).toBe(66);
+    expect(reviewedPercent({ total: 3, reviewed: 3, pending: 0, flagged: 0, empty: 0, outOfBounds: 0 })).toBe(100);
   });
 });
 
