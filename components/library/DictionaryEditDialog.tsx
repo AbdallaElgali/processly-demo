@@ -6,12 +6,11 @@ import { HttpError, updateCanonicalParameter, type CanonicalParameter } from '@/
 import { FormDialog } from '@/components/ui/FormDialog';
 import { upsertCanonicalParameter } from '@/hooks/useCanonicalParameters';
 import { errorMessage } from '@/lib/errors';
-import { markBuiltin } from '@/lib/parameters/dictionary';
 
 /**
  * Edit a dictionary parameter's description and unit (`PUT /extraction-templates/parameters/{id}`).
  * The 27 built-in parameters answer 409: the backend text is shown and Edit is
- * withdrawn for that parameter for the rest of the session.
+ * disabled. Edit is not offered for built-in parameters at all (`is_builtin`).
  */
 export function DictionaryEditDialog({ parameter, onClose }: { parameter: CanonicalParameter; onClose: () => void }) {
   const [description, setDescription] = useState(parameter.default_description ?? '');
@@ -33,7 +32,6 @@ export function DictionaryEditDialog({ parameter, onClose }: { parameter: Canoni
     } catch (e) {
       setError(errorMessage(e, 'Could not save the parameter.'));
       if (e instanceof HttpError && e.status === 409) {
-        markBuiltin(parameter.id);
         setRefused(true);
       }
       setBusy(false);

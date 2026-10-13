@@ -34,16 +34,9 @@ export function buildCreateParameterBody(d: NewParameterDraft): CanonicalParamet
   };
 }
 
-// Parameters whose edit came back 409 in this session. Until the list carries
-// `is_builtin` (backend step S3) this is how the UI learns which are built in.
-const builtinMarks = new Set<string>();
-export const markBuiltin = (id: string) => void builtinMarks.add(id);
-export const resetBuiltinMarks = () => builtinMarks.clear();
-
-/** Edit is offered unless the list says built-in, or an edit of it already got a 409. */
+/** Edit is offered unless the list says the parameter is built in (`is_builtin`, backend S3). */
 export function canEditParameter(p: CanonicalParameter): boolean {
-  if (p.is_builtin === true) return false;
-  return !builtinMarks.has(p.id);
+  return p.is_builtin !== true;
 }
 
 export interface DictionaryGroup {

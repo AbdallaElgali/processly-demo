@@ -28,8 +28,28 @@ describe('projectTemplateOptions', () => {
   it('shows each template with its rule count and marks the default', () => {
     const { options } = projectTemplateOptions(list, { sys: 27, mine: 3 }, 'mine');
     expect(options).toEqual([
-      { id: 'sys', name: 'System default', rules: '27 rules', isDefault: false },
-      { id: 'mine', name: 'Mine', rules: '3 rules', isDefault: true },
+      { id: 'sys', name: 'System default', rules: '27 rules', isDefault: false, isCustomerDefault: false },
+      { id: 'mine', name: 'Mine', rules: '3 rules', isDefault: true, isCustomerDefault: false },
     ]);
+  });
+});
+
+describe('customer default template (S4)', () => {
+  const list = [tpl({ id: 'sys', is_system_default: true }), tpl({ id: 'mine' }), tpl({ id: 'cust' })];
+  it('preselects the customer default over my default', () => {
+    const r = projectTemplateOptions(list, {}, 'mine', 'cust');
+    expect(r.selectedId).toBe('cust');
+    expect(r.options.find((o) => o.id === 'cust')?.isCustomerDefault).toBe(true);
+    expect(r.options.find((o) => o.id === 'mine')?.isDefault).toBe(true);
+  });
+  it('without a customer default, keeps the user default', () => {
+    expect(projectTemplateOptions(list, {}, 'mine', null).selectedId).toBe('mine');
+    expect(projectTemplateOptions(list, {}, 'mine').selectedId).toBe('mine');
+  });
+  it('ignores a customer default the user cannot see', () => {
+    expect(projectTemplateOptions(list, {}, 'mine', 'gone').selectedId).toBe('mine');
+  });
+  it('falls back to the system default', () => {
+    expect(projectTemplateOptions(list, {}, null, null).selectedId).toBe('sys');
   });
 });

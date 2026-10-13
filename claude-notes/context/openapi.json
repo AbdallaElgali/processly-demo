@@ -1956,6 +1956,260 @@
         }
       }
     },
+    "/customers/{customer_id}/settings": {
+      "get": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Get Customer Settings",
+        "description": "The customer's default template and, for every slot a customer may set (domain/category\nslots; agent slots are global only), its chosen prompt version and the global one. 404 unknown customer.",
+        "operationId": "get_customer_settings_customers__customer_id__settings_get",
+        "parameters": [
+          {
+            "name": "customer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Customer Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerSettings"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/customers/{customer_id}/default-template": {
+      "put": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Set Customer Default Template",
+        "description": "Sets or replaces the customer's one default template (used by POST /projects/ when no\ntemplate_id is sent). 404 unknown customer, 422 unknown template.",
+        "operationId": "set_customer_default_template_customers__customer_id__default_template_put",
+        "parameters": [
+          {
+            "name": "customer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Customer Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DefaultTemplateSet"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerSettings"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Clear Customer Default Template",
+        "description": "Clears the default: new projects for this customer use the system default again. 404 unknown customer.",
+        "operationId": "clear_customer_default_template_customers__customer_id__default_template_delete",
+        "parameters": [
+          {
+            "name": "customer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Customer Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerSettings"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/customers/{customer_id}/prompt-settings/{slot_key}": {
+      "put": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Set Customer Prompt Version",
+        "description": "Chooses the prompt version this customer's NEW projects copy for a domain/category slot.\n404 unknown customer or slot, 422 agent slot or a version of another slot.",
+        "operationId": "set_customer_prompt_version_customers__customer_id__prompt_settings__slot_key__put",
+        "parameters": [
+          {
+            "name": "customer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Customer Id"
+            }
+          },
+          {
+            "name": "slot_key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slot Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerPromptVersionSet"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerSettings"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Clear Customer Prompt Version",
+        "description": "The customer goes back to the global version for this slot (idempotent). 404 unknown customer\nor slot, 422 agent slot.",
+        "operationId": "clear_customer_prompt_version_customers__customer_id__prompt_settings__slot_key__delete",
+        "parameters": [
+          {
+            "name": "customer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Customer Id"
+            }
+          },
+          {
+            "name": "slot_key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slot Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerSettings"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/prompts/slots": {
       "get": {
         "tags": [
@@ -2043,7 +2297,7 @@
           "prompt-management"
         ],
         "summary": "Create Version",
-        "description": "Creates a new version of a slot's prompt text. Rejected placeholder validation returns\n422 naming exactly which required placeholders are missing — not a generic 400.",
+        "description": "Creates a new version of a slot's prompt text. Rejected placeholder validation returns\n422 naming exactly which required placeholders are missing — not a generic 400.\nWith `customer_id` (S3) the version is also assigned to that customer, in one transaction:\n404 unknown customer, 422 agent slot.",
         "operationId": "create_version_prompts_slots__slot_key__versions_post",
         "parameters": [
           {
@@ -2414,6 +2668,113 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}/prompt-pins/{slot_key}": {
+      "put": {
+        "tags": [
+          "prompt-management"
+        ],
+        "summary": "Set Project Prompt Pin",
+        "description": "S3: before the first extraction, pins a domain/category slot of this project to a version\n(replacing a pin copied from the customer). The first run keeps it. 404 unknown project or slot,\n422 agent slot or a version of another slot, 409 after the first extraction.",
+        "operationId": "set_project_prompt_pin_projects__project_id__prompt_pins__slot_key__put",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "slot_key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slot Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectPinSet"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PinDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "prompt-management"
+        ],
+        "summary": "Delete Project Prompt Pin",
+        "description": "S3: before the first extraction, removes this project's pin for a domain/category slot; the\nslot then resolves through project -> customer -> global -> file again (idempotent). Same errors\nas PUT.",
+        "operationId": "delete_project_prompt_pin_projects__project_id__prompt_pins__slot_key__delete",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "slot_key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slot Key"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -3152,6 +3513,11 @@
               }
             ],
             "title": "Expected Unit"
+          },
+          "is_builtin": {
+            "type": "boolean",
+            "title": "Is Builtin",
+            "default": false
           }
         },
         "type": "object",
@@ -3288,6 +3654,102 @@
         ],
         "title": "CustomerCreate"
       },
+      "CustomerPromptSlotSetting": {
+        "properties": {
+          "slot_key": {
+            "type": "string",
+            "title": "Slot Key"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "prompt_version_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Version Id"
+          },
+          "version_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Number"
+          },
+          "change_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Note"
+          },
+          "global_version_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Global Version Id"
+          },
+          "global_version_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Global Version Number"
+          }
+        },
+        "type": "object",
+        "required": [
+          "slot_key"
+        ],
+        "title": "CustomerPromptSlotSetting",
+        "description": "One slot a customer may set (a domain/category slot; agent slots are global only)."
+      },
+      "CustomerPromptVersionSet": {
+        "properties": {
+          "prompt_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Prompt Version Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompt_version_id"
+        ],
+        "title": "CustomerPromptVersionSet"
+      },
       "CustomerResponse": {
         "properties": {
           "id": {
@@ -3317,6 +3779,73 @@
           "alias_name"
         ],
         "title": "CustomerResponse"
+      },
+      "CustomerSettings": {
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Customer Id"
+          },
+          "alias_name": {
+            "type": "string",
+            "title": "Alias Name"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "default_template": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CustomerTemplateRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "prompt_slots": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerPromptSlotSetting"
+            },
+            "type": "array",
+            "title": "Prompt Slots"
+          }
+        },
+        "type": "object",
+        "required": [
+          "customer_id",
+          "alias_name",
+          "prompt_slots"
+        ],
+        "title": "CustomerSettings"
+      },
+      "CustomerTemplateRef": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "CustomerTemplateRef"
       },
       "DashboardAnalyticsResponse": {
         "properties": {
@@ -3357,6 +3886,20 @@
           "velocity"
         ],
         "title": "DashboardAnalyticsResponse"
+      },
+      "DefaultTemplateSet": {
+        "properties": {
+          "template_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Template Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "template_id"
+        ],
+        "title": "DefaultTemplateSet"
       },
       "DepartmentEnum": {
         "type": "string",
@@ -4230,11 +4773,30 @@
         "title": "ProjectParameterUpdateInput",
         "description": "Input schema for updating a project's parameter metadata."
       },
+      "ProjectPinSet": {
+        "properties": {
+          "prompt_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Prompt Version Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompt_version_id"
+        ],
+        "title": "ProjectPinSet"
+      },
       "ProjectPromptResolution": {
         "properties": {
           "already_pinned": {
             "type": "boolean",
             "title": "Already Pinned"
+          },
+          "pins_frozen": {
+            "type": "boolean",
+            "title": "Pins Frozen",
+            "default": false
           },
           "slots": {
             "items": {
@@ -5148,6 +5710,18 @@
               }
             ],
             "title": "Created By"
+          },
+          "customer_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
           }
         },
         "type": "object",

@@ -1,4 +1,5 @@
 import { config } from './config';
+import { errorMessage } from '@/lib/errors';
 
 const API_URL = config.api;
 // Make sure this points to the router prefix where your endpoints live
@@ -47,7 +48,9 @@ export const create_customer = async (alias_name: string): Promise<void> => {
         
         // FIXED: Check if the response was successful (catches 400/500 backend errors)
         if (!response.ok) {
-            throw new Error(`Failed to create customer: ${response.statusText}`);
+            // The backend's own text (e.g. a duplicate alias), not just the status line.
+            const body = await response.text().catch(() => '');
+            throw new Error(errorMessage(new Error(body), `Failed to create customer: ${response.statusText}`));
         }
     } catch (err) {
         console.error("Error creating customer:", err);
