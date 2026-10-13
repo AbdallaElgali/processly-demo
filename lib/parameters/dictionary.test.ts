@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CanonicalParameter } from '@/api/templates';
 import {
   BUILTIN_NOTE, CATEGORY_CHOICES, NEW_PARAMETER_EXPORT_NOTE, buildCreateParameterBody, canEditParameter,
-  groupDictionary, markBuiltin, resetBuiltinMarks, validateParameterName,
+  groupDictionary, validateParameterName,
 } from './dictionary';
 
 const p = (over: Partial<CanonicalParameter> = {}): CanonicalParameter => ({
@@ -45,18 +45,16 @@ describe('the export note', () => {
 });
 
 describe('canEditParameter', () => {
-  beforeEach(resetBuiltinMarks);
-  it('offers Edit when the list does not say', () => {
+  it('offers Edit unless the list says built-in', () => {
     expect(canEditParameter(p())).toBe(true);
   });
   it('hides Edit for a built-in parameter when the list has is_builtin', () => {
     expect(canEditParameter({ ...p(), is_builtin: true })).toBe(false);
     expect(canEditParameter({ ...p(), is_builtin: false })).toBe(true);
   });
-  it('stops offering Edit for a parameter after its 409, for the session', () => {
-    markBuiltin('p1');
-    expect(canEditParameter(p())).toBe(false);
-    expect(canEditParameter(p({ id: 'p2' }))).toBe(true);
+  it('has no session memory any more: only is_builtin decides', () => {
+    expect(canEditParameter(p({ is_builtin: false }))).toBe(true);
+    expect(canEditParameter(p({ is_builtin: false }))).toBe(true);
   });
 });
 

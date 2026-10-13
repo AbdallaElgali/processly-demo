@@ -11,6 +11,11 @@ export function errorMessage(error: unknown, fallback = 'Something went wrong.')
   try {
     const parsed = JSON.parse(raw);
     if (typeof parsed?.detail === 'string') return parsed.detail;
+    if (parsed?.detail && typeof parsed.detail === 'object' && !Array.isArray(parsed.detail) && typeof parsed.detail.error === 'string') {
+      // The prompt-version route: {"detail": {"error": "...", "missing_placeholders": [...]}}.
+      const missing: unknown = parsed.detail.missing_placeholders;
+      return Array.isArray(missing) && missing.length > 0 ? `${parsed.detail.error} Missing: ${missing.join(', ')}` : parsed.detail.error;
+    }
     if (Array.isArray(parsed?.detail)) {
       const first = parsed.detail[0];
       if (typeof first?.msg === 'string') return first.msg;

@@ -8,14 +8,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useHasMounted } from '@/hooks/useHasMounted';
 import { AppHeader } from '@/components/shell/AppHeader';
 import { SectionTabs } from '@/components/ui/SectionTabs';
-import { EmptyState } from '@/components/ui/EmptyState';
 import { TemplatesPanel } from '@/components/parameters/TemplatesPanel';
 import { ParametersSection } from '@/components/library/ParametersSection';
-import PeopleOutlineIcon from '@mui/icons-material/PeopleOutline';
+import { ToastHost } from '@/components/ui/Toast';
+import { CustomersSection } from '@/components/library/CustomersSection';
 
 /**
  * The Library: templates and the canonical parameter dictionary, usable before
- * any project exists. Customers will be the third section (step S4).
+ * any project exists. Customers (S4) hold a default template and prompt choices.
  */
 export default function LibraryPage() {
   const router = useRouter();
@@ -34,7 +34,7 @@ export default function LibraryPage() {
       <Box component="main" sx={{ flex: 1, overflow: 'auto', px: 4, py: 3 }}>
         <Typography variant="h4" sx={{ color: 'text.primary' }}>Library</Typography>
         <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
-          Templates and the parameter dictionary. They belong to you, not to a project.
+          Templates, the parameter dictionary and customers. They belong to you, not to a project.
         </Typography>
         <SectionTabs
           label="Library sections"
@@ -49,21 +49,11 @@ export default function LibraryPage() {
               ),
             },
             { value: 'parameters', label: 'Parameters', content: <ParametersSection /> },
-            {
-              value: 'customers',
-              label: 'Customers',
-              content: (
-                // Placeholder: the Customers section is step S4.
-                <EmptyState
-                  icon={PeopleOutlineIcon}
-                  title="Customers are coming"
-                  description="Managing customers from the Library is planned for a later step. Customers can still be added when you create a project."
-                />
-              ),
-            },
+            { value: 'customers', label: 'Customers', content: <CustomersSection /> },
           ]}
         />
       </Box>
+      <ToastHost />
     </Box>
   );
 }

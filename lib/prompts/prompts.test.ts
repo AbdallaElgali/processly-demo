@@ -8,6 +8,7 @@ const pin = (slot_key: string, slot_level = 'AGENT'): PinDetail => ({
 });
 const resolution: ProjectPromptResolution = {
   already_pinned: true,
+  pins_frozen: true,
   slots: [
     { slot_key: 'agent.router', slot_level: 'AGENT', executes_calls: true, is_project_scopable: false, resolved_from_scope: 'global' },
     { slot_key: 'category.voltage', slot_level: 'CATEGORY', executes_calls: false, is_project_scopable: true, resolved_from_scope: 'global' },

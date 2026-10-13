@@ -5,6 +5,7 @@ import { Alert, Box, Typography } from '@mui/material';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import { SectionTabs } from '@/components/ui/SectionTabs';
 import { PinnedPrompts, Registry, ResolutionPreview } from '@/components/prompts/PromptsViews';
+import { ProjectPromptSettings } from '@/components/prompts/ProjectPromptSettings';
 import { PROMPT_EDITING_AVAILABLE, PROMPT_EDITING_NOTE } from '@/lib/prompts/config';
 
 /**
@@ -28,6 +29,7 @@ export default function PromptsAndModelsPage() {
       <SectionTabs
         label="Prompts and models"
         tabs={[
+          { value: 'project', label: 'Prompts for this project', content: <ProjectPromptSettings projectId={projectId} /> },
           { value: 'pinned', label: 'Pinned for this project', content: <PinnedPrompts projectId={projectId} /> },
           { value: 'next', label: 'Next run (resolution)', content: <ResolutionPreview projectId={projectId} /> },
           { value: 'registry', label: 'Registry', content: <Registry /> },

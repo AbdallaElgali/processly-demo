@@ -4,8 +4,8 @@ import { config } from './config';
  * Read-only prompt registry routes (step 13). Types are hand-written from
  * the schemas in `openapi.json` (D10): PinDetail, ResolvedSlotConfig,
  * ProjectPromptResolution, SlotSummary, PromptVersion, ModelAssignment.
- * Only GET routes are called here: the write routes have no authentication
- * (see `lib/prompts/config.ts`).
+ * Writes are limited to a project's own pins (S4); the global registry stays
+ * read-only (see `lib/prompts/config.ts`).
  */
 
 export interface PinDetail {
@@ -41,7 +41,10 @@ export interface ResolvedSlotConfig {
 }
 
 export interface ProjectPromptResolution {
+  /** Some pins exist. A customer project has them from creation, so this is NOT frozen. */
   already_pinned: boolean;
+  /** A run has used the pins: the pin routes now answer 409. The key for can-it-still-be-changed. */
+  pins_frozen: boolean;
   slots: ResolvedSlotConfig[];
 }
 
@@ -92,6 +95,23 @@ export const apiGetPromptPins = (projectId: string, signal?: AbortSignal) =>
 
 export const apiGetPromptResolution = (projectId: string, signal?: AbortSignal) =>
   getJson<ProjectPromptResolution>(`/projects/${encodeURIComponent(projectId)}/prompt-resolution`, signal);
+
+async function send<T>(path: string, init: RequestInit): Promise<T> {
+  const response = await fetch(`${config.api}${path}`, { ...init, headers: init.body ? { 'Content-Type': 'application/json' } : undefined });
+  if (!response.ok) throw new Error((await response.text().catch(() => '')) || response.statusText || String(response.status));
+  return response.status === 204 ? (undefined as T) : response.json();
+}
+
+const pinPath = (projectId: string, slotKey: string) =>
+  `/projects/${encodeURIComponent(projectId)}/prompt-pins/${encodeURIComponent(slotKey)}`;
+
+/** Change one category slot's version for this project only. 409 once the project has been extracted. */
+export const apiSetProjectPin = (projectId: string, slotKey: string, promptVersionId: string) =>
+  send<PinDetail>(pinPath(projectId, slotKey), { method: 'PUT', body: JSON.stringify({ prompt_version_id: promptVersionId }) });
+
+/** Remove the project's own choice: the slot resolves through customer, then global. 204. */
+export const apiResetProjectPin = (projectId: string, slotKey: string) =>
+  send<void>(pinPath(projectId, slotKey), { method: 'DELETE' });
 
 export const apiListSlots = (signal?: AbortSignal) => getJson<SlotSummary[]>('/prompts/slots', signal);
 

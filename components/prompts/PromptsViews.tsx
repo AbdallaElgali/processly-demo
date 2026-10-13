@@ -61,7 +61,7 @@ export function PinnedPrompts({ projectId }: { projectId: string }) {
     return (
       <EmptyState
         title="Nothing pinned yet"
-        description="A project pins the prompts and models it uses at its first extraction run. After that, changes to the registry do not affect it."
+        description="A project freezes the prompts and models it uses at its first extraction run. Until then you can change its category prompts under Prompts for this project."
         action={{ label: 'Open Workspace', onClick: () => router.push(`/projects/${projectId}/workspace`) }}
       />
     );
@@ -103,9 +103,9 @@ export function ResolutionPreview({ projectId }: { projectId: string }) {
   return (
     <Stack spacing={1.5}>
       <Alert severity="info" variant="outlined">
-        {data?.already_pinned
-          ? 'This project is already pinned, so every slot below repeats its pin as it is. The scope says where each pinned value came from.'
-          : 'This project has not pinned anything yet. Below is what its first run would pin; the scope says where each value comes from (project, then customer, then global).'}
+        {data?.pins_frozen
+          ? 'This project’s prompts are frozen by its first extraction, so every slot below repeats its pin. The scope says where each pinned value came from.'
+          : 'This project has not been extracted yet. Below is what its first run would pin; the scope says where each value comes from (project, then customer, then global). Category prompts can still be changed under "Prompts for this project".'}
       </Alert>
       <Groups rows={rows} label="Resolution preview" />
     </Stack>
