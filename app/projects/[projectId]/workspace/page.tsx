@@ -30,7 +30,7 @@ import { SourceBar } from '@/components/workspace/SourceBar';
 import { documentFiles, isSpreadsheetDocument } from '@/lib/documents/fileStore';
 import { useDocumentFiles } from '@/lib/documents/hooks';
 import { useMatchInfo } from '@/lib/excel/matchNav';
-import { FrontendBatteryFileExport, missingExportKeys } from '@/static/battery-template';
+import { FrontendBatteryFileExport, exportReport, type ExportReport } from '@/static/battery-template';
 import type { SpecificationSource } from '@/types';
 import { mapFieldsToSpecs } from '@/lib/parameter-adapter';
 import { useCanStart, useJobTray, useJobs, useProjectActivity, useProjectData } from '@/lib/jobs/hooks';
@@ -83,7 +83,7 @@ export default function WorkspacePage() {
 
   const [isApproving, setApproving] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
-  const [exportCheck, setExportCheck] = useState<string[] | null>(null);
+  const [exportCheck, setExportCheck] = useState<ExportReport | null>(null);
 
   // ---- parameters and review actions (step 10) --------------------------
   // The actions live in lib/review/actions.ts, keyed by project, so a flag
@@ -221,8 +221,8 @@ export default function WorkspacePage() {
 
   // D8: list the mapped keys with no value before exporting.
   const handleExport = () => {
-    const missing = missingExportKeys(fields);
-    if (missing.length > 0) setExportCheck(missing);
+    const report = exportReport(fields);
+    if (report.missing.length + report.unconvertible.length > 0) setExportCheck(report);
     else runExport();
   };
 
@@ -473,14 +473,23 @@ export default function WorkspacePage() {
 
       <ConfirmDialog
         open={exportCheck !== null}
-        title={`${exportCheck?.length ?? 0} exported parameter(s) have no value`}
-        description={`The .battery file will carry a placeholder (or, for the safety voltages, a value derived from U_MAX/U_MIN) for: ${exportCheck?.join(', ') ?? ''}.`}
+        title={`${(exportCheck?.missing.length ?? 0) + (exportCheck?.unconvertible.length ?? 0)} exported parameter(s) will carry a placeholder`}
+        description={exportCheckText(exportCheck)}
         confirmLabel="Export anyway"
         onConfirm={runExport}
         onClose={() => setExportCheck(null)}
       />
     </Box>
   );
+}
+
+/** The pre-export dialog text: exactly the keys written as the placeholder, and why. */
+function exportCheckText(report: ExportReport | null): string {
+  if (!report) return '';
+  const parts: string[] = [];
+  if (report.missing.length > 0) parts.push(`no value: ${report.missing.join(', ')}`);
+  for (const { key, unit } of report.unconvertible) parts.push(`unit not convertible: ${key} (${unit})`);
+  return `The .battery file will carry a placeholder for these parameters. ${parts.join('. ')}.`;
 }
 
 const EMPTY: readonly string[] = [];

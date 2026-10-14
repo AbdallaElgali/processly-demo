@@ -1,4 +1,5 @@
 import type { InputField } from '@/types';
+import { hasValue, selectedSpec } from '@/lib/review/rowState';
 
 /**
  * Category grouping (CLAUDE.md 8.2; D5 superseded by backend step 3.5).
@@ -88,8 +89,7 @@ export interface FieldGroup {
 }
 
 function fieldHasValue(field: InputField): boolean {
-  const spec = field.specifications.find((s) => s.id === field.selectedSpecId) ?? field.specifications[0];
-  return !!spec && String(spec.value ?? '').trim() !== '';
+  return hasValue(selectedSpec(field));
 }
 
 /**

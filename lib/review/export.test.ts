@@ -11,7 +11,7 @@ const field = (id: string, value: string, label = id): InputField => ({
   dbId: id,
   label,
   specifications: [{
-    id: `${id}-s`, candidateId: `${id}-s`, value, confidence: 90, unit: 'A', source: null,
+    id: `${id}-s`, candidateId: `${id}-s`, value, confidence: 90, unit: '', source: null,
     calculated: false, rule_passed: true, rule_violations: [], requires_review: false,
   }],
   selectedSpecId: `${id}-s`,
