@@ -88,8 +88,8 @@ export function useDocumentWorkspace(projectId: string, documents: ProjectDocume
       const anchor = nav.anchors[nav.index];
       const source = anchor?.source;
       if (!source) return;
-      // No document id (older rows): highlight whatever is open, as before.
-      const target = source.documentId ? (ids.includes(source.documentId) ? source.documentId : null) : activeId;
+      // No document id (R2: unknown source): no target, never the open document.
+      const target = source.documentId && ids.includes(source.documentId) ? source.documentId : null;
       const next: SourceNav = { ...nav, missingDocument: target === null };
       if (target && target !== activeId) select(target);
       nonce.current += 1;

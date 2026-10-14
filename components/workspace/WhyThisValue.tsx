@@ -81,9 +81,16 @@ export function WhyThisValue({
           ) : null
         }
       >
-        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
-          {where || 'No location recorded'}
-        </Typography>
+        {why.sourceUnknown ? (
+          <Typography variant="body2" sx={{ color: 'status.warning', display: 'block', mb: 0.5 }}>
+            <Box component="span" sx={{ fontWeight: 600 }}>Source: </Box>
+            {why.sourceUnknown}
+          </Typography>
+        ) : (
+          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
+            {where || 'No location recorded'}
+          </Typography>
+        )}
         {why.snippet ? (
           <Box
             component="blockquote"

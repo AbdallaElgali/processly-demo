@@ -28,6 +28,8 @@ export interface WhyThisValue {
   calculation: string | null;
   /** The recorded source text: the evidence. */
   snippet: string | null;
+  /** R2: the source document could not be settled; the backend's `source_reason`, shown under "Source". */
+  sourceUnknown: string | null;
 }
 
 const clean = (s: string | null | undefined): string | null => {
@@ -42,12 +44,14 @@ export function whyThisValue(spec: Specification): WhyThisValue {
   const calculation = clean(spec.calculationLogic);
   // The adapter falls back to calculation_logic for source.reason; do not show it twice.
   const note = clean(spec.source?.reason);
+  const sourceUnknown = spec.candidateId && spec.source && !spec.source.documentId && note && note !== calculation ? note : null;
   return {
     explanation: reasonCode ? null : logic,
     reasonCode,
-    sourceNote: note && note !== calculation ? note : null,
+    sourceNote: note && note !== calculation && note !== sourceUnknown ? note : null,
     calculated: !!spec.calculated,
     calculation: spec.calculated ? calculation : null,
     snippet: clean(spec.source?.textSnippet),
+    sourceUnknown,
   };
 }

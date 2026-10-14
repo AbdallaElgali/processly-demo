@@ -139,6 +139,25 @@ export const dbParamToInputField = (p: ProjectParameter): InputField => {
     candidateToSpecification(c as unknown as Record<string, unknown>)
   );
 
+  // A reviewer cleared this value: the row has no final value and no selected
+  // candidate, and its AI candidates are only alternatives. Never fall back to
+  // the first candidate for a human row (R1): that would show the AI value again.
+  if (p.is_human_modified && (p.final_value === null || p.final_value === undefined)) {
+    const none: Specification = {
+      id: uuidv4(),
+      candidateId: null,
+      value: '',
+      unit: '',
+      confidence: null,
+      source: null,
+      calculated: false,
+      rule_passed: true,
+      rule_violations: [],
+      requires_review: false,
+    };
+    return { ...base, specifications: [none, ...specifications], selectedSpecId: none.id };
+  }
+
   // The backend marks one candidate as selected (defaults to the first on save).
   const selected =
     specifications.find(s => s.candidateId === p.selected_candidate_id) ?? specifications[0];
@@ -197,6 +216,9 @@ export const inputFieldToParameterInput = (
   const activeSpec = f.specifications.find(s => s.id === f.selectedSpecId) ?? f.specifications[0];
   const raw = activeSpec?.value ?? '';
   const parsed = raw === '' ? null : Number(raw);
+  // A human row with no value is a reviewer's clear: body and stored state are
+  // identical (the backend normalises it anyway).
+  const clearing = raw === '' && (f.isHumanModified ?? f.reviewAction === 'MODIFIED');
 
   return {
     project_parameter_id: f.dbId,
@@ -205,10 +227,10 @@ export const inputFieldToParameterInput = (
     // It used to be coerced to null, which discarded it on save; the backend
     // accepts number | string | null.
     final_value: parsed === null ? null : Number.isNaN(parsed) ? raw : parsed,
-    final_unit: activeSpec?.unit || null,
+    final_unit: clearing ? null : activeSpec?.unit || null,
     // What the server had, changed only by an edit or a revert (lib/review/edits.ts).
     is_human_modified: f.isHumanModified ?? f.reviewAction === 'MODIFIED',
-    selected_candidate_id: activeSpec?.candidateId ?? null,
+    selected_candidate_id: clearing ? null : (activeSpec?.candidateId ?? null),
     flag: f.isFlagged,
     flag_reason: f.isFlagged ? f.flagReason : null,
     flagger_id: f.isFlagged ? userId : null,

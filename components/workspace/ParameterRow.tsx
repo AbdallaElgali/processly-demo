@@ -22,7 +22,7 @@ import type { RowState } from '@/lib/review/rowState';
 import { hasValue } from '@/lib/review/rowState';
 import { matchReasonCode } from '@/lib/review/reasonCodes';
 import { formatDisplayValue } from '@/lib/review/format';
-import { fieldAnchors } from '@/lib/review/anchors';
+import { fieldAnchors, hasLocation } from '@/lib/review/anchors';
 import { canRevert } from '@/lib/review/edits';
 import { newerCandidateAvailable } from '@/lib/review/newer';
 import NewReleasesOutlinedIcon from '@mui/icons-material/NewReleasesOutlined';
@@ -76,8 +76,6 @@ export function busyLabel(busy: RowBusy): string {
 /** Shared column template, so headers (none today) and rows can never drift. */
 export const ROW_COLUMNS = '28px minmax(180px, 1.6fr) minmax(130px, 1.1fr) 112px minmax(132px, 1fr) 36px';
 
-const hasLocation = (s: SpecificationSource | null | undefined) =>
-  !!s && (s.pageNumber !== null || s.boundingBox !== null || s.cellCoordinates !== null || !!s.documentId);
 
 /**
  * "Page 4" for a PDF; "Sheet 3 · B10:D15" or "Sheet 3 · C12" for a workbook,
@@ -207,7 +205,11 @@ function ParameterRowImpl({
             <BusyLine busy={busy} />
           ) : (
             <>
-              <ValueCell parameterKey={field.id} spec={spec} />
+              {state.emptyKind === 'cleared' ? (
+                <Typography variant="body2" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>No value (set by reviewer)</Typography>
+              ) : (
+                <ValueCell parameterKey={field.id} spec={spec} />
+              )}
               {dirty && (
                 <Tooltip title="Unsaved change: kept on this screen until you Save">
                   <Box
@@ -698,7 +700,7 @@ function CandidateList({
                   <ValueCell parameterKey={field.id} spec={s} />
                 ) : (
                   <Typography variant="body2" sx={{ color: 'text.muted' }}>
-                    No value{reason ? ` · ${reason.label}` : ''}
+                    {!s.candidateId ? 'No value (set by reviewer)' : `No value${reason ? ` · ${reason.label}` : ''}`}
                   </Typography>
                 )}
               </Button>
