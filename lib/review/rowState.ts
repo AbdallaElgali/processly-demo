@@ -28,6 +28,9 @@ export type PrimaryState =
   | 'needs_review'
   | 'high';
 
+/** Why a row has no value: the three empty states are never one message. */
+export type EmptyKind = 'cleared' | 'searched' | 'not_extracted';
+
 export type SecondaryFact = 'bounds' | 'modified' | 'low_confidence' | 'needs_review' | 'accepted' | 'newer_candidate';
 
 export interface RowState {
@@ -40,6 +43,8 @@ export interface RowState {
   lowConfidence: boolean;
   supervisorReview: boolean;
   selected: Specification | undefined;
+  /** For a row with no value: reviewer-cleared, AI searched and found nothing, or not extracted yet. Null when it has a value. */
+  emptyKind: EmptyKind | null;
 }
 
 export function selectedSpec(field: InputField): Specification | undefined {
@@ -50,9 +55,22 @@ export function hasValue(spec: Specification | undefined): boolean {
   return !!spec && spec.value !== null && spec.value !== undefined && String(spec.value).trim() !== '';
 }
 
+/**
+ * A person removed the value: the row is human-modified and the selected
+ * specification has none. The AI candidates are still alternatives. Distinct
+ * from an AI-empty row (not human-modified, a placeholder candidate with a
+ * reason code) and from a row never extracted (no candidates).
+ */
+export function isReviewerCleared(field: InputField): boolean {
+  const selected = selectedSpec(field);
+  return !!selected && !hasValue(selected) && (field.isHumanModified ?? field.reviewAction === 'MODIFIED') === true;
+}
+
 export function rowState(field: InputField): RowState {
   const selected = selectedSpec(field);
   const valued = hasValue(selected);
+  const clearedByReviewer = isReviewerCleared(field);
+  // A cleared row's "Edited" badge is its primary badge, so it is not repeated as a secondary fact.
   const modified = field.reviewAction === 'MODIFIED';
   const bounds = (selected?.rule_violations?.length ?? 0) > 0;
   // A human-entered value has no confidence; that is not "low".
@@ -71,7 +89,7 @@ export function rowState(field: InputField): RowState {
 
   const secondary: SecondaryFact[] = [];
   if (bounds && primary !== 'bounds') secondary.push('bounds');
-  if (modified && primary !== 'modified') secondary.push('modified');
+  if (modified && primary !== 'modified' && !clearedByReviewer) secondary.push('modified');
   if (primary !== 'needs_review' && !modified) {
     if (lowConfidence) secondary.push('low_confidence');
     else if (supervisorReview) secondary.push('needs_review');
@@ -83,10 +101,17 @@ export function rowState(field: InputField): RowState {
     primary,
     secondary,
     // requires_review is ignored for empty rows (AM1); only the text matters.
-    reason: primary === 'empty' ? matchReasonCode(selected?.extractionLogic) : null,
+    reason: primary === 'empty' && !clearedByReviewer ? matchReasonCode(selected?.extractionLogic) : null,
     lowConfidence,
     supervisorReview,
     selected,
+    emptyKind: valued
+      ? null
+      : field.specifications.length === 0
+        ? 'not_extracted'
+        : clearedByReviewer
+          ? 'cleared'
+          : 'searched',
   };
 }
 

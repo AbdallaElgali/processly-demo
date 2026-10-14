@@ -17,9 +17,13 @@ export interface SourceAnchor {
   value: string | null;
 }
 
-/** True when the source points at something the viewer can show. */
+/**
+ * True when the source points at something the viewer can show. A source with
+ * no document id (R2: the backend could not settle which document) is never a
+ * jump target, whatever else it carries: the viewer must not guess the open one.
+ */
 export function hasLocation(s: SpecificationSource | null | undefined): s is SpecificationSource {
-  return !!s && (s.pageNumber !== null || s.boundingBox !== null || s.cellCoordinates !== null || !!s.documentId);
+  return !!s && !!s.documentId;
 }
 
 /** Identity of a location, independent of which candidate carries it. */

@@ -105,6 +105,13 @@ export function StateBadge({ state, flagReason }: { state: RowState; flagReason?
         </Tooltip>
       );
     case 'empty':
+      if (state.emptyKind === 'cleared') {
+        return (
+          <Tooltip title="The value was removed by a reviewer. The AI candidates are still listed as alternatives.">
+            <Chip size="small" icon={<EditOutlinedIcon />} label={state.secondary.includes('accepted') ? 'Cleared' : 'Edited'} sx={chipSx('status.modified', 'surface.sunken')} />
+          </Tooltip>
+        );
+      }
       return state.reason ? (
         <Tooltip title={state.reason.text}>
           <Chip size="small" icon={<RemoveCircleOutlineIcon />} label={state.reason.label} sx={chipSx('status.neutral', 'status.neutralBg')} />
@@ -117,7 +124,7 @@ export function StateBadge({ state, flagReason }: { state: RowState; flagReason?
     case 'no_run':
       return (
         <Tooltip title="No extraction has produced a candidate for this parameter yet. (Shown by the app; not a backend reason code.)">
-          <Chip size="small" icon={<HourglassEmptyIcon />} label="No run yet" variant="outlined" sx={{ ...chipSx('status.neutral', 'transparent'), borderColor: 'border.strong' }} />
+          <Chip size="small" icon={<HourglassEmptyIcon />} label="Not extracted yet" variant="outlined" sx={{ ...chipSx('status.neutral', 'transparent'), borderColor: 'border.strong' }} />
         </Tooltip>
       );
     case 'modified':
