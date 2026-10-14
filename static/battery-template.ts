@@ -1,5 +1,5 @@
 import { InputField } from '@/types';
-import { selectedSpec } from '@/lib/review/rowState';
+import { hasValue, selectedSpec } from '@/lib/review/rowState';
 
 /**
  * `.battery` export (decision D8, AM7).
@@ -43,16 +43,85 @@ export const BATTERY_EXPORT_KEYS: ReadonlyArray<{ key: string; exportName: strin
 const EXPORT_NAME_BY_KEY = new Map(BATTERY_EXPORT_KEYS.map((e) => [e.key, e.exportName]));
 
 /**
- * The mapped keys that would be written as the placeholder because the
- * project has no numeric value for them (D8's pre-export check). Returned in
- * key-map order.
+ * Exact decimal scaling: moves the decimal point of a plain or exponent-form
+ * decimal string by `shift` places, so 3200 with shift -3 is "3.2" and never
+ * 3.2000000000000002. Returns null when the text is not a finite decimal.
  */
+export function scaleDecimal(text: string, shift: number): number | null {
+  const m = /^([+-]?)(\d*)(?:\.(\d*))?(?:[eE]([+-]?\d+))?$/.exec(text.trim());
+  if (!m || (!m[2] && !m[3])) return null;
+  const [, sign, intPart = '', fracPart = '', exp = '0'] = m;
+  const digits = intPart + fracPart;
+  const point = intPart.length + Number(exp) + shift; // position of the decimal point within `digits`
+  let out: string;
+  if (point <= 0) out = `0.${'0'.repeat(-point)}${digits}`;
+  else if (point >= digits.length) out = digits + '0'.repeat(point - digits.length);
+  else out = `${digits.slice(0, point)}.${digits.slice(point)}`;
+  const n = Number(`${sign}${out}`);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Unit (lower-case, trimmed) -> decimal shift to the fixed exported unit. */
+const UNIT_SHIFTS: Record<string, Record<string, number>> = {
+  C_NOMINAL_AH: { ah: 0, mah: -3 },
+  E_NOMINAL_WH: { wh: 0, mwh: -3, kwh: 3 },
+  EOL_SOH_NOM: { '%': 0 },
+};
+const unitShifts = (key: string): Record<string, number> => {
+  if (UNIT_SHIFTS[key]) return UNIT_SHIFTS[key];
+  if (key.startsWith('I_MAX_')) return { a: 0, ma: -3 };
+  if (key.startsWith('T_')) return { '°c': 0, degc: 0, c: 0 };
+  if (key.startsWith('U_')) return { v: 0, mv: -3 };
+  return {};
+};
+
+export type ExportValue =
+  | { kind: 'value'; value: number }
+  | { kind: 'missing' }
+  | { kind: 'unit'; unit: string };
+
+/**
+ * The value a mapped key is written with. It is decided from the SAME
+ * specification the review row displays (`selectedSpec`), with no fallback of
+ * its own: no value there means no value in the file.
+ */
+export function exportValue(fields: InputField[], key: string): ExportValue {
+  const field = fields.find((f) => f.id === key);
+  const spec = field ? selectedSpec(field) : undefined;
+  if (!hasValue(spec)) return { kind: 'missing' };
+  const text = String(spec!.value).trim();
+  const unit = String(spec!.unit ?? '').trim();
+  if (unit === '') {
+    const n = scaleDecimal(text, 0);
+    return n === null ? { kind: 'missing' } : { kind: 'value', value: n };
+  }
+  const shift = unitShifts(key)[unit.toLowerCase()];
+  if (shift === undefined) return { kind: 'unit', unit };
+  const n = scaleDecimal(text, shift);
+  return n === null ? { kind: 'missing' } : { kind: 'value', value: n };
+}
+
+export interface ExportReport {
+  /** Keys with no usable value, in key-map order. */
+  missing: string[];
+  /** Keys with a value in a unit the exporter cannot convert, in key-map order. */
+  unconvertible: { key: string; unit: string }[];
+}
+
+/** Everything the pre-export dialog lists: exactly the keys written as the placeholder. */
+export function exportReport(fields: InputField[]): ExportReport {
+  const report: ExportReport = { missing: [], unconvertible: [] };
+  for (const { key } of BATTERY_EXPORT_KEYS) {
+    const v = exportValue(fields, key);
+    if (v.kind === 'missing') report.missing.push(key);
+    else if (v.kind === 'unit') report.unconvertible.push({ key, unit: v.unit });
+  }
+  return report;
+}
+
+/** The mapped keys written as the placeholder, for any reason, in key-map order. */
 export function missingExportKeys(fields: InputField[]): string[] {
-  return BATTERY_EXPORT_KEYS.filter(({ key }) => {
-    const field = fields.find((f) => f.id === key);
-    const raw = field ? selectedSpec(field)?.value : undefined;
-    return raw === undefined || raw === null || String(raw).trim() === '' || Number.isNaN(Number(raw));
-  }).map((e) => e.key);
+  return BATTERY_EXPORT_KEYS.filter(({ key }) => exportValue(fields, key).kind !== 'value').map((e) => e.key);
 }
 
 export type BatteryParameter = {
@@ -81,22 +150,10 @@ export class FrontendBatteryFileExport {
     canMappingActivated: false
   };
 
-  /**
-   * Helper to extract the active value from your UI fields array.
-   */
+  /** The value written for a key, or null (placeholder). See `exportValue`. */
   private getFieldValue(fields: InputField[], fieldId: string): number | null {
-    const field = fields.find(f => f.id === fieldId);
-    if (!field) return null;
-
-    const activeSpec = field.selectedSpecId 
-      ? field.specifications.find(s => s.id === field.selectedSpecId)
-      : field.specifications[0];
-
-    if (activeSpec && activeSpec.value !== '') {
-      const numValue = Number(activeSpec.value);
-      return isNaN(numValue) ? null : numValue;
-    }
-    return null;
+    const v = exportValue(fields, fieldId);
+    return v.kind === 'value' ? v.value : null;
   }
 
   /**
@@ -254,9 +311,9 @@ export class FrontendBatteryFileExport {
 
       // Voltage parameters
       { name: this.getFieldName(fields, 'U_MAX'), value: uMax ?? placeholder, unit: 'V', valueType: 'battery_const', color: 'Gray' },
-      { name: this.getFieldName(fields, 'U_MAX_SAFETY'), value: uMaxSafety ?? (uMax ? uMax + 0.02 : placeholder), unit: 'V', valueType: 'battery_const', color: 'Gray' },
+      { name: this.getFieldName(fields, 'U_MAX_SAFETY'), value: uMaxSafety ?? placeholder, unit: 'V', valueType: 'battery_const', color: 'Gray' },
       { name: this.getFieldName(fields, 'U_MIN'), value: uMin ?? placeholder, unit: 'V', valueType: 'battery_const', color: 'Gray' },
-      { name: this.getFieldName(fields, 'U_MIN_SAFETY'), value: uMinSafety ?? (uMin ? uMin - 0.02 : placeholder), unit: 'V', valueType: 'battery_const', color: 'Gray' },
+      { name: this.getFieldName(fields, 'U_MIN_SAFETY'), value: uMinSafety ?? placeholder, unit: 'V', valueType: 'battery_const', color: 'Gray' },
 
       // VVT ID parameters
       { name: 'VVT_ID_BEREIT', value: vvtIdReady, valueType: 'battery_const', color: 'Gray' },

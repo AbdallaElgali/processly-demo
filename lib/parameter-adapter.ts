@@ -11,6 +11,7 @@ import {
   ReviewAction,
 } from '@/types';
 import { ProjectParameter, ParameterInput } from '@/api/projects';
+import { selectedSpec } from '@/lib/review/rowState';
 
 // Backend confidence is on a 0–1 scale; the UI works in 0–100.
 const toUiConfidence = (c: unknown): number | null =>
@@ -213,7 +214,7 @@ export const inputFieldToParameterInput = (
   f: InputField,
   userId: string | null
 ): ParameterInput => {
-  const activeSpec = f.specifications.find(s => s.id === f.selectedSpecId) ?? f.specifications[0];
+  const activeSpec = selectedSpec(f);
   const raw = activeSpec?.value ?? '';
   const parsed = raw === '' ? null : Number(raw);
   // A human row with no value is a reviewer's clear: body and stored state are
