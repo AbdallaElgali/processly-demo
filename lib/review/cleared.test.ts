@@ -7,7 +7,7 @@ import { editValue, revertValue, selectCandidate, canRevert } from '@/lib/review
 import { whyThisValue } from '@/lib/review/why';
 import { hasLocation, fieldAnchors } from '@/lib/review/anchors';
 import { reviewProgress } from '@/lib/overview/progress';
-import { FrontendBatteryFileExport, missingExportKeys } from '@/static/battery-template';
+import { BATTERY_EXPORT_KEYS, FrontendBatteryFileExport, missingExportKeys } from '@/static/battery-template';
 
 const candidate = (over: Record<string, unknown> = {}) => ({
   id: 'c1', ai_value: 3.65, expected_unit: 'V', unit: 'V', confidence: 0.9,
@@ -126,7 +126,7 @@ describe('editing a cleared row (contract 4)', () => {
 });
 
 const exportField = (f: InputField, key = 'U_MAX'): InputField => ({ ...f, id: key, label: key });
-const valueOf = (xml: string, name: string) => xml.match(new RegExp(`<Name>${name}</Name>\\s*<Value>([^<]*)</Value>`))?.[1];
+const valueOf = (xml: string, name: string) => xml.match(new RegExp(`<Name>${BATTERY_EXPORT_KEYS.find((e) => e.key === name)?.exportName ?? name}</Name>\\s*<Value>([^<]*)</Value>`))?.[1];
 
 describe('.battery export (contract 5)', () => {
   it('writes a cleared parameter as no value, never the AI candidate', () => {
