@@ -11,4 +11,4 @@
  */
 export const PROMPT_EDITING_AVAILABLE = false;
 export const PROMPT_EDITING_NOTE =
-  'The global registry and the model settings are read-only here: the backend has no authentication, so anyone who can reach it could change the prompts of every project. What you can change is this project’s own category prompts, before its first extraction.';
+  'The shared prompt library is read-only here: there is no sign-in check, so anyone who can reach it could change the prompts of every project. What you can change is this project’s own category prompts, before its first extraction.';

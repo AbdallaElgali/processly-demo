@@ -102,7 +102,6 @@ export function LastRunCard({
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 1.5 }}>
           <Fact label="Run">#{last.run_number} · {RUN_TYPE_LABEL[last.extraction_type] ?? last.extraction_type}</Fact>
           <Fact label="Date">{last.created_at ? new Date(last.created_at).toLocaleString() : 'unknown'}</Fact>
-          <Fact label="Model">{last.model_name ?? 'unknown'}</Fact>
           <Fact label="Parameters">{last.parameters_count}</Fact>
           <Fact label="Runs in total">{runs.length}</Fact>
         </Box>

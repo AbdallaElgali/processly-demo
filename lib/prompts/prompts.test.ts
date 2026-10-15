@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PinDetail, ProjectPromptResolution } from '@/api/prompts';
-import { groupByLevel, joinSlots, normalizeScope, scopeLabel } from './view';
+import { joinSlots, normalizeScope, scopeLabel } from './view';
 
 const pin = (slot_key: string, slot_level = 'AGENT'): PinDetail => ({
   slot_id: slot_key, slot_key, slot_level, prompt_version_id: 'v', content: 'x', version_number: 1, resolved_from_scope: 'GLOBAL',
@@ -37,13 +37,5 @@ describe('joinSlots', () => {
   });
   it('works with no resolution', () => {
     expect(joinSlots([pin('a')], null).length).toBe(1);
-  });
-});
-
-describe('groupByLevel', () => {
-  it('puts agents before categories and keeps order within a group', () => {
-    const g = groupByLevel([{ level: 'CATEGORY', n: 1 }, { level: 'AGENT', n: 2 }, { level: 'CATEGORY', n: 3 }, { level: 'ZZ', n: 4 }]);
-    expect(g.map((x) => x.level)).toEqual(['AGENT', 'CATEGORY', 'ZZ']);
-    expect(g[1].rows.map((r) => r.n)).toEqual([1, 3]);
   });
 });

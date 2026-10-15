@@ -41,7 +41,6 @@ export function RunsTab({ projectId }: { projectId: string }) {
       render: (r) => RUN_TYPE_LABEL[r.extraction_type] ?? r.extraction_type,
     },
     { key: 'parameters_count', label: 'Parameters', sortable: true, value: (r) => r.parameters_count },
-    { key: 'model_name', label: 'Model', value: (r) => r.model_name ?? '—' },
     {
       key: 'created_at',
       label: 'Created',

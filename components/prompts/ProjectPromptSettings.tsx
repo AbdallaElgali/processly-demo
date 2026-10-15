@@ -15,7 +15,7 @@ import { VersionPickerDialog } from './VersionPickerDialog';
 /**
  * The category prompts this project will use at its first extraction, where each
  * comes from, and (until a run has used them: `pins_frozen`) a way to change one
- * for this project only or go back. Agent prompts are global and not listed.
+ * for this project only or go back.
  */
 export function ProjectPromptSettings({ projectId }: { projectId: string }) {
   const load = useCallback((signal: AbortSignal) => apiGetPromptResolution(projectId, signal), [projectId]);
@@ -50,7 +50,7 @@ export function ProjectPromptSettings({ projectId }: { projectId: string }) {
     <Stack spacing={1.5}>
       <Alert severity={editable ? 'info' : 'warning'} variant="outlined" icon={editable ? undefined : <LockOutlinedIcon fontSize="small" />}>
         {!editable && <strong>{PINS_FROZEN_TEXT}. </strong>}
-        {resolutionNote(data)} Agent prompts are global: they are the same for every project.
+        {resolutionNote(data)}
       </Alert>
       {actionError && <Alert severity="error" onClose={() => setActionError(null)}>{actionError}</Alert>}
       <Box component="ul" aria-label="Category prompts for this project" sx={{ listStyle: 'none', m: 0, p: 0, border: 1, borderColor: 'border.subtle', borderRadius: 1, bgcolor: 'surface.panel', overflow: 'hidden' }}>

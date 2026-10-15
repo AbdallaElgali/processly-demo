@@ -7,6 +7,7 @@ import {
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import ScheduleOutlinedIcon from '@mui/icons-material/ScheduleOutlined';
+import { slotLabel } from '@/lib/customers/settings';
 import { LAZY_EXPLANATION, LAZY_LABEL, scopeLabel } from '@/lib/prompts/view';
 
 export interface SlotTableRow {
@@ -15,11 +16,6 @@ export interface SlotTableRow {
   level: string;
   description?: string | null;
   version: number | null;
-  model: string | null;
-  effort: string | null;
-  temperature: number | null;
-  /** Whether this slot calls a model at all (category slots are prompt text only). */
-  callsModel: boolean;
   scope: string | null;
   lazy?: boolean | null;
   note?: string;
@@ -27,28 +23,7 @@ export interface SlotTableRow {
   detail?: ReactNode;
 }
 
-/** One dash per unset value; the table's footnote explains it once instead of every row repeating "model default". */
-const UNSET = (
-  <Tooltip title="Not set: the model's own default applies.">
-    <Typography component="span" variant="body2" sx={{ color: 'text.muted' }} aria-label="Not set, the model's default applies">
-      &mdash;
-    </Typography>
-  </Tooltip>
-);
-
-function ModelCell({ row, value, unit = '' }: { row: SlotTableRow; value: string | number | null; unit?: string }) {
-  if (value !== null) return <span>{value}{unit}</span>;
-  if (!row.callsModel) {
-    return (
-      <Tooltip title="This slot is prompt text only; it makes no model call of its own.">
-        <Typography component="span" variant="body2" sx={{ color: 'text.muted' }}>n/a</Typography>
-      </Tooltip>
-    );
-  }
-  return UNSET;
-}
-
-/** The shared table for pins, the resolution preview and the registry. */
+/** The shared table for the pinned prompts, the next-run preview and the library. */
 export function SlotTable({ rows, label, lastColumn }: { rows: SlotTableRow[]; label: string; lastColumn?: { header: string; render: (row: SlotTableRow) => ReactNode } }) {
   const [open, setOpen] = useState<Set<string>>(new Set());
   const toggle = (key: string) =>
@@ -57,9 +32,7 @@ export function SlotTable({ rows, label, lastColumn }: { rows: SlotTableRow[]; l
       if (!next.delete(key)) next.add(key);
       return next;
     });
-  const columns = 7 + (lastColumn ? 1 : 0);
-
-  const anyUnset = rows.some((r) => r.callsModel && (r.model === null || r.effort === null || r.temperature === null));
+  const columns = 4 + (lastColumn ? 1 : 0);
 
   return (
     <>
@@ -70,9 +43,6 @@ export function SlotTable({ rows, label, lastColumn }: { rows: SlotTableRow[]; l
             <TableCell width={44} aria-label="Expand" />
             <TableCell>Slot</TableCell>
             <TableCell>Version</TableCell>
-            <TableCell>Model</TableCell>
-            <TableCell>Reasoning effort</TableCell>
-            <TableCell>Temperature</TableCell>
             <TableCell>Scope</TableCell>
             {lastColumn && <TableCell>{lastColumn.header}</TableCell>}
           </TableRow>
@@ -90,20 +60,17 @@ export function SlotTable({ rows, label, lastColumn }: { rows: SlotTableRow[]; l
                         onClick={() => toggle(row.key)}
                         aria-expanded={expanded}
                         aria-controls={`slot-${row.key}`}
-                        aria-label={`${expanded ? 'Hide' : 'Show'} details of ${row.slotKey}`}
+                        aria-label={`${expanded ? 'Hide' : 'Show'} details of ${slotLabel(row.slotKey)}`}
                       >
                         {expanded ? <KeyboardArrowDownIcon fontSize="small" /> : <KeyboardArrowRightIcon fontSize="small" />}
                       </IconButton>
                     )}
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 600, color: 'text.primary' }}>{row.slotKey}</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>{slotLabel(row.slotKey)}</Typography>
                     {row.description && <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>{row.description}</Typography>}
                   </TableCell>
                   <TableCell sx={{ fontVariantNumeric: 'tabular-nums' }}>{row.version !== null ? `v${row.version}` : <Typography component="span" variant="body2" sx={{ color: 'text.muted' }}>none</Typography>}</TableCell>
-                  <TableCell sx={{ fontFamily: 'monospace' }}><ModelCell row={row} value={row.model} /></TableCell>
-                  <TableCell><ModelCell row={row} value={row.effort} /></TableCell>
-                  <TableCell sx={{ fontVariantNumeric: 'tabular-nums' }}><ModelCell row={row} value={row.temperature} /></TableCell>
                   <TableCell>
                     <Stack direction="row" spacing={0.75} useFlexGap sx={{ flexWrap: 'wrap' }}>
                       <Chip size="small" variant="outlined" label={scopeLabel(row.scope)} />
@@ -131,11 +98,6 @@ export function SlotTable({ rows, label, lastColumn }: { rows: SlotTableRow[]; l
         </TableBody>
       </Table>
     </TableContainer>
-    {anyUnset && (
-      <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.75 }}>
-        &mdash; means not set: the model&rsquo;s own default applies. n/a means the slot is prompt text only.
-      </Typography>
-    )}
     </>
   );
 }
