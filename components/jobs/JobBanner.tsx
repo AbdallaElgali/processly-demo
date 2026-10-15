@@ -6,7 +6,8 @@ import { useState } from 'react';
 import { Alert, Box, Button, LinearProgress, Stack, Typography } from '@mui/material';
 import { useProjectActivity } from '@/lib/jobs/hooks';
 import { jobRuntime } from '@/lib/jobs/runtime';
-import { jobStore } from '@/lib/jobs/store';
+import { canRetry } from '@/lib/jobs/tray';
+import { failedJobHint, failedJobText } from '@/lib/jobs/label';
 import type { Job } from '@/lib/jobs/types';
 import { RunTimeline } from '@/components/workspace/RunTimeline';
 
@@ -21,6 +22,9 @@ const PHASE_LABEL: Record<string, string> = {
   done: 'Done',
   failed: 'Failed',
 };
+
+/** How many failed jobs one project shows at once; the rest are counted. */
+const MAX_FAILED_SHOWN = 3;
 
 const KIND_LABEL: Record<Job['kind'], string> = {
   upload: 'Upload',
@@ -69,11 +73,12 @@ export function JobBanner({ projectId, padded = true }: { projectId: string | nu
 
   const running = activity.running;
   const queued = activity.queued;
-  const failed = activity.failed[0];
+  const failedJobs = activity.failed.slice(0, MAX_FAILED_SHOWN);
+  const failedMore = activity.failed.length - failedJobs.length;
   const interrupted = activity.interrupted[0];
   const unseen = activity.unseenCompleted[0];
 
-  if (!running && !queued && !failed && !interrupted && !unseen) return null;
+  if (!running && !queued && failedJobs.length === 0 && !interrupted && !unseen) return null;
 
   return (
     <Box sx={padded ? { px: 3, pt: 2 } : undefined}>
@@ -122,7 +127,7 @@ export function JobBanner({ projectId, padded = true }: { projectId: string | nu
           sx={{ mb: 1 }}
           action={
             <Stack direction="row" spacing={1}>
-              <BusyButton onClick={() => jobRuntime.runAgain(interrupted.id)}>Run again</BusyButton>
+              {canRetry(interrupted) && <BusyButton onClick={() => jobRuntime.runAgain(interrupted.id)}>Run again</BusyButton>}
               <BusyButton onClick={() => jobRuntime.dismiss(interrupted.id)}>Dismiss</BusyButton>
             </Stack>
           }
@@ -137,7 +142,7 @@ export function JobBanner({ projectId, padded = true }: { projectId: string | nu
               The tab sending this upload was closed or refreshed. {interruptedUploadText(interrupted.uploadCheck)}
               {interrupted.uploadCheck?.state === 'missing' && (
                 <Typography variant="caption" sx={{ display: 'block' }}>
-                  Not in the project: {interrupted.uploadCheck.missing.join(', ')}. Run again sends only these.
+                  Not in the project: {interrupted.uploadCheck.missing.join(', ')}. Add the file again with Add documents.
                 </Typography>
               )}
             </>
@@ -150,14 +155,23 @@ export function JobBanner({ projectId, padded = true }: { projectId: string | nu
         </Alert>
       )}
 
-      {failed && (
+      {failedJobs.map((failed) => (
         <Alert
+          key={failed.id}
           severity="error"
           sx={{ mb: 1 }}
-          onClose={() => jobStore.dispatch({ type: 'dismiss', jobId: failed.id })}
+          onClose={() => void jobRuntime.dismiss(failed.id)}
         >
-          {KIND_LABEL[failed.kind]} failed: {failed.error}
+          {failedJobText(failed)}
+          {failedJobHint(failed) && (
+            <Typography variant="caption" sx={{ display: 'block' }}>{failedJobHint(failed)}</Typography>
+          )}
         </Alert>
+      ))}
+      {failedMore > 0 && (
+        <Typography variant="caption" sx={{ display: 'block', mb: 1, color: 'text.secondary' }}>
+          +{failedMore} more failed. Dismiss one to see the next.
+        </Typography>
       )}
 
       {unseen && !running && (
@@ -165,7 +179,7 @@ export function JobBanner({ projectId, padded = true }: { projectId: string | nu
           severity="success"
           sx={{ mb: 1 }}
           onClose={() =>
-            projectId && jobStore.dispatch({ type: 'markSeen', projectId })
+            projectId && jobRuntime.markSeen(projectId)
           }
         >
           {unseen.savedWhileAway ? `${SAVED_AWAY_TEXT}.` : 'New results are in.'}

@@ -7,7 +7,6 @@ import {
   SAVED_AWAY_TEXT,
   checkUploadOutcome,
   interruptedUploadText,
-  resendNotice,
   splitByDocuments,
 } from './uploadRecovery';
 import type { UploadCheck } from './types';
@@ -89,31 +88,25 @@ describe('texts', () => {
   it('has the wording the brief asks for', () => {
     expect(CHECKING_TEXT).toBe('Checking whether the server finished…');
     expect(SAVED_AWAY_TEXT).toBe('Saved while you were away');
-    expect(NOT_SAVED_TEXT).toBe('Not saved. Upload again');
+    expect(NOT_SAVED_TEXT).toBe('Not saved. Add the file again with Add documents');
   });
   it('reads the check state', () => {
     expect(interruptedUploadText(undefined)).toBe(CHECKING_TEXT);
     expect(interruptedUploadText({ state: 'checking' })).toBe(CHECKING_TEXT);
     expect(interruptedUploadText({ state: 'missing', missing: ['a.pdf'], saved: 0 })).toBe(NOT_SAVED_TEXT);
     expect(interruptedUploadText({ state: 'missing', missing: ['b.pdf'], saved: 1 })).toBe(
-      '1 file saved while you were away; 1 not saved. Upload again',
+      '1 file saved while you were away; 1 not saved. Add it again with Add documents',
     );
     expect(interruptedUploadText({ state: 'unknown' })).toMatch(/could not check/i);
+  });
+  it('never offers to run an upload again; it tells the person to add the file', () => {
+    expect(NOT_SAVED_TEXT).not.toMatch(/run again|re-?send/i);
+    expect(NOT_SAVED_TEXT).toMatch(/Add documents/);
   });
   it('does not claim "nothing was saved" anywhere', () => {
     const checks: Array<UploadCheck | undefined> = [undefined, { state: 'checking' }, { state: 'unknown' }, { state: 'missing', missing: ['a'], saved: 0 }];
     for (const check of checks) {
       expect(interruptedUploadText(check)).not.toMatch(/nothing was saved/i);
     }
-  });
-});
-
-describe('resendNotice (Run again must not duplicate a saved file)', () => {
-  it('says how many are re-sent and how many are already there', () => {
-    expect(resendNotice(2, 1)).toBe('Re-sending 1 file that is not in the project; 2 already saved.');
-    expect(resendNotice(0, 3)).toBe('Re-sending 3 files that are not in the project.');
-  });
-  it('says nothing is re-sent when everything is there', () => {
-    expect(resendNotice(2, 0)).toBe('All files are already in the project; nothing to re-send.');
   });
 });

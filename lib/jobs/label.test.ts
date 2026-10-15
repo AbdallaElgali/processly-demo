@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { runningJobText } from './label';
+import { failedJobHint, failedJobText, runningJobText } from './label';
 import type { Job } from './types';
 
 const correction = (phase: Job['phase']) =>
@@ -16,5 +16,23 @@ describe('runningJobText', () => {
   });
   it('keeps "Routing sections" for a blind extraction', () => {
     expect(runningJobText(extraction('routing'))).toBe('Extraction: Routing sections');
+  });
+});
+
+const failed = (kind: Job['kind'], error?: string) => ({ kind, status: 'failed', error }) as unknown as Job;
+
+describe('failed jobs', () => {
+  it('an upload shows its real error text and a hint to add the file again', () => {
+    expect(failedJobText(failed('upload', 'Document analysis failed: timeout'))).toBe('Upload failed: Document analysis failed: timeout');
+    expect(failedJobHint(failed('upload', 'x'))).toMatch(/add the file again with Add documents/i);
+  });
+  it('the hint never offers to run an upload again', () => {
+    expect(failedJobHint(failed('upload', 'x'))).not.toMatch(/run again|retry/i);
+  });
+  it('falls back to a plain sentence when no error text was recorded', () => {
+    expect(failedJobText(failed('extraction'))).toBe('Extraction failed');
+  });
+  it('an extraction has no add-file hint', () => {
+    expect(failedJobHint(failed('extraction', 'x'))).toBeNull();
   });
 });

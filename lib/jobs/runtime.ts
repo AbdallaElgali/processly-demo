@@ -1,5 +1,4 @@
 import { apiGetProjectDetails } from '@/api/projects';
-import { toast } from '@/components/ui/Toast';
 import { reloadAfterRun } from '@/lib/project-data/actions';
 import {
   deletePendingFiles,
@@ -13,7 +12,10 @@ import { prunePersistable, readJobs, writeJobs } from './persistence';
 import { runCorrection, runExtraction, runUpload, type RunContext, type RunOutcome } from './runners';
 import { planSchedulePass, tabLockName, withSchedulerLock } from './scheduler';
 import { jobStore } from './store';
-import { checkUploadOutcome, resendNotice, splitByDocuments } from './uploadRecovery';
+import { checkUploadOutcome } from './uploadRecovery';
+import { canEnqueue } from './ordering';
+import { canRetry, finishedJobIds, jobsToSweep } from './tray';
+import { fileRefsOf } from './uploadGuard';
 import type { Job, JobPayload } from './types';
 
 /**
@@ -23,6 +25,11 @@ import type { Job, JobPayload } from './types';
  * queue through localStorage, serialise their decisions on one Web Lock, and
  * announce changes on a BroadcastChannel. Exactly one tab runs each job.
  */
+/** How often finished jobs past their short window are dropped. */
+const SWEEP_INTERVAL_MS = 4_000;
+
+export type EnqueueResult = { allowed: true } | { allowed: false; reason: string };
+
 export class JobRuntime {
   private userId: string | null = null;
   private locks: LockManager = new WebLockManager();
@@ -89,6 +96,7 @@ export class JobRuntime {
     });
 
     window.addEventListener('pagehide', () => this.handlePageHide());
+    window.setInterval(() => void this.sweep(), SWEEP_INTERVAL_MS);
 
     void this.pump();
   }
@@ -126,18 +134,35 @@ export class JobRuntime {
     return merged;
   }
 
+  /**
+   * Accepts a job, or refuses it. The decision is made under the scheduler
+   * lock against the SHARED record of every tab, so two tabs cannot both
+   * start an extraction for one project: a second extraction is refused here,
+   * not only by a disabled button.
+   */
+  async enqueue(job: Job, files?: File[]): Promise<EnqueueResult> {
+    let stamped: Job = { ...job, enqueuedByTabId: this.tabId };
+    if (stamped.payload.kind === 'upload' && files?.length) {
+      // The job must say which files it carries: the tabs, the duplicate
+      // guard and the interrupted-upload check all read the names from here.
+      stamped = { ...stamped, payload: { kind: 'upload', fileRefs: fileRefsOf(stamped.id, files) } };
+    }
+    const verdict = await withSchedulerLock(this.locks, async (): Promise<EnqueueResult> => {
+      const verdict = canEnqueue(this.mergeSharedRecord(readJobs()), stamped);
+      if (!verdict.allowed) return verdict;
+      if (files?.length) await savePendingFiles(stamped.id, stamped.projectId, files);
+      jobStore.dispatch({ type: 'enqueue', job: stamped });
+      this.publish();
+      return verdict;
+    });
+    if (verdict.allowed) void this.pump();
+    return verdict;
+  }
+
   /** Writes the shared record and tells the other tabs. */
   private publish() {
     writeJobs(prunePersistable(jobStore.getJobs()));
     this.channel?.postMessage({ from: this.tabId });
-  }
-
-  async enqueue(job: Job, files?: File[]) {
-    const stamped: Job = { ...job, enqueuedByTabId: this.tabId };
-    if (files?.length) await savePendingFiles(stamped.id, stamped.projectId, files);
-    jobStore.dispatch({ type: 'enqueue', job: stamped });
-    this.publish();
-    void this.pump();
   }
 
   /** Re-queues an interrupted job as a NEW run. Re-running costs tokens, so
@@ -145,44 +170,12 @@ export class JobRuntime {
   async runAgain(jobId: string) {
     const job = jobStore.getJob(jobId);
     if (!job) return;
-    if (job.payload.kind === 'upload') return this.runUploadAgain(job, job.payload);
+    // An upload is never re-run by the app: the person adds the file again.
+    if (!canRetry(job)) return;
     const replacement = createJob(job.projectId, job.payload);
     jobStore.dispatch({ type: 'dismiss', jobId });
     await deletePendingFiles(jobId);
     await this.enqueue(replacement);
-  }
-
-  /**
-   * An interrupted upload may already be saved (backend U1). Re-sending a file
-   * the project holds would create a duplicate document and overwrite its
-   * stored file, so only the files the project lacks go again. If the project
-   * cannot be read, nothing is sent: guessing is what causes the duplicate.
-   */
-  private async runUploadAgain(job: Job, payload: Extract<JobPayload, { kind: 'upload' }>) {
-    let docs: readonly { name: string }[];
-    try {
-      docs = await fetchProjectDocuments(job.projectId);
-    } catch {
-      toast.show("Could not read the project's documents, so nothing was re-sent (it could create a duplicate). Try again in a moment.", { severity: 'error' });
-      return;
-    }
-    const files = await loadPendingFiles(job.id);
-    const { saved, missing } = splitByDocuments(files, docs);
-
-    if (missing.length === 0) {
-      await this.finishSavedWhileAway(job.id, job.projectId);
-      toast.show(resendNotice(saved.length, 0), { severity: 'success' });
-      return;
-    }
-    const missingNames = new Set(missing.map((f) => f.name));
-    const replacement = createJob(job.projectId, {
-      kind: 'upload',
-      fileRefs: payload.fileRefs.filter((ref) => missingNames.has(ref.name)),
-    });
-    jobStore.dispatch({ type: 'dismiss', jobId: job.id });
-    await deletePendingFiles(job.id);
-    toast.show(resendNotice(saved.length, missing.length), { severity: 'info' });
-    await this.enqueue(replacement, missing);
   }
 
   private async finishSavedWhileAway(jobId: string, projectId: string) {
@@ -203,6 +196,9 @@ export class JobRuntime {
     const job = jobStore.getJob(jobId);
     if (!job || job.status !== 'interrupted' || job.payload.kind !== 'upload') return;
     const names = job.payload.fileRefs.map((ref) => ref.name);
+    // One tab polls per job: another tab (or an earlier call) already holds it.
+    const release = await this.locks.tryHold(`bda-recover-${jobId}`);
+    if (!release) return;
     this.recovering.add(jobId);
     try {
       jobStore.dispatch({ type: 'uploadCheck', jobId, check: { state: 'checking' } });
@@ -227,6 +223,7 @@ export class JobRuntime {
       this.publish();
     } finally {
       this.recovering.delete(jobId);
+      release();
     }
   }
 
@@ -245,9 +242,31 @@ export class JobRuntime {
   }
 
   async dismiss(jobId: string) {
-    jobStore.dispatch({ type: 'dismiss', jobId });
-    await deletePendingFiles(jobId);
+    await this.dismissMany([jobId]);
+  }
+
+  /** Removes finished jobs from the store AND the shared record, so no tab brings them back. */
+  async dismissMany(jobIds: string[]) {
+    if (jobIds.length === 0) return;
+    jobStore.dispatch({ type: 'dismissMany', jobIds });
+    await Promise.all(jobIds.map((id) => deletePendingFiles(id)));
     this.publish();
+  }
+
+  /** "Clear all finished": every job that is not waiting or running. */
+  async clearFinished() {
+    await this.dismissMany(finishedJobIds(jobStore.getJobs()));
+  }
+
+  /** The results of a project have been seen; written to the shared record so a reload does not bring the badge back. */
+  markSeen(projectId: string) {
+    jobStore.dispatch({ type: 'markSeen', projectId });
+    this.publish();
+  }
+
+  /** Drops completed (seen) and cancelled jobs once their short window is over. */
+  async sweep(now: number = Date.now()) {
+    await this.dismissMany(jobsToSweep(jobStore.getJobs(), now));
   }
 
   /**

@@ -1,6 +1,7 @@
 import { MAX_RETAINED_EVENTS } from './config';
 import type { Job, JobAction, JobsState } from './types';
 import { WARNING_STATUSES, phaseForEvent } from './sse-types';
+import { dedupeJobs } from './tray';
 
 export const initialJobsState: JobsState = { jobs: [] };
 
@@ -58,7 +59,7 @@ type SseEventLike = Job['events'][number];
 export function jobsReducer(state: JobsState, action: JobAction): JobsState {
   switch (action.type) {
     case 'hydrate':
-      return { jobs: action.jobs };
+      return { jobs: dedupeJobs(action.jobs) };
 
     case 'enqueue':
       // Guard against a double submit racing itself.
@@ -142,6 +143,11 @@ export function jobsReducer(state: JobsState, action: JobAction): JobsState {
 
     case 'dismiss':
       return { jobs: state.jobs.filter((j) => j.id !== action.jobId) };
+
+    case 'dismissMany': {
+      const gone = new Set(action.jobIds);
+      return state.jobs.some((j) => gone.has(j.id)) ? { jobs: state.jobs.filter((j) => !gone.has(j.id)) } : state;
+    }
 
     default:
       return state;

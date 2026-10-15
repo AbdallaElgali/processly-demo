@@ -12,7 +12,7 @@ import type { UploadCheck } from './types';
 
 export const CHECKING_TEXT = 'Checking whether the server finished…';
 export const SAVED_AWAY_TEXT = 'Saved while you were away';
-export const NOT_SAVED_TEXT = 'Not saved. Upload again';
+export const NOT_SAVED_TEXT = 'Not saved. Add the file again with Add documents';
 export const UNKNOWN_TEXT = 'Could not check whether the server finished. Open the project again to see its documents';
 
 /** First check at once, then every interval: 5 waits of 12 s is about 60 s. */
@@ -76,12 +76,5 @@ export function interruptedUploadText(check: UploadCheck | undefined): string {
   if (!check || check.state === 'checking') return CHECKING_TEXT;
   if (check.state === 'unknown') return UNKNOWN_TEXT;
   if (check.saved === 0) return NOT_SAVED_TEXT;
-  return `${check.saved} ${check.saved === 1 ? 'file' : 'files'} saved while you were away; ${check.missing.length} not saved. Upload again`;
-}
-
-/** What "Run again" tells the person about what it will send. */
-export function resendNotice(saved: number, missing: number): string {
-  if (missing === 0) return 'All files are already in the project; nothing to re-send.';
-  const files = missing === 1 ? 'file that is' : 'files that are';
-  return `Re-sending ${missing} ${files} not in the project${saved > 0 ? `; ${saved} already saved` : ''}.`;
+  return `${check.saved} ${check.saved === 1 ? 'file' : 'files'} saved while you were away; ${check.missing.length} not saved. Add ${check.missing.length === 1 ? 'it' : 'them'} again with Add documents`;
 }

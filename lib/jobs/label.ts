@@ -28,3 +28,14 @@ export function runningJobText(job: Pick<Job, 'kind' | 'phase' | 'payload'>): st
   }
   return `${KIND[job.kind] ?? job.kind}: ${PHASE_LABEL[job.phase] ?? job.phase}`;
 }
+
+/** A failed job as one line: its real error text when there is one. */
+export function failedJobText(job: Pick<Job, 'kind' | 'error'>): string {
+  const error = job.error?.trim();
+  return error ? `${jobKindLabel(job.kind)} failed: ${error}` : `${jobKindLabel(job.kind)} failed`;
+}
+
+/** What to do next after a failure; an upload is never re-run by the app. */
+export function failedJobHint(job: Pick<Job, 'kind'>): string | null {
+  return job.kind === 'upload' ? 'Add the file again with Add documents.' : null;
+}
