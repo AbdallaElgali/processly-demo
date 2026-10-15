@@ -516,7 +516,7 @@ function ApproveSummary({ check }: { check: ReturnType<typeof approvalCheck> }) 
         <Stack component="span" direction="row" spacing={1} alignItems="flex-start" sx={{ display: 'flex', color: 'status.warning' }}>
           <WarningAmberIcon sx={{ fontSize: 18, mt: 0.1 }} aria-hidden />
           <Typography component="span" variant="body2" sx={{ color: 'text.primary' }}>
-            <strong>{check.bounds.length} value{check.bounds.length === 1 ? ' is' : 's are'} out of bounds</strong> (auto-flag, raised by the backend):{' '}
+            <strong>{check.bounds.length} value{check.bounds.length === 1 ? ' is' : 's are'} out of bounds</strong> (flagged automatically):{' '}
             {list(check.bounds)}.
           </Typography>
         </Stack>

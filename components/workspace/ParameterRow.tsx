@@ -316,7 +316,7 @@ function RowDetail({
           />
           {field.isFlagged && field.specifications.length > 1 && (
             <Typography variant="caption" sx={{ color: 'text.muted', display: 'block', mt: 0.75 }}>
-              The row is flagged, so choosing a candidate also tells the backend which one answers the flag.
+              The row is flagged, so choosing a candidate also records which one answers the flag.
             </Typography>
           )}
         </Box>
@@ -467,7 +467,7 @@ function ReviewActions({
       {correcting && (
         <Note tone="info" icon={busy?.kind === 'queued' ? <HourglassEmptyIcon sx={{ fontSize: 16 }} /> : <CircularProgress size={14} thickness={5} color="inherit" />}>
           {busy?.kind === 'queued'
-            ? 'Queued for re-extraction. It starts when a slot is free; corrections go first.'
+            ? 'Queued for re-extraction. It starts as soon as other work finishes; corrections go first.'
             : `Re-extracting this parameter${busy?.kind === 'correcting' && busy.phase ? ` (${busy.phase})` : ''}. The rest of the project stays usable.`}
         </Note>
       )}
@@ -575,7 +575,7 @@ function ReviewActions({
             helperText={
               flaggable
                 ? 'Tells the next reviewer, and the re-extraction, what is wrong.'
-                : 'This parameter has no extracted candidate, so it cannot be flagged yet (backend B9). Run Analyze first.'
+                : 'This parameter has no extracted candidate, so it cannot be flagged yet Run Analyze first.'
             }
           />
           <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }} useFlexGap>

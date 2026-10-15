@@ -20,7 +20,7 @@ export const fetch_customers = async(): Promise<Customer[] | void> => {
             return data;
         } else {
             // FIXED: Passed a string to Error instead of the raw Response object
-            throw new Error(`Request failed with status: ${response.status} ${response.statusText}`);
+            throw new Error(`The request failed (${response.status} ${response.statusText}).`);
         }
     } catch (err) {
         throw err;
@@ -50,7 +50,7 @@ export const create_customer = async (alias_name: string): Promise<void> => {
         if (!response.ok) {
             // The backend's own text (e.g. a duplicate alias), not just the status line.
             const body = await response.text().catch(() => '');
-            throw new Error(errorMessage(new Error(body), `Failed to create customer: ${response.statusText}`));
+            throw new Error(errorMessage(new Error(body), `Could not create the customer: ${response.statusText}`));
         }
     } catch (err) {
         console.error("Error creating customer:", err);

@@ -38,7 +38,7 @@ export function pinsEditable(resolution: ProjectPromptResolution | null): boolea
 
 export function resolutionNote(resolution: ProjectPromptResolution | null): string {
   if (resolution?.pins_frozen) {
-    return 'The first extraction has used this project’s prompts, so they are frozen. Every slot below repeats its pin; the scope says where each pinned value came from.';
+    return 'The first extraction has used this project’s prompts, so they are frozen. Every prompt below keeps the version it was frozen with; the scope says where each one came from.';
   }
   return 'This project has not been extracted yet, so its prompts can still be changed. Below is what the first run would use; the source says where each value comes from (project, then customer, then global).';
 }

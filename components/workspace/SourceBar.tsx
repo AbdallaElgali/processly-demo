@@ -80,7 +80,7 @@ export function SourceBar({
             count={matches.count}
             countLabel={`${matches.count}${matches.truncated ? '+' : ''}`}
             onStep={onStepMatch}
-            tooltip={`${matches.count}${matches.truncated ? '+' : ''} cells in the source table hold this value. The backend names the table, not the cell, so each is a possible source.`}
+            tooltip={`${matches.count}${matches.truncated ? '+' : ''} cells in the source table hold this value. The source names the table, not the cell, so each is a possible source.`}
           />
         )}
         {total > 1 && (

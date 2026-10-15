@@ -22,7 +22,7 @@ export function scopeLabel(raw: string | null | undefined): string {
 /** What `is_lazy` means: the slot was not pinned with the others at the first run, but when it was first needed. */
 export const LAZY_LABEL = 'Pinned during a correction';
 export const LAZY_EXPLANATION =
-  'This slot was not pinned at the first extraction run. It was pinned the first time a correction needed it, and keeps that version from then on.';
+  'This prompt was not pinned at the first extraction run. It was pinned the first time a correction needed it, and keeps that version from then on.';
 
 export interface SlotRow {
   slotKey: string;

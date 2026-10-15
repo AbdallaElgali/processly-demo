@@ -34,7 +34,7 @@ export default function AuditPage() {
               <EmptyState
                 icon={FlagOutlinedIcon}
                 title="Project-wide flag list unavailable"
-                description="No backend route lists the flags of a whole project (backend B8). Open a parameter on the Parameters tab to see its flags and how they were resolved; the 'Only with flags' switch finds them."
+                description="A list of all flags in the project is not available yet. Open a parameter on the Parameters tab to see its flags and how they were resolved; the 'Only with flags' switch finds them."
               />
             ),
           },

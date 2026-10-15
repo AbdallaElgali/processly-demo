@@ -18,7 +18,7 @@ import type { ExtractionRun } from '@/api/types/projects';
 import { buildLineage, CARRIED_OVER_LABEL, emptyValueLabel, REVIEWER_FLAG_LABEL, type LineageRow } from '@/lib/audit/lineage';
 import { formatDisplayValue } from '@/lib/review/format';
 import { RUN_TYPE_LABEL } from '@/lib/overview/status';
-import type { FlagDetail, ParameterLineageEvent } from '@/types/audit';
+import type { ParameterLineageEvent } from '@/types/audit';
 
 const valueText = (e: ParameterLineageEvent) =>
   e.value === null ? emptyValueLabel(e.extractionLogic) : `${formatDisplayValue(e.value)}${e.unit ? ` ${e.unit}` : ''}`;
@@ -32,7 +32,7 @@ function FlagCell({ row }: { row: LineageRow }) {
   return (
     <Stack spacing={0.5} alignItems="flex-start">
       <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: 'wrap' }}>
-        <FlagTypeChip flag={flag} carriedOver={row.flagCarriedOver} />
+        <FlagTypeChip carriedOver={row.flagCarriedOver} />
         <Chip
           size="small"
           icon={flag.status === 'OPEN' ? <FlagOutlinedIcon /> : <CheckCircleOutlineIcon />}
@@ -56,10 +56,10 @@ function FlagCell({ row }: { row: LineageRow }) {
   );
 }
 
-function FlagTypeChip({ flag, carriedOver }: { flag: FlagDetail; carriedOver: boolean }) {
+function FlagTypeChip({ carriedOver }: { carriedOver: boolean }) {
   return (
     <Tooltip
-      title={`Every stored flag is raised by a reviewer. The backend's type (${flag.flagType ?? 'none'}) means a flag on an AI value, not one raised by the AI (B23).`}
+      title={'Every stored flag was raised by a reviewer, on a value the AI proposed. The AI itself does not raise flags.'}
     >
       <Chip
         size="small"
@@ -111,7 +111,7 @@ export function LineageView({ projectId, parameterKey, runs }: { projectId: stri
 
   if (error) return <ErrorState description={error} onRetry={reload} />;
   if (loading) return <div aria-busy="true"><SkeletonRows count={3} columns={6} /></div>;
-  if (!view) return <Alert severity="info" variant="outlined">The backend has no history for {parameterKey} in this project.</Alert>;
+  if (!view) return <Alert severity="info" variant="outlined">There is no history for {parameterKey} in this project yet.</Alert>;
   if (view.rows.length === 0) return <Alert severity="info" variant="outlined">{parameterKey} has not been extracted yet, so there are no candidates.</Alert>;
 
   return (

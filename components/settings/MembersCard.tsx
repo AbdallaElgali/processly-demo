@@ -68,10 +68,10 @@ export function MembersCard({ projectId }: { projectId: string }) {
       <AddMemberForm projectId={projectId} role="contributor" />
       <AddMemberForm projectId={projectId} role="auditor" />
       <Alert severity="info" icon={false} variant="outlined" sx={{ '& .MuiAlert-message': { width: '100%' } }}>
-        <Typography variant="body2" sx={{ fontWeight: 600 }}>Member list unavailable (backend B8)</Typography>
+        <Typography variant="body2" sx={{ fontWeight: 600 }}>Member list unavailable</Typography>
         <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
-          The backend has no route that lists a project&apos;s contributors or auditors, so who is already a member cannot be shown here.
-          The app has no real authentication, so membership is a record, not a permission the app enforces.
+          The app cannot list a project&apos;s contributors or auditors, so who is already a member cannot be shown here.
+          There is no sign-in check, so membership is a record, not a permission the app enforces.
         </Typography>
       </Alert>
     </Card>

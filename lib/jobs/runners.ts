@@ -87,7 +87,7 @@ async function runStream(
         if (event.flag_chain) projectDataStore.applyFlagChain(job.projectId, event.flag_chain);
         sawComplete = true;
       } else if (event.status === 'error') {
-        lastError = event.message ?? 'Unknown backend error';
+        lastError = event.message ?? 'The analysis failed for an unknown reason.';
       }
 
       if (isTerminal(event.status)) break;

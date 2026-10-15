@@ -123,7 +123,7 @@ export function StateBadge({ state, flagReason }: { state: RowState; flagReason?
       );
     case 'no_run':
       return (
-        <Tooltip title="No extraction has produced a candidate for this parameter yet. (Shown by the app; not a backend reason code.)">
+        <Tooltip title="No extraction has produced a candidate for this parameter yet.">
           <Chip size="small" icon={<HourglassEmptyIcon />} label="Not extracted yet" variant="outlined" sx={{ ...chipSx('status.neutral', 'transparent'), borderColor: 'border.strong' }} />
         </Tooltip>
       );

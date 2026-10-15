@@ -57,7 +57,7 @@ export function FeedbackTab({ projectId }: { projectId: string }) {
         {totals.byType.map((t) => <Chip key={t.type} size="small" label={`${t.type}: ${t.count}`} sx={{ bgcolor: 'surface.sunken' }} />)}
       </Stack>
       <Typography variant="caption" sx={{ color: 'text.muted' }}>
-        Newest first. The backend does not return a date for feedback (backend B23), so none is shown.
+        Newest first. Feedback has no date recorded, so none is shown.
       </Typography>
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 420px), 1fr))', gap: 1.5, alignItems: 'start' }}>
         {(data?.feedbacks ?? []).map((f, i) => <FeedbackCard key={f.id ?? i} item={f} documentName={nameOf(f.document_id)} />)}
