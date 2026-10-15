@@ -11,7 +11,7 @@ import { NO_REASONING, NO_SOURCE_TEXT, whyThisValue } from '@/lib/review/why';
 
 const MODEL_NOTE =
   'Written by the extraction model together with its answer. It is the model’s explanation, not a quote from the document, ' +
-  'and not its internal reasoning, which the API does not return. Check it against the source text below.';
+  'and not its internal reasoning, which is not available. Check it against the source text below.';
 
 /**
  * "Why this value" for one candidate (AM15). Two kinds of text, kept visibly
@@ -43,7 +43,7 @@ export function WhyThisValue({
         <Block icon={<RemoveCircleOutlineIcon sx={{ fontSize: 15 }} />} label="Why there is no value" tone="neutral">
           <Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 600 }}>{why.reasonCode.label}</Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Recorded by the backend: “{why.reasonCode.text}”
+            Recorded with the result: “{why.reasonCode.text}”
           </Typography>
         </Block>
       ) : (

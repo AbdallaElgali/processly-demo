@@ -24,7 +24,7 @@ const NAV = [
   { slug: 'overview', label: 'Overview', Icon: DashboardOutlinedIcon },
   { slug: 'workspace', label: 'Workspace', Icon: FactCheckOutlinedIcon },
   { slug: 'parameters', label: 'Parameters', Icon: TuneOutlinedIcon },
-  { slug: 'prompts', label: 'Prompts & Models', Icon: SmartToyOutlinedIcon },
+  { slug: 'prompts', label: 'Prompts', Icon: SmartToyOutlinedIcon },
   { slug: 'audit', label: 'Audit', Icon: HistoryOutlinedIcon },
   { slug: 'settings', label: 'Settings', Icon: SettingsOutlinedIcon },
 ] as const;

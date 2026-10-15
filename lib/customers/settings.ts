@@ -1,7 +1,10 @@
 import type { CustomerPromptSlotSetting, CustomerSettings, CustomerTemplateRef } from '@/api/customerSettings';
 import type { PromptVersion } from '@/api/prompts';
 
-export const AGENT_PROMPTS_NOTE = 'Agent prompts are shared by all customers.';
+/** Only category prompts are shown or changed per customer. */
+export function categorySlots<T extends { slot_key: string }>(slots: T[]): T[] {
+  return slots.filter((s) => s.slot_key.startsWith('category.'));
+}
 
 /** `category.end_of_life` -> "End of life". */
 export function slotLabel(slotKey: string): string {
@@ -21,7 +24,7 @@ export function promptSourceLabel(s: CustomerPromptSlotSetting): string {
 
 /** New project dialog: "Customer prompts: Current v2, Voltage v3" or "Global prompts". */
 export function customerPromptSummary(settings: CustomerSettings | null): string {
-  const chosen = (settings?.prompt_slots ?? [])
+  const chosen = categorySlots(settings?.prompt_slots ?? [])
     .filter((s) => s.prompt_version_id)
     .sort((a, b) => a.slot_key.localeCompare(b.slot_key));
   if (chosen.length === 0) return 'Global prompts';

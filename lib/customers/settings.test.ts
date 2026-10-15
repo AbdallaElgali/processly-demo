@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CustomerSettings } from '@/api/customerSettings';
 import {
-  AGENT_PROMPTS_NOTE, customerDefaultTemplateOptions, customerPromptSummary, promptSourceLabel, slotLabel,
+  customerDefaultTemplateOptions, customerPromptSummary, promptSourceLabel, slotLabel,
   validateNewVersion, versionChoices,
 } from './settings';
 
@@ -80,8 +80,4 @@ describe('validateNewVersion', () => {
     expect(validateNewVersion({ content: 'a', changeNote: ' ' })).toMatch(/change note/i);
     expect(validateNewVersion({ content: 'a', changeNote: 'x' })).toBeNull();
   });
-});
-
-describe('texts', () => {
-  it('says agent prompts are shared', () => expect(AGENT_PROMPTS_NOTE).toBe('Agent prompts are shared by all customers.'));
 });

@@ -6,7 +6,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { useProjectActivity } from '@/lib/jobs/hooks';
 import { JobBanner } from '@/components/jobs/JobBanner';
-import { jobKindLabel, runningJobText } from '@/lib/jobs/label';
+import { failedJobText, jobKindLabel, runningJobText } from '@/lib/jobs/label';
 import { keepOpenText } from '@/lib/jobs/closeGuard';
 import { SAVED_AWAY_TEXT, interruptedUploadText } from '@/lib/jobs/uploadRecovery';
 
@@ -15,7 +15,7 @@ type Tone = 'info' | 'warning' | 'danger' | 'success';
 /**
  * The project's background work as ONE line in the Workspace toolbar (AM11).
  * Clicking it opens the full `JobBanner` (timeline, warnings, Stop / Cancel /
- * Run again / Dismiss) in a popover, so the table and viewer keep the whole
+ * Dismiss, and Run again for an interrupted extraction) in a popover, so the table and viewer keep the whole
  * screen while a run is going. Renders nothing when the project is idle.
  */
 export function JobStatusLine({ projectId }: { projectId: string }) {
@@ -49,7 +49,7 @@ export function JobStatusLine({ projectId }: { projectId: string }) {
       : `${jobKindLabel(interrupted.kind)} interrupted; nothing was saved`;
   } else if (failed) {
     tone = 'danger';
-    text = `${jobKindLabel(failed.kind)} failed`;
+    text = failedJobText(failed);
   } else if (unseen) {
     tone = 'success';
     text = unseen.savedWhileAway ? SAVED_AWAY_TEXT : 'New results are in';

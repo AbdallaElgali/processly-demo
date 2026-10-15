@@ -44,6 +44,7 @@ import { COMPACT_KEY, REVIEW_FIRST_KEY } from '@/lib/review/preferences';
 import type { RowBusy } from '@/components/workspace/ParameterRow';
 import { JOB_CAP } from '@/lib/jobs/config';
 import { createJob, jobRuntime } from '@/lib/jobs/runtime';
+import { findDuplicateUploads } from '@/lib/jobs/uploadGuard';
 
 const ACCEPT = '.pdf,.xlsx,.xlsm';
 
@@ -152,26 +153,45 @@ export default function WorkspacePage() {
   const [dragOver, setDragOver] = useState(false);
   const dragDepth = useRef(0);
 
-  const upload = useCallback(
-    (files: File[]) => {
-      const accepted = files.filter((f) => /\.(pdf|xlsx|xlsm)$/i.test(f.name));
-      const skipped = files.length - accepted.length;
-      if (skipped > 0) toast.show(`${skipped} file(s) skipped: only PDF and Excel (.xlsx, .xlsm) can be analysed.`, { severity: 'warning' });
-      if (accepted.length) void jobRuntime.enqueue(createJob(projectId, { kind: 'upload', fileRefs: [] }), accepted);
+  // Files whose name and size match a document already in the project, or an upload already waiting, wait for a yes.
+  const [duplicateFiles, setDuplicateFiles] = useState<File[]>([]);
+  const startUpload = useCallback(
+    (toSend: File[]) => {
+      if (toSend.length) void jobRuntime.enqueue(createJob(projectId, { kind: 'upload', fileRefs: [] }), toSend);
     },
     [projectId],
+  );
+  const upload = useCallback(
+    (picked: File[]) => {
+      const accepted = picked.filter((f) => /\.(pdf|xlsx|xlsm)$/i.test(f.name));
+      const skipped = picked.length - accepted.length;
+      if (skipped > 0) toast.show(`${skipped} file(s) skipped: only PDF and Excel (.xlsx, .xlsm) can be analysed.`, { severity: 'warning' });
+      const { fresh, duplicates } = findDuplicateUploads(accepted, {
+        projectId,
+        documents: documents.map((d) => ({ id: d.id, name: d.name, bytes: files.get(d.id)?.bytes ?? 0 })),
+        jobs,
+      });
+      startUpload(fresh);
+      if (duplicates.length) setDuplicateFiles(duplicates);
+    },
+    [projectId, documents, files, jobs, startUpload],
   );
 
   const flaggedCount = fields.filter((f) => f.isFlagged).length;
   const handleAnalyze = () => {
     const iterative = flaggedCount > 0;
-    void jobRuntime.enqueue(
-      createJob(projectId, {
-        kind: 'extraction',
-        mode: iterative ? 'ITERATIVE' : 'BLIND',
-        previousSpecs: iterative ? mapFieldsToSpecs(fields) : null,
-      }),
-    );
+    // The runtime refuses a second extraction for this project even if the button was clicked twice or another tab started one.
+    void jobRuntime
+      .enqueue(
+        createJob(projectId, {
+          kind: 'extraction',
+          mode: iterative ? 'ITERATIVE' : 'BLIND',
+          previousSpecs: iterative ? mapFieldsToSpecs(fields) : null,
+        }),
+      )
+      .then((result) => {
+        if (!result.allowed) toast.show(result.reason, { severity: 'warning' });
+      });
   };
   const extractionBusy = activity.running?.kind === 'extraction' || activity.queued?.job.kind === 'extraction';
 
@@ -472,6 +492,25 @@ export default function WorkspacePage() {
       />
 
       <ConfirmDialog
+        open={duplicateFiles.length > 0}
+        title={duplicateFiles.length === 1 ? 'This file is already in the project' : 'These files are already in the project'}
+        description={
+          <>
+            {duplicateFiles.map((f) => f.name).join(', ')}
+            <br />
+            {duplicateFiles.length === 1 ? 'Add it again?' : 'Add them again?'}
+          </>
+        }
+        confirmLabel="Add again"
+        cancelLabel="Don’t add"
+        onConfirm={() => {
+          startUpload(duplicateFiles);
+          setDuplicateFiles([]);
+        }}
+        onClose={() => setDuplicateFiles([])}
+      />
+
+      <ConfirmDialog
         open={exportCheck !== null}
         title={`${(exportCheck?.missing.length ?? 0) + (exportCheck?.unconvertible.length ?? 0)} exported parameter(s) will carry a placeholder`}
         description={exportCheckText(exportCheck)}
@@ -516,7 +555,7 @@ function ApproveSummary({ check }: { check: ReturnType<typeof approvalCheck> }) 
         <Stack component="span" direction="row" spacing={1} alignItems="flex-start" sx={{ display: 'flex', color: 'status.warning' }}>
           <WarningAmberIcon sx={{ fontSize: 18, mt: 0.1 }} aria-hidden />
           <Typography component="span" variant="body2" sx={{ color: 'text.primary' }}>
-            <strong>{check.bounds.length} value{check.bounds.length === 1 ? ' is' : 's are'} out of bounds</strong> (auto-flag, raised by the backend):{' '}
+            <strong>{check.bounds.length} value{check.bounds.length === 1 ? ' is' : 's are'} out of bounds</strong> (flagged automatically):{' '}
             {list(check.bounds)}.
           </Typography>
         </Stack>

@@ -35,7 +35,7 @@ function DocumentRouterImpl({ projectId, documentId, fileUrl, mime, highlight, o
 
   return (
     <Box sx={{ height: '100%', bgcolor: 'surface.canvas' }}>
-      <EmptyState title="This file type cannot be shown" description={`The viewer shows PDF and Excel files; this one is ${mime}.`} />
+      <EmptyState title="This file type cannot be shown" description={'The viewer shows PDF and Excel files only. This file is neither.'} />
     </Box>
   );
 }

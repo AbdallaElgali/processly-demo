@@ -22,7 +22,7 @@ const field = (id: string, value: string, label = id): InputField => ({
 });
 
 const valueOf = (xml: string, name: string): string | undefined =>
-  xml.match(new RegExp(`<Name>${name}</Name>\\s*<Value>([^<]*)</Value>`))?.[1];
+  xml.match(new RegExp(`<Name>${BATTERY_EXPORT_KEYS.find((e) => e.key === name)?.exportName ?? name}</Name>\\s*<Value>([^<]*)</Value>`))?.[1];
 
 describe('.battery export (D8, AM7)', () => {
   it('lists every mapped key with no numeric value, in key-map order', () => {

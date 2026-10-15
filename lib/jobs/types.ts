@@ -109,6 +109,7 @@ export type JobAction =
   | { type: 'cancel'; jobId: string; at: number }
   | { type: 'markSeen'; projectId: string }
   | { type: 'dismiss'; jobId: string }
+  | { type: 'dismissMany'; jobIds: string[] }
   /** Replaces the whole set, e.g. when another tab changed shared storage. */
   | { type: 'hydrate'; jobs: Job[] };
 

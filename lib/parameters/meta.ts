@@ -11,7 +11,7 @@ import type { AddParameterBody, updateProjectParameter } from '@/api/projects';
  */
 export const REMOVE_PARAMETER_AVAILABLE = false;
 export const REMOVE_PARAMETER_UNAVAILABLE =
-  'Removing a parameter is turned off for now: the backend deletes it for good, together with its extracted values and flag history (backend item B18). Editing is available.';
+  'Removing a parameter is turned off for now: it would be deleted for good, together with its extracted values and flag history. Editing is available.';
 
 /** `project_parameters.parameter_alias` is varchar(50). */
 export const ALIAS_MAX = 50;

@@ -32,7 +32,7 @@ const generate = (fields: InputField[]) => new FrontendBatteryFileExport().gener
 
 /** Reads the written <Value> of an entry, by entry name. */
 const written = (xml: string, name: string): string | undefined =>
-  xml.match(new RegExp(`<Name>${name}</Name>\\s*<Value>([^<]*)</Value>`))?.[1];
+  xml.match(new RegExp(`<Name>${BATTERY_EXPORT_KEYS.find((e) => e.key === name)?.exportName ?? name}</Name>\\s*<Value>([^<]*)</Value>`))?.[1];
 
 const placeholderFor = (key: string) => (key.startsWith('T_MIN_') ? `-${PLACEHOLDER}` : PLACEHOLDER);
 

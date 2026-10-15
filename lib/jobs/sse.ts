@@ -85,7 +85,7 @@ export async function openSseStream(
 
   if (!response.ok || !response.body) {
     // A 400 (no flagged metric, unknown parameter) carries a JSON body.
-    let detail = `Stream failed to start (${response.status})`;
+    let detail = `The analysis could not be started (error ${response.status}).`;
     try {
       const parsed = await response.json();
       detail = parsed?.error ?? parsed?.detail ?? detail;

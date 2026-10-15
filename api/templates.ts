@@ -160,7 +160,7 @@ export async function getParameters(): Promise<CanonicalParameter[]> {
         headers: { 'Content-Type': 'application/json' },
     });
 
-    if (!response.ok) throw await failure(response, 'Failed to fetch parameters');
+    if (!response.ok) throw await failure(response, 'Could not load the parameters');
     return response.json();
 }
 
@@ -174,7 +174,7 @@ export async function createTemplate(data: TemplateCreate): Promise<ExtractionTe
         body: JSON.stringify(data),
     });
 
-    if (!response.ok) throw await failure(response, 'Failed to create template');
+    if (!response.ok) throw await failure(response, 'Could not create the template');
     return response.json();
 }
 
@@ -187,7 +187,7 @@ export async function getUserTemplates(userId: string): Promise<ExtractionTempla
         headers: { 'Content-Type': 'application/json' },
     });
 
-    if (!response.ok) throw await failure(response, 'Failed to fetch user templates');
+    if (!response.ok) throw await failure(response, 'Could not load your templates');
     return response.json();
 }
 
@@ -200,7 +200,7 @@ export async function getTemplateDetails(templateId: string): Promise<TemplateWi
         headers: { 'Content-Type': 'application/json' },
     });
 
-    if (!response.ok) throw await failure(response, 'Failed to fetch template details');
+    if (!response.ok) throw await failure(response, 'Could not load the template');
     return response.json();
 }
 
@@ -217,7 +217,7 @@ export async function upsertTemplateRule(
         body: JSON.stringify(data),
     });
 
-    if (!response.ok) throw await failure(response, 'Failed to upsert template rule');
+    if (!response.ok) throw await failure(response, 'Could not save the rule');
     return response.json();
 }
 
@@ -230,7 +230,7 @@ export async function deleteTemplate(templateId: string): Promise<void> {
         headers: { 'Content-Type': 'application/json' },
     });
 
-    if (!response.ok) throw await failure(response, 'Failed to delete template');
+    if (!response.ok) throw await failure(response, 'Could not delete the template');
     // No content returned on 204
 }
 
@@ -244,6 +244,6 @@ export async function createTemplateFromProject(data: ProjectToTemplate): Promis
         body: JSON.stringify(data),
     });
 
-    if (!response.ok) throw await failure(response, 'Failed to create template from project');
+    if (!response.ok) throw await failure(response, 'Could not save the project as a template');
     return response.json();
 }

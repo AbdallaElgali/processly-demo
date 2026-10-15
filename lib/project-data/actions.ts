@@ -165,7 +165,7 @@ export async function addAuditor(projectId: string, username: string): Promise<v
 /** The route answered 200 but stored a different status than the one requested. */
 export class StatusNotAppliedError extends Error {
   constructor(requested: ProjectStatus, actual: ProjectStatus | undefined) {
-    super(`The backend stored ${actual ?? 'no status'} instead of ${requested}. Nothing was changed.`);
+    super(`The status is ${actual ?? 'not set'} instead of ${requested}. Nothing was changed.`);
     this.name = 'StatusNotAppliedError';
   }
 }

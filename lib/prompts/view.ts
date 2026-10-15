@@ -22,16 +22,7 @@ export function scopeLabel(raw: string | null | undefined): string {
 /** What `is_lazy` means: the slot was not pinned with the others at the first run, but when it was first needed. */
 export const LAZY_LABEL = 'Pinned during a correction';
 export const LAZY_EXPLANATION =
-  'This slot was not pinned at the first extraction run. It was pinned the first time a correction needed it, and keeps that version from then on.';
-
-/** Model settings as one readable line; unset values are said to be unset, not hidden. */
-export function modelSettings(s: { model_name?: string | null; reasoning_effort?: string | null; temperature?: number | null }) {
-  return {
-    model: s.model_name ?? null,
-    effort: s.reasoning_effort ?? null,
-    temperature: s.temperature ?? null,
-  };
-}
+  'This prompt was not pinned at the first extraction run. It was pinned the first time a correction needed it, and keeps that version from then on.';
 
 export interface SlotRow {
   slotKey: string;
@@ -61,12 +52,7 @@ export function joinSlots(pins: PinDetail[], resolution: ProjectPromptResolution
   return rows;
 }
 
-/** Agent slots (they call a model) before category slots, keeping each group's order. */
-export function groupByLevel<T extends { level: string }>(rows: T[]): { level: string; rows: T[] }[] {
-  const groups = new Map<string, T[]>();
-  for (const r of rows) groups.set(r.level, [...(groups.get(r.level) ?? []), r]);
-  const order = ['AGENT', 'CATEGORY'];
-  return [...groups.entries()]
-    .sort(([a], [b]) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99))
-    .map(([level, list]) => ({ level, rows: list }));
+/** Only category prompts are shown to the user: agent, system and any other slot level is dropped. */
+export function categoryRows<T extends { level: string }>(rows: T[]): T[] {
+  return rows.filter((r) => r.level.toUpperCase() === 'CATEGORY');
 }

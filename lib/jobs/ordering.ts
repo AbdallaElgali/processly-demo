@@ -110,3 +110,26 @@ export function canStart(
   // refused, which is what CLAUDE.md 8.1 requires.
   return { allowed: true };
 }
+
+/**
+ * The check made where a job is ACCEPTED (the runtime, against the shared
+ * record of every tab), not only by a disabled button: one project never has
+ * a second extraction queued or running. `job` itself is ignored, so a job
+ * already in the list is not refused because of itself.
+ */
+export function canEnqueue(
+  jobs: Job[],
+  job: Job,
+): { allowed: true } | { allowed: false; reason: string } {
+  if (job.kind !== 'extraction') return { allowed: true };
+  const busy = jobs.some(
+    (j) =>
+      j.id !== job.id &&
+      j.projectId === job.projectId &&
+      j.kind === 'extraction' &&
+      (isActive(j) || isQueued(j)),
+  );
+  return busy
+    ? { allowed: false, reason: 'This project already has an extraction running or queued.' }
+    : { allowed: true };
+}

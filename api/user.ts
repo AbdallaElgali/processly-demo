@@ -18,6 +18,6 @@ export const update_user_settings = async (userId: string, settings: UserSetting
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings),
     })
-    if (!response.ok) throw new Error(`Failed to update user settings: ${response.statusText}`);
+    if (!response.ok) throw new Error(`Could not save your settings: ${response.statusText}`);
     return true;
 }

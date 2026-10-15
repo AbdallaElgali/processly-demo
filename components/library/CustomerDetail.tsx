@@ -18,7 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useResource } from '@/hooks/useResource';
 import { errorMessage } from '@/lib/errors';
 import {
-  AGENT_PROMPTS_NOTE, customerDefaultTemplateOptions, promptSourceLabel, slotLabel,
+  categorySlots, customerDefaultTemplateOptions, promptSourceLabel, slotLabel,
 } from '@/lib/customers/settings';
 import { CustomerVersionDialog } from './CustomerVersionDialog';
 
@@ -118,11 +118,11 @@ export function CustomerDetail({ customerId, onBack }: { customerId: string; onB
           <Box component="section" aria-labelledby="cust-prompts">
             <Typography id="cust-prompts" variant="subtitle1" component="h3" sx={{ color: 'text.primary', mb: 0.5 }}>Prompts</Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>
-              {AGENT_PROMPTS_NOTE} Below, the category prompts: each project created for this customer starts with these versions.
+              Each project created for this customer starts with these category prompt versions.
               Changing them does not affect projects that already exist.
             </Typography>
             <Box sx={{ border: 1, borderColor: 'border.subtle', borderRadius: 1, bgcolor: 'surface.panel', overflow: 'hidden' }}>
-              {settings.prompt_slots.map((s, i) => (
+              {categorySlots(settings.prompt_slots).map((s, i) => (
                 <Stack
                   key={s.slot_key} direction="row" spacing={1.5} alignItems="center" useFlexGap
                   sx={{ px: 2, py: 1, flexWrap: 'wrap', borderTop: i === 0 ? 0 : 1, borderColor: 'border.subtle' }}
