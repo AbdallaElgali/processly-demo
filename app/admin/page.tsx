@@ -55,7 +55,7 @@ export default function AdminPage() {
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden', bgcolor: 'surface.canvas' }}>
         
         {/* The shell header, with the admin view switcher in the breadcrumb
-            slot. Labelled unauthenticated per A2: /auth has no password or
+            slot. Labelled unauthenticated Eper A2: /auth has no password or
             token, so the UI must not imply permissions are enforced. */}
         <AppHeader
           breadcrumb={
