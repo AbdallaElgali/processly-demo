@@ -1,0 +1,178 @@
+<?xml version="1.0"?>
+<Battery xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Type>Musterstand</Type>
+  <NumberOfCells>1</NumberOfCells>
+  <NumberOfSectors>2</NumberOfSectors>
+  <CanMappingActivated>false</CanMappingActivated>
+  <MappedDbcFiles />
+  <MappedSignalsStore />
+  <DBCFiles />
+  <Parameters>
+    <BatteryParameter>
+      <Name>C_NOMINAL_AH_DB</Name>
+      <Value>60</Value>
+      <Unit>Ah</Unit>
+      <ValueType>battery_const</ValueType>
+      <Color ColorAsString="Gray" />
+      <Comment>Nennkapazität des Prüflings laut Datenblatt</Comment>
+    </BatteryParameter>
+    <BatteryParameter>
+      <Name>E_NOMINAL_WH_DB</Name>
+      <Value>219</Value>
+      <Unit>Wh</Unit>
+      <ValueType>battery_const</ValueType>
+      <Color ColorAsString="Gray" />
+    </BatteryParameter>
+    <BatteryParameter>
+      <Name>EOL</Name>
+      <Value>80</Value>
+      <Unit>%</Unit>
+      <ValueType>battery_const</ValueType>
+      <Color ColorAsString="Gray" />
+    </BatteryParameter>
+    <BatteryParameter>
+      <Name>I_MAX_CHA_30S_DB</Name>
+      <Value>180</Value>
+      <Unit>A</Unit>
+      <ValueType>battery_const</ValueType>
+      <Color ColorAsString="Gray" />
+    </BatteryParameter>
+    <BatteryParameter>
+      <Name>I_MAX_CHA_CONTINUOUS_DB</Name>
+      <Value>60</Value>
+      <Unit>A</Unit>
+      <ValueType>battery_const</ValueType>
+      <Color ColorAsString="Gray" />
+    </BatteryParameter>
+    <BatteryParameter>
+      <Name>I_MAX_DCH_30S_DB</Name>
+      <Value>300</Value>
+      <Unit>A</Unit>
+      <ValueType>battery_const</ValueType>
+      <Color ColorAsString="Gray" />
+    </BatteryParameter>
+    <BatteryParameter>
+      <Name>I_MAX_DCH_CONTINUOUS_DB</Name>
+      <Value>120</Value>
+      <Unit>A</Unit>
+      <ValueType>battery_const</ValueType>
+      <Color ColorAsString="Gray" />
+    </BatteryParameter>
+    <BatteryParameter>
+      <Name>T_MAX_DB</Name>
+      <Value>55</Value>
+      <Unit>°C</Unit>
+      <ValueType>battery_const</ValueType>
+      <Color ColorAsString="Gray" />
+    </BatteryParameter>
+    <BatteryParameter>
+      <Name>T_MAX_SAFETY_DB</Name>
+      <Value>99999999</Value>
+      <Unit>°C</Unit>
+      <ValueType>battery_const</ValueType>
+      <Color ColorAsString="Gray" />
+    </BatteryParameter>
+    <BatteryParameter>
+      <Name>T_MAX_TERMINAL_DB</Name>
+      <Value>99999999</Value>
+      <Unit>°C</Unit>
+      <ValueType>battery_const</ValueType>
+      <Color ColorAsString="Gray" />
+    </BatteryParameter>
+    <BatteryParameter>
+      <Name>T_MAX_TERMINAL_SAFETY_DB</Name>
+      <Value>99999999</Value>
+      <Unit>°C</Unit>
+      <ValueType>battery_const</ValueType>
+      <Color ColorAsString="Gray" />
+    </BatteryParameter>
+    <BatteryParameter>
+      <Name>T_MIN_DB</Name>
+      <Value>-20</Value>
+      <Unit>°C</Unit>
+      <ValueType>battery_const</ValueType>
+      <Color ColorAsString="Gray" />
+    </BatteryParameter>
+    <BatteryParameter>
+      <Name>T_MIN_SAFETY_DB</Name>
+      <Value>-99999999</Value>
+      <Unit>°C</Unit>
+      <ValueType>battery_const</ValueType>
+      <Color ColorAsString="Gray" />
+    </BatteryParameter>
+    <BatteryParameter>
+      <Name>T_MIN_TERMINAL_DB</Name>
+      <Value>-99999999</Value>
+      <Unit>°C</Unit>
+      <ValueType>battery_const</ValueType>
+      <Color ColorAsString="Gray" />
+    </BatteryParameter>
+    <BatteryParameter>
+      <Name>T_MIN_TERMINAL_SAFETY_DB</Name>
+      <Value>-99999999</Value>
+      <Unit>°C</Unit>
+      <ValueType>battery_const</ValueType>
+      <Color ColorAsString="Gray" />
+    </BatteryParameter>
+    <BatteryParameter>
+      <Name>U_MAX_DB</Name>
+      <Value>4.2</Value>
+      <Unit>V</Unit>
+      <ValueType>battery_const</ValueType>
+      <Color ColorAsString="Gray" />
+    </BatteryParameter>
+    <BatteryParameter>
+      <Name>U_MAX_SAFETY_DB</Name>
+      <Value>4.25</Value>
+      <Unit>V</Unit>
+      <ValueType>battery_const</ValueType>
+      <Color ColorAsString="Gray" />
+    </BatteryParameter>
+    <BatteryParameter>
+      <Name>U_MIN_DB</Name>
+      <Value>2.5</Value>
+      <Unit>V</Unit>
+      <ValueType>battery_const</ValueType>
+      <Color ColorAsString="Gray" />
+    </BatteryParameter>
+    <BatteryParameter>
+      <Name>U_MIN_SAFETY_DB</Name>
+      <Value>2.3</Value>
+      <Unit>V</Unit>
+      <ValueType>battery_const</ValueType>
+      <Color ColorAsString="Gray" />
+    </BatteryParameter>
+    <BatteryParameter>
+      <Name>I_MAX_DCH_PULSE_DYN</Name>
+      <Value>99999999</Value>
+      <ValueType>battery_const</ValueType>
+      <Color ColorAsString="Gray" />
+    </BatteryParameter>
+    <BatteryParameter>
+      <Name>R_INT_25C</Name>
+      <Value>1.8</Value>
+      <Unit>mOhm</Unit>
+      <ValueType>battery_const</ValueType>
+      <Color ColorAsString="Gray" />
+    </BatteryParameter>
+    <BatteryParameter>
+      <Name>T_MAX_BODY_DYN</Name>
+      <Value>99999999</Value>
+      <ValueType>battery_const</ValueType>
+      <Color ColorAsString="Gray" />
+    </BatteryParameter>
+    <BatteryParameter>
+      <Name>U_MIN_DYN</Name>
+      <Value>2.8</Value>
+      <Unit>V</Unit>
+      <ValueType>battery_const</ValueType>
+      <Color ColorAsString="Gray" />
+    </BatteryParameter>
+    <BatteryParameter>
+      <Name>U_MIN_SAFETY_DYN</Name>
+      <Value>99999999</Value>
+      <ValueType>battery_const</ValueType>
+      <Color ColorAsString="Gray" />
+    </BatteryParameter>
+  </Parameters>
+</Battery>

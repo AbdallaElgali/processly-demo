@@ -1,0 +1,357 @@
+[
+  {
+    "name": "_DUT_ID_VVT",
+    "value": "99999999",
+    "unit": ""
+  },
+  {
+    "name": "_PB_ID",
+    "value": "99999999",
+    "unit": ""
+  },
+  {
+    "name": "_PIN",
+    "value": "99999999",
+    "unit": ""
+  },
+  {
+    "name": "_SOC_HIGH",
+    "value": "99999999",
+    "unit": "%"
+  },
+  {
+    "name": "_SOC_LOW",
+    "value": "99999999",
+    "unit": "%"
+  },
+  {
+    "name": "_T_CYCLE_C",
+    "value": "99999999",
+    "unit": "°C"
+  },
+  {
+    "name": "C_MEASURED_AH_DB",
+    "value": "99999999",
+    "unit": "Ah"
+  },
+  {
+    "name": "C_MEASURED_AH_INITIAL",
+    "value": "99999999",
+    "unit": "Ah"
+  },
+  {
+    "name": "C_NOMINAL_AH_DB",
+    "value": "60",
+    "unit": "Ah"
+  },
+  {
+    "name": "CYCLE_COUNT_DB",
+    "value": "1",
+    "unit": ""
+  },
+  {
+    "name": "E_MEASURED_WH_DB",
+    "value": "99999999",
+    "unit": "Wh"
+  },
+  {
+    "name": "E_MEASURED_WH_INITIAL",
+    "value": "99999999",
+    "unit": "Wh"
+  },
+  {
+    "name": "E_NOMINAL_WH_DB",
+    "value": "219",
+    "unit": "Wh"
+  },
+  {
+    "name": "E_THROUGHPUT_ACC_DB",
+    "value": "0",
+    "unit": "kWh"
+  },
+  {
+    "name": "E_THROUGHPUT_BAL_DB",
+    "value": "0",
+    "unit": "kWh"
+  },
+  {
+    "name": "E_THROUGHPUT_NEG_DB",
+    "value": "0",
+    "unit": "kWh"
+  },
+  {
+    "name": "E_THROUGHPUT_POS_DB",
+    "value": "0",
+    "unit": "kWh"
+  },
+  {
+    "name": "EOL",
+    "value": "80",
+    "unit": "%"
+  },
+  {
+    "name": "EOT",
+    "value": "99999999",
+    "unit": "%"
+  },
+  {
+    "name": "I_MAX_CHA_30S_DB",
+    "value": "180",
+    "unit": "A"
+  },
+  {
+    "name": "I_MAX_CHA_CONTINUOUS_DB",
+    "value": "60",
+    "unit": "A"
+  },
+  {
+    "name": "I_MAX_DCH_30S_DB",
+    "value": "-300",
+    "unit": "A"
+  },
+  {
+    "name": "I_MAX_DCH_CONTINUOUS_DB",
+    "value": "-120",
+    "unit": "A"
+  },
+  {
+    "name": "PACKAGE_COUNT_DB",
+    "value": "0",
+    "unit": ""
+  },
+  {
+    "name": "Q_THROUGHPUT_ACC_DB",
+    "value": "0",
+    "unit": "kAh"
+  },
+  {
+    "name": "Q_THROUGHPUT_BAL_DB",
+    "value": "0",
+    "unit": "kAh"
+  },
+  {
+    "name": "Q_THROUGHPUT_NEG_DB",
+    "value": "0",
+    "unit": "kAh"
+  },
+  {
+    "name": "Q_THROUGHPUT_POS_DB",
+    "value": "0",
+    "unit": "kAh"
+  },
+  {
+    "name": "Ri_cha_30p_xC_T25_1s",
+    "value": "0",
+    "unit": "mOhm"
+  },
+  {
+    "name": "Ri_cha_30p_xC_T25_10s",
+    "value": "0",
+    "unit": "mOhm"
+  },
+  {
+    "name": "Ri_cha_30p_xC_T25_20s",
+    "value": "0",
+    "unit": "mOhm"
+  },
+  {
+    "name": "Ri_cha_30p_xC_T25_30s",
+    "value": "0",
+    "unit": "mOhm"
+  },
+  {
+    "name": "Ri_cha_30p_xC_T25_180s",
+    "value": "0",
+    "unit": "mOhm"
+  },
+  {
+    "name": "Ri_cha_50p_xC_T25_1s",
+    "value": "0",
+    "unit": "mOhm"
+  },
+  {
+    "name": "Ri_cha_50p_xC_T25_10s",
+    "value": "0",
+    "unit": "mOhm"
+  },
+  {
+    "name": "Ri_cha_50p_xC_T25_20s",
+    "value": "0",
+    "unit": "mOhm"
+  },
+  {
+    "name": "Ri_cha_50p_xC_T25_30s",
+    "value": "0",
+    "unit": "mOhm"
+  },
+  {
+    "name": "Ri_cha_50p_xC_T25_180s",
+    "value": "0",
+    "unit": "mOhm"
+  },
+  {
+    "name": "Ri_dch_30p_xC_T25_1s",
+    "value": "0",
+    "unit": "mOhm"
+  },
+  {
+    "name": "Ri_dch_30p_xC_T25_10s",
+    "value": "0",
+    "unit": "mOhm"
+  },
+  {
+    "name": "Ri_dch_30p_xC_T25_20s",
+    "value": "0",
+    "unit": "mOhm"
+  },
+  {
+    "name": "Ri_dch_30p_xC_T25_30s",
+    "value": "0",
+    "unit": "mOhm"
+  },
+  {
+    "name": "Ri_dch_30p_xC_T25_180s",
+    "value": "0",
+    "unit": "mOhm"
+  },
+  {
+    "name": "Ri_dch_50p_xC_T25_1s",
+    "value": "0",
+    "unit": "mOhm"
+  },
+  {
+    "name": "Ri_dch_50p_xC_T25_10s",
+    "value": "0",
+    "unit": "mOhm"
+  },
+  {
+    "name": "Ri_dch_50p_xC_T25_20s",
+    "value": "0",
+    "unit": "mOhm"
+  },
+  {
+    "name": "Ri_dch_50p_xC_T25_30s",
+    "value": "0",
+    "unit": "mOhm"
+  },
+  {
+    "name": "Ri_dch_50p_xC_T25_180s",
+    "value": "0",
+    "unit": "mOhm"
+  },
+  {
+    "name": "SOC_BENCH",
+    "value": "100",
+    "unit": "%"
+  },
+  {
+    "name": "SOC_BENCH_NOMINAL",
+    "value": "100",
+    "unit": "%"
+  },
+  {
+    "name": "SOH_C",
+    "value": "100",
+    "unit": "%"
+  },
+  {
+    "name": "SOH_E",
+    "value": "100",
+    "unit": "%"
+  },
+  {
+    "name": "t_CYCLE_DAYS",
+    "value": "0",
+    "unit": "d"
+  },
+  {
+    "name": "T_MAX_DB",
+    "value": "55",
+    "unit": "°C"
+  },
+  {
+    "name": "T_MAX_SAFETY_DB",
+    "value": "99999999",
+    "unit": "°C"
+  },
+  {
+    "name": "T_MAX_TERMINAL_DB",
+    "value": "99999999",
+    "unit": "°C"
+  },
+  {
+    "name": "T_MAX_TERMINAL_SAFETY_DB",
+    "value": "99999999",
+    "unit": "°C"
+  },
+  {
+    "name": "T_MIN_DB",
+    "value": "-20",
+    "unit": "°C"
+  },
+  {
+    "name": "T_MIN_SAFETY_DB",
+    "value": "-99999999",
+    "unit": "°C"
+  },
+  {
+    "name": "T_MIN_TERMINAL_DB",
+    "value": "-99999999",
+    "unit": "°C"
+  },
+  {
+    "name": "T_MIN_TERMINAL_SAFETY_DB",
+    "value": "-99999999",
+    "unit": "°C"
+  },
+  {
+    "name": "t_TESTING_DAYS",
+    "value": "0",
+    "unit": "d"
+  },
+  {
+    "name": "vorherigerTesttyp",
+    "value": "0",
+    "unit": ""
+  },
+  {
+    "name": "U_MAX_DB",
+    "value": "4.2",
+    "unit": "V"
+  },
+  {
+    "name": "U_MAX_SAFETY_DB",
+    "value": "4.25",
+    "unit": "V"
+  },
+  {
+    "name": "U_MIN_DB",
+    "value": "2.5",
+    "unit": "V"
+  },
+  {
+    "name": "U_MIN_SAFETY_DB",
+    "value": "2.3",
+    "unit": "V"
+  },
+  {
+    "name": "VVT_ID_BEREIT",
+    "value": "99999999",
+    "unit": ""
+  },
+  {
+    "name": "VVT_ID_ENDE",
+    "value": "99999999",
+    "unit": ""
+  },
+  {
+    "name": "VVT_ID_LAEUFT",
+    "value": "99999999",
+    "unit": ""
+  },
+  {
+    "name": "VVT_ID_STILLSTAND",
+    "value": "99999999",
+    "unit": ""
+  }
+]
