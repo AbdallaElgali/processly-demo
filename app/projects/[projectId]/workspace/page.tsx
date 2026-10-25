@@ -223,7 +223,7 @@ export default function WorkspacePage() {
   const runExport = () => {
     setExportCheck(null);
     try {
-      const { content, filename } = new FrontendBatteryFileExport().generate(fields, details?.alias_id ?? '');
+      const { content, filename } = new FrontendBatteryFileExport(null).generate(fields, details?.alias_id ?? '');
       if (!content?.trim()) throw new Error('The export was empty.');
       const url = URL.createObjectURL(new Blob([content], { type: 'application/xml;charset=utf-8;' }));
       const link = document.createElement('a');
@@ -239,10 +239,10 @@ export default function WorkspacePage() {
     }
   };
 
-  // D8: list the mapped keys with no value before exporting.
+  // D8: list the project parameters written as placeholder, or skipped, before exporting.
   const handleExport = () => {
     const report = exportReport(fields);
-    if (report.missing.length + report.unconvertible.length > 0) setExportCheck(report);
+    if (report.missing.length + report.conflicting.length > 0) setExportCheck(report);
     else runExport();
   };
 

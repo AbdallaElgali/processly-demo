@@ -4,124 +4,97 @@ import { hasValue, selectedSpec } from '@/lib/review/rowState';
 /**
  * `.battery` export (decision D8, AM7).
  *
- * A fixed downstream format, so it has its OWN explicit key map: which project
- * parameter feeds which exported entry. It is deliberately independent of the
- * category grouping and of the removed SCHEMA_GROUPS.
+ * The file has two kinds of entries:
  *
- * `exportName` is the entry name written for the key, always: the key-file
- * name (`U_MAX_DB`, `EOL`, ...), never the parameter's label, including for
- * parameters the project added.
+ * 1. Project parameters: exactly the parameters of the project, nothing
+ *    hardcoded. Each one is written with the value selected in the review,
+ *    whatever its origin (AI candidate or typed in by a person).
+ *    - Name: the parameter's alias (`project_parameters.parameter_alias`, unique
+ *      per project), falling back to its key. To match the bench's names
+ *      (`U_MAX_DB`, `EOL`, ...), set the alias in the template.
+ *    - Value and unit: exactly as reviewed. The export never converts a unit
+ *      or changes a sign; the backend and the reviewing user own both
+ *      (owner decision 2026-10-25).
+ *    - No value: written as the placeholder.
  *
- * Sign convention (owner decision 2026-10-15): discharge currents
- * (I_MAX_DCH_*) are written negative, as -abs(value), so a value stored
- * positive becomes negative and one already negative is not negated twice.
- * Zero stays 0. The placeholder stays positive; charge currents are written
- * as stored.
+ * 2. Bench entries (VVT IDs, throughputs, SOC/SOH, Ri, ...): not project data;
+ *    static defaults the test bench fills in at runtime. A project parameter
+ *    whose name clashes with one is skipped and reported.
  */
-export const BATTERY_EXPORT_KEYS: ReadonlyArray<{ key: string; exportName: string }> = [
-  { key: 'C_NOMINAL_AH', exportName: 'C_NOMINAL_AH_DB' },
-  { key: 'E_NOMINAL_WH', exportName: 'E_NOMINAL_WH_DB' },
-  { key: 'EOL_SOH_NOM', exportName: 'EOL' },
-  { key: 'I_MAX_CHA_PULSE', exportName: 'I_MAX_CHA_30S_DB' },
-  { key: 'I_MAX_CHA_CONTINUOUS', exportName: 'I_MAX_CHA_CONTINUOUS_DB' },
-  { key: 'I_MAX_DCH_PULSE', exportName: 'I_MAX_DCH_30S_DB' },
-  { key: 'I_MAX_DCH_CONTINUOUS', exportName: 'I_MAX_DCH_CONTINUOUS_DB' },
-  { key: 'T_MAX_BODY', exportName: 'T_MAX_DB' },
-  { key: 'T_MAX_BODY_SAFETY', exportName: 'T_MAX_SAFETY_DB' },
-  { key: 'T_MAX_TERMINAL', exportName: 'T_MAX_TERMINAL_DB' },
-  { key: 'T_MAX_TERMINAL_SAFETY', exportName: 'T_MAX_TERMINAL_SAFETY_DB' },
-  { key: 'T_MIN_BODY', exportName: 'T_MIN_DB' },
-  { key: 'T_MIN_BODY_SAFETY', exportName: 'T_MIN_SAFETY_DB' },
-  { key: 'T_MIN_TERMINAL', exportName: 'T_MIN_TERMINAL_DB' },
-  { key: 'T_MIN_TERMINAL_SAFETY', exportName: 'T_MIN_TERMINAL_SAFETY_DB' },
-  { key: 'U_MAX', exportName: 'U_MAX_DB' },
-  { key: 'U_MAX_SAFETY', exportName: 'U_MAX_SAFETY_DB' },
-  { key: 'U_MIN', exportName: 'U_MIN_DB' },
-  { key: 'U_MIN_SAFETY', exportName: 'U_MIN_SAFETY_DB' },
-];
 
-const EXPORT_NAME_BY_KEY = new Map(BATTERY_EXPORT_KEYS.map((e) => [e.key, e.exportName]));
+/** Entry names written by the bench section; a project parameter may not reuse one. */
+const BENCH_NAMES = new Set([
+  '_DUT_ID_VVT', '_PB_ID', '_PIN', '_SOC_HIGH', '_SOC_LOW', '_T_CYCLE_C',
+  'C_MEASURED_AH_DB', 'C_MEASURED_AH_INITIAL', 'CYCLE_COUNT_DB',
+  'E_MEASURED_WH_DB', 'E_MEASURED_WH_INITIAL',
+  'E_THROUGHPUT_ACC_DB', 'E_THROUGHPUT_BAL_DB', 'E_THROUGHPUT_NEG_DB', 'E_THROUGHPUT_POS_DB',
+  'EOT', 'PACKAGE_COUNT_DB',
+  'Q_THROUGHPUT_ACC_DB', 'Q_THROUGHPUT_BAL_DB', 'Q_THROUGHPUT_NEG_DB', 'Q_THROUGHPUT_POS_DB',
+  'SOC_BENCH', 'SOC_BENCH_NOMINAL', 'SOH_C', 'SOH_E', 't_CYCLE_DAYS', 't_TESTING_DAYS', 'vorherigerTesttyp',
+  'VVT_ID_BEREIT', 'VVT_ID_ENDE', 'VVT_ID_LAEUFT', 'VVT_ID_STILLSTAND',
+  ...['cha', 'dch'].flatMap((d) =>
+    ['30p', '50p'].flatMap((s) => ['1s', '10s', '20s', '30s', '180s'].map((t) => `Ri_${d}_${s}_xC_T25_${t}`)),
+  ),
+]);
+
+/** The entry name a project parameter is written under. */
+export function exportName(field: InputField): string {
+  return field.parameter_alias?.trim() || field.id;
+}
 
 /**
- * Exact decimal scaling: moves the decimal point of a plain or exponent-form
- * decimal string by `shift` places, so 3200 with shift -3 is "3.2" and never
- * 3.2000000000000002. Returns null when the text is not a finite decimal.
+ * Strict decimal parsing: plain or exponent-form decimal string to a number,
+ * or null when the text is not a finite decimal ("4.2V", "1,5" -> null).
+ * Never parseFloat, which reads "1,5" as 1.
  */
-export function scaleDecimal(text: string, shift: number): number | null {
-  const m = /^([+-]?)(\d*)(?:\.(\d*))?(?:[eE]([+-]?\d+))?$/.exec(text.trim());
-  if (!m || (!m[2] && !m[3])) return null;
-  const [, sign, intPart = '', fracPart = '', exp = '0'] = m;
-  const digits = intPart + fracPart;
-  const point = intPart.length + Number(exp) + shift; // position of the decimal point within `digits`
-  let out: string;
-  if (point <= 0) out = `0.${'0'.repeat(-point)}${digits}`;
-  else if (point >= digits.length) out = digits + '0'.repeat(point - digits.length);
-  else out = `${digits.slice(0, point)}.${digits.slice(point)}`;
-  const n = Number(`${sign}${out}`);
+export function parseDecimal(text: string): number | null {
+  const m = /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.exec(text.trim());
+  if (!m) return null;
+  const n = Number(text.trim());
   return Number.isFinite(n) ? n : null;
 }
 
-/** Unit (lower-case, trimmed) -> decimal shift to the fixed exported unit. */
-const UNIT_SHIFTS: Record<string, Record<string, number>> = {
-  C_NOMINAL_AH: { ah: 0, mah: -3 },
-  E_NOMINAL_WH: { wh: 0, mwh: -3, kwh: 3 },
-  EOL_SOH_NOM: { '%': 0 },
-};
-const unitShifts = (key: string): Record<string, number> => {
-  if (UNIT_SHIFTS[key]) return UNIT_SHIFTS[key];
-  if (key.startsWith('I_MAX_')) return { a: 0, ma: -3 };
-  if (key.startsWith('T_')) return { '°c': 0, degc: 0, c: 0 };
-  if (key.startsWith('U_')) return { v: 0, mv: -3 };
-  return {};
-};
-
 export type ExportValue =
-  | { kind: 'value'; value: number }
-  | { kind: 'missing' }
-  | { kind: 'unit'; unit: string };
+  | { kind: 'value'; value: number; unit: string | null }
+  | { kind: 'missing' };
 
 /**
- * The value a mapped key is written with. It is decided from the SAME
+ * The value a parameter is written with. It is decided from the SAME
  * specification the review row displays (`selectedSpec`), with no fallback of
  * its own: no value there means no value in the file.
  */
-export function exportValue(fields: InputField[], key: string): ExportValue {
-  const field = fields.find((f) => f.id === key);
-  const spec = field ? selectedSpec(field) : undefined;
+export function exportValue(field: InputField): ExportValue {
+  const spec = selectedSpec(field);
   if (!hasValue(spec)) return { kind: 'missing' };
-  const text = String(spec!.value).trim();
+  const n = parseDecimal(String(spec!.value));
+  if (n === null) return { kind: 'missing' };
   const unit = String(spec!.unit ?? '').trim();
-  if (unit === '') {
-    const n = scaleDecimal(text, 0);
-    return n === null ? { kind: 'missing' } : { kind: 'value', value: n };
-  }
-  const shift = unitShifts(key)[unit.toLowerCase()];
-  if (shift === undefined) return { kind: 'unit', unit };
-  const n = scaleDecimal(text, shift);
-  return n === null ? { kind: 'missing' } : { kind: 'value', value: n };
+  return { kind: 'value', value: n, unit: unit || null };
+}
+
+/** The project parameters the export writes, in review order (bench-name clashes left out). */
+export function exportFields(fields: InputField[]): InputField[] {
+  return fields.filter((f) => !BENCH_NAMES.has(exportName(f)));
 }
 
 export interface ExportReport {
-  /** Keys with no usable value, in key-map order. */
+  /** Parameters written as the placeholder (no usable value), in export order. */
   missing: string[];
-  /** Keys with a value in a unit the exporter cannot convert, in key-map order. */
-  unconvertible: { key: string; unit: string }[];
+  /** Parameters skipped because their name clashes with a bench entry. */
+  conflicting: string[];
 }
 
-/** Everything the pre-export dialog lists: exactly the keys written as the placeholder. */
+/** Everything the pre-export dialog lists. */
 export function exportReport(fields: InputField[]): ExportReport {
-  const report: ExportReport = { missing: [], unconvertible: [] };
-  for (const { key } of BATTERY_EXPORT_KEYS) {
-    const v = exportValue(fields, key);
-    if (v.kind === 'missing') report.missing.push(key);
-    else if (v.kind === 'unit') report.unconvertible.push({ key, unit: v.unit });
-  }
-  return report;
+  return {
+    missing: exportFields(fields).filter((f) => exportValue(f).kind === 'missing').map(exportName),
+    conflicting: fields.filter((f) => BENCH_NAMES.has(exportName(f))).map(exportName),
+  };
 }
 
-/** The mapped keys written as the placeholder, for any reason, in key-map order. */
+/** The parameters written as the placeholder, in export order. */
 export function missingExportKeys(fields: InputField[]): string[] {
-  return BATTERY_EXPORT_KEYS.filter(({ key }) => exportValue(fields, key).kind !== 'value').map((e) => e.key);
+  return exportReport(fields).missing;
 }
 
 export type BatteryParameter = {
@@ -140,33 +113,29 @@ export type BatteryFileConfig = {
   canMappingActivated: boolean;
 };
 
-/** Discharge currents are written negative: -abs(value). Zero stays 0; null (placeholder) stays null. */
-function dischargeSign(value: number | null): number | null {
-  return value === null || value === 0 ? value : -Math.abs(value);
-}
-
 export class FrontendBatteryFileExport {
   private readonly PLACEHOLDER_VALUE = 99999999;
+
+  private devTestMode = false;
+  private arg: string | null = null;
+
+  init(arg: string | null, opts: { devTestMode?: boolean } = {}): void {
+    this.arg = arg;
+    this.devTestMode = opts.devTestMode ?? false;
+  }
+
+  constructor(...args: Parameters<FrontendBatteryFileExport['init']>) {
+    this.init(...args);
+  }
 
   private readonly defaultConfig: BatteryFileConfig = {
     type: 'Musterstand',
     numberOfCells: 1,
     numberOfSectors: 2,
-    canMappingActivated: false
+    canMappingActivated: false,
   };
 
-  /** The value written for a key, or null (placeholder). See `exportValue`. */
-  private getFieldValue(fields: InputField[], fieldId: string): number | null {
-    const v = exportValue(fields, fieldId);
-    return v.kind === 'value' ? v.value : null;
-  }
-
-  /** The key-file name of a mapped key. Never the parameter's label. */
-  private entryName(key: string): string {
-    return EXPORT_NAME_BY_KEY.get(key) ?? key;
-  }
-
-  public generate(fields: InputField[], projectName: string): { content: string, filename: string } {
+  public generate(fields: InputField[], projectName: string): { content: string; filename: string } {
     const filename = this.generateFilename(projectName);
     const xml = this.generateXml(fields);
     return { content: xml, filename };
@@ -180,7 +149,7 @@ export class FrontendBatteryFileExport {
   }
 
   private generateXml(fields: InputField[]): string {
-    const config = this.defaultConfig; 
+    const config = this.defaultConfig;
     const parameters = this.buildParameters(fields);
 
     const xmlLines: string[] = [
@@ -194,134 +163,93 @@ export class FrontendBatteryFileExport {
       '  <MappedSignalsStore />',
       '  <DBCFiles />',
       '  <Parameters>',
-      ...parameters.map(param => this.generateParameterXml(param)),
+      ...parameters.map((param) => this.generateParameterXml(param)),
       '  </Parameters>',
-      '</Battery>'
+      '</Battery>',
     ];
 
     return xmlLines.join('\n');
   }
 
+  /** One project-parameter entry: the reviewed value as is, or the placeholder. */
+  private projectParameter(field: InputField): BatteryParameter {
+    const v = exportValue(field);
+    return {
+      name: exportName(field),
+      value: v.kind === 'value' ? v.value : this.PLACEHOLDER_VALUE,
+      unit: (v.kind === 'value' ? v.unit : null) ?? undefined,
+      valueType: 'battery_const',
+      color: 'Gray',
+      comment: field.description_override ?? undefined,
+    };
+  }
+
   private buildParameters(fields: InputField[]): BatteryParameter[] {
+    const projectParams = exportFields(fields).map((f) => this.projectParameter(f));
+
+    // Dev mode: project parameters only.
+    if (this.devTestMode) return projectParams;
+
+    return [...this.buildBenchParameters(), ...projectParams];
+  }
+
+  /** The fixed bench entries: not project data, defaults the bench fills in at runtime. */
+  private buildBenchParameters(): BatteryParameter[] {
     const placeholder = this.PLACEHOLDER_VALUE;
-
-    // Keys must match BATTERY_EXPORT_KEYS above.
-    // Capacity & Energy
-    const capacityAh = this.getFieldValue(fields, 'C_NOMINAL_AH');
-    const energyWh = this.getFieldValue(fields, 'E_NOMINAL_WH');
-    const eolSohNom = this.getFieldValue(fields, 'EOL_SOH_NOM'); 
-    
-    // Voltage
-    const uMax = this.getFieldValue(fields, 'U_MAX');
-    const uMin = this.getFieldValue(fields, 'U_MIN');
-    const uMaxSafety = this.getFieldValue(fields, 'U_MAX_SAFETY');
-    const uMinSafety = this.getFieldValue(fields, 'U_MIN_SAFETY');
-
-    // Current (Continuous and Pulse/30s)
-    const iMaxChaCont = this.getFieldValue(fields, 'I_MAX_CHA_CONTINUOUS');
-    const iMaxDchCont = dischargeSign(this.getFieldValue(fields, 'I_MAX_DCH_CONTINUOUS'));
-    const iMaxChaPulse = this.getFieldValue(fields, 'I_MAX_CHA_PULSE');
-    const iMaxDchPulse = dischargeSign(this.getFieldValue(fields, 'I_MAX_DCH_PULSE'));
-
-    // Temperature (Body & Terminal)
-    const tMaxBody = this.getFieldValue(fields, 'T_MAX_BODY');
-    const tMinBody = this.getFieldValue(fields, 'T_MIN_BODY');
-    const tMaxBodySafety = this.getFieldValue(fields, 'T_MAX_BODY_SAFETY');
-    const tMinBodySafety = this.getFieldValue(fields, 'T_MIN_BODY_SAFETY');
-    const tMaxTerminal = this.getFieldValue(fields, 'T_MAX_TERMINAL');
-    const tMinTerminal = this.getFieldValue(fields, 'T_MIN_TERMINAL');
-    const tMaxTerminalSafety = this.getFieldValue(fields, 'T_MAX_TERMINAL_SAFETY');
-    const tMinTerminalSafety = this.getFieldValue(fields, 'T_MIN_TERMINAL_SAFETY');
-
-    // Missing database data defaults to placeholders
-    const attendantId = placeholder;
-    const testingProjectId = placeholder;
-    const eotValue = placeholder;
-    const vvtIdReady = placeholder;
-    const vvtIdRunning = placeholder;
-    const vvtIdIdle = placeholder;
-    const vvtIdFinished = placeholder;
+    const bench = (name: string, value: number, valueType: BatteryParameter['valueType'], color: string, unit?: string, comment?: string): BatteryParameter =>
+      ({ name, value, unit, valueType, color, comment });
 
     return [
-      // VVT-specific parameters (Placeholders on Frontend)
-      { name: '_DUT_ID_VVT', value: placeholder, valueType: 'battery_const', color: 'Gray', comment: 'Im VVT hinterlegte DUT-ID' },
-      { name: '_PB_ID', value: attendantId, valueType: 'battery_const', color: 'Gray', comment: 'VVT-ID des Prüfstandsbetreuers' },
-      { name: '_PIN', value: testingProjectId, valueType: 'battery_const', color: 'Gray', comment: 'Projektidentifikationsnummer aus dem VVT' },
+      // VVT-specific parameters (placeholders on the frontend)
+      bench('_DUT_ID_VVT', placeholder, 'battery_const', 'Gray', undefined, 'Im VVT hinterlegte DUT-ID'),
+      bench('_PB_ID', placeholder, 'battery_const', 'Gray', undefined, 'VVT-ID des Prüfstandsbetreuers'),
+      bench('_PIN', placeholder, 'battery_const', 'Gray', undefined, 'Projektidentifikationsnummer aus dem VVT'),
 
-      // SOC parameters
-      { name: '_SOC_HIGH', value: placeholder, unit: '%', valueType: 'battery_const', color: 'Teal' },
-      { name: '_SOC_LOW', value: placeholder, unit: '%', valueType: 'battery_const', color: 'Teal' },
-      { name: '_T_CYCLE_C', value: placeholder, unit: '°C', valueType: 'battery_const', color: 'Gray' },
+      // SOC
+      bench('_SOC_HIGH', placeholder, 'battery_const', 'Teal', '%'),
+      bench('_SOC_LOW', placeholder, 'battery_const', 'Teal', '%'),
+      bench('_T_CYCLE_C', placeholder, 'battery_const', 'Gray', '°C'),
 
-      // Capacity parameters
-      { name: 'C_MEASURED_AH_DB', value: placeholder, unit: 'Ah', valueType: 'battery_variable', color: 'ff804040' },
-      { name: 'C_MEASURED_AH_INITIAL', value: placeholder, unit: 'Ah', valueType: 'battery_variable', color: 'Gray' },
-      { name: this.entryName('C_NOMINAL_AH'), value: capacityAh ?? placeholder, unit: 'Ah', valueType: 'battery_const', color: 'Gray', comment: 'Nennkapazität des Prüflings laut Datenblatt' },
+      // Capacity & cycle count
+      bench('C_MEASURED_AH_DB', placeholder, 'battery_variable', 'ff804040', 'Ah'),
+      bench('C_MEASURED_AH_INITIAL', placeholder, 'battery_variable', 'Gray', 'Ah'),
+      bench('CYCLE_COUNT_DB', 1, 'battery_variable', 'ff0080ff'),
 
-      // Cycle count
-      { name: 'CYCLE_COUNT_DB', value: 1, valueType: 'battery_variable', color: 'ff0080ff' },
+      // Energy
+      bench('E_MEASURED_WH_DB', placeholder, 'battery_variable', 'Purple', 'Wh'),
+      bench('E_MEASURED_WH_INITIAL', placeholder, 'battery_variable', 'Gray', 'Wh'),
+      bench('E_THROUGHPUT_ACC_DB', 0, 'battery_variable', 'Purple', 'kWh'),
+      bench('E_THROUGHPUT_BAL_DB', 0, 'battery_variable', 'Purple', 'kWh'),
+      bench('E_THROUGHPUT_NEG_DB', 0, 'battery_variable', 'Purple', 'kWh'),
+      bench('E_THROUGHPUT_POS_DB', 0, 'battery_variable', 'Purple', 'kWh'),
 
-      // Energy parameters
-      { name: 'E_MEASURED_WH_DB', value: placeholder, unit: 'Wh', valueType: 'battery_variable', color: 'Purple' },
-      { name: 'E_MEASURED_WH_INITIAL', value: placeholder, unit: 'Wh', valueType: 'battery_variable', color: 'Gray' },
-      { name: this.entryName('E_NOMINAL_WH'), value: energyWh ?? placeholder, unit: 'Wh', valueType: 'battery_const', color: 'Gray' },
+      // EOT
+      bench('EOT', placeholder, 'battery_const', 'Gray', '%'),
 
-      // Energy throughput parameters
-      { name: 'E_THROUGHPUT_ACC_DB', value: 0, unit: 'kWh', valueType: 'battery_variable', color: 'Purple' },
-      { name: 'E_THROUGHPUT_BAL_DB', value: 0, unit: 'kWh', valueType: 'battery_variable', color: 'Purple' },
-      { name: 'E_THROUGHPUT_NEG_DB', value: 0, unit: 'kWh', valueType: 'battery_variable', color: 'Purple' },
-      { name: 'E_THROUGHPUT_POS_DB', value: 0, unit: 'kWh', valueType: 'battery_variable', color: 'Purple' },
+      // Package count & charge throughput
+      bench('PACKAGE_COUNT_DB', 0, 'battery_variable', 'Maroon'),
+      bench('Q_THROUGHPUT_ACC_DB', 0, 'battery_variable', 'ff804040', 'kAh'),
+      bench('Q_THROUGHPUT_BAL_DB', 0, 'battery_variable', 'ff804040', 'kAh'),
+      bench('Q_THROUGHPUT_NEG_DB', 0, 'battery_variable', 'ff804040', 'kAh'),
+      bench('Q_THROUGHPUT_POS_DB', 0, 'battery_variable', 'ff804040', 'kAh'),
 
-      // EOL/EOT parameters
-      { name: this.entryName('EOL_SOH_NOM'), value: eolSohNom ?? placeholder, unit: '%', valueType: 'battery_const', color: 'Gray' },
-      { name: 'EOT', value: eotValue, unit: '%', valueType: 'battery_const', color: 'Gray' },
-
-      // Current parameters
-      { name: this.entryName('I_MAX_CHA_PULSE'), value: iMaxChaPulse ?? placeholder, unit: 'A', valueType: 'battery_const', color: 'Gray' },
-      { name: this.entryName('I_MAX_CHA_CONTINUOUS'), value: iMaxChaCont ?? placeholder, unit: 'A', valueType: 'battery_const', color: 'Gray' },
-      { name: this.entryName('I_MAX_DCH_PULSE'), value: iMaxDchPulse ?? placeholder, unit: 'A', valueType: 'battery_const', color: 'Gray' },
-      { name: this.entryName('I_MAX_DCH_CONTINUOUS'), value: iMaxDchCont ?? placeholder, unit: 'A', valueType: 'battery_const', color: 'Gray' },
-
-      // Package count & Charge throughput
-      { name: 'PACKAGE_COUNT_DB', value: 0, valueType: 'battery_variable', color: 'Maroon' },
-      { name: 'Q_THROUGHPUT_ACC_DB', value: 0, unit: 'kAh', valueType: 'battery_variable', color: 'ff804040' },
-      { name: 'Q_THROUGHPUT_BAL_DB', value: 0, unit: 'kAh', valueType: 'battery_variable', color: 'ff804040' },
-      { name: 'Q_THROUGHPUT_NEG_DB', value: 0, unit: 'kAh', valueType: 'battery_variable', color: 'ff804040' },
-      { name: 'Q_THROUGHPUT_POS_DB', value: 0, unit: 'kAh', valueType: 'battery_variable', color: 'ff804040' },
-
-      // Internal resistance parameters (Ri)
+      // Internal resistance (Ri)
       ...this.generateRiParameters(),
 
-      // SOC / SOH / Time parameters
-      { name: 'SOC_BENCH', value: 100, unit: '%', valueType: 'battery_variable', color: 'Teal' },
-      { name: 'SOC_BENCH_NOMINAL', value: 100, unit: '%', valueType: 'battery_variable', color: 'Teal' },
-      { name: 'SOH_C', value: 100, unit: '%', valueType: 'battery_variable', color: 'Aqua' },
-      { name: 'SOH_E', value: 100, unit: '%', valueType: 'battery_variable', color: 'Aqua' },
-      { name: 't_CYCLE_DAYS', value: 0, unit: 'd', valueType: 'battery_variable', color: 'Gray' },
+      // SOC / SOH / time
+      bench('SOC_BENCH', 100, 'battery_variable', 'Teal', '%'),
+      bench('SOC_BENCH_NOMINAL', 100, 'battery_variable', 'Teal', '%'),
+      bench('SOH_C', 100, 'battery_variable', 'Aqua', '%'),
+      bench('SOH_E', 100, 'battery_variable', 'Aqua', '%'),
+      bench('t_CYCLE_DAYS', 0, 'battery_variable', 'Gray', 'd'),
+      bench('t_TESTING_DAYS', 0, 'battery_variable', 'Gray', 'd'),
+      bench('vorherigerTesttyp', 0, 'battery_variable', 'Gray'),
 
-      // Temperature parameters
-      { name: this.entryName('T_MAX_BODY'), value: tMaxBody ?? placeholder, unit: '°C', valueType: 'battery_const', color: 'Gray' },
-      { name: this.entryName('T_MAX_BODY_SAFETY'), value: tMaxBodySafety ?? placeholder, unit: '°C', valueType: 'battery_const', color: 'Gray' },
-      { name: this.entryName('T_MAX_TERMINAL'), value: tMaxTerminal ?? placeholder, unit: '°C', valueType: 'battery_const', color: 'Gray' },
-      { name: this.entryName('T_MAX_TERMINAL_SAFETY'), value: tMaxTerminalSafety ?? placeholder, unit: '°C', valueType: 'battery_const', color: 'Gray' },
-      { name: this.entryName('T_MIN_BODY'), value: tMinBody ?? -placeholder, unit: '°C', valueType: 'battery_const', color: 'Gray' },
-      { name: this.entryName('T_MIN_BODY_SAFETY'), value: tMinBodySafety ?? -placeholder, unit: '°C', valueType: 'battery_const', color: 'Gray' },
-      { name: this.entryName('T_MIN_TERMINAL'), value: tMinTerminal ?? -placeholder, unit: '°C', valueType: 'battery_const', color: 'Gray' },
-      { name: this.entryName('T_MIN_TERMINAL_SAFETY'), value: tMinTerminalSafety ?? -placeholder, unit: '°C', valueType: 'battery_const', color: 'Gray' },
-      { name: 't_TESTING_DAYS', value: 0, unit: 'd', valueType: 'battery_variable', color: 'Gray' },
-      { name: 'vorherigerTesttyp', value: 0, valueType: 'battery_variable', color: 'Gray' },
-
-      // Voltage parameters
-      { name: this.entryName('U_MAX'), value: uMax ?? placeholder, unit: 'V', valueType: 'battery_const', color: 'Gray' },
-      { name: this.entryName('U_MAX_SAFETY'), value: uMaxSafety ?? placeholder, unit: 'V', valueType: 'battery_const', color: 'Gray' },
-      { name: this.entryName('U_MIN'), value: uMin ?? placeholder, unit: 'V', valueType: 'battery_const', color: 'Gray' },
-      { name: this.entryName('U_MIN_SAFETY'), value: uMinSafety ?? placeholder, unit: 'V', valueType: 'battery_const', color: 'Gray' },
-
-      // VVT ID parameters
-      { name: 'VVT_ID_BEREIT', value: vvtIdReady, valueType: 'battery_const', color: 'Gray' },
-      { name: 'VVT_ID_ENDE', value: vvtIdFinished, valueType: 'battery_const', color: 'Gray' },
-      { name: 'VVT_ID_LAEUFT', value: vvtIdRunning, valueType: 'battery_const', color: 'Gray' },
-      { name: 'VVT_ID_STILLSTAND', value: vvtIdIdle, valueType: 'battery_const', color: 'Gray' }
+      // VVT IDs
+      bench('VVT_ID_BEREIT', placeholder, 'battery_const', 'Gray'),
+      bench('VVT_ID_ENDE', placeholder, 'battery_const', 'Gray'),
+      bench('VVT_ID_LAEUFT', placeholder, 'battery_const', 'Gray'),
+      bench('VVT_ID_STILLSTAND', placeholder, 'battery_const', 'Gray'),
     ];
   }
 
@@ -330,16 +258,16 @@ export class FrontendBatteryFileExport {
     const socLevels = ['30p', '50p'];
     const durations = ['1s', '10s', '20s', '30s', '180s'];
 
-    return directions.flatMap(direction =>
-      socLevels.flatMap(soc =>
-        durations.map(duration => ({
+    return directions.flatMap((direction) =>
+      socLevels.flatMap((soc) =>
+        durations.map((duration) => ({
           name: `Ri_${direction}_${soc}_xC_T25_${duration}`,
           value: 0,
           unit: 'mOhm',
           valueType: 'battery_variable' as const,
-          color: 'Gray'
-        }))
-      )
+          color: 'Gray',
+        })),
+      ),
     );
   }
 
@@ -347,7 +275,7 @@ export class FrontendBatteryFileExport {
     const lines: string[] = [
       '    <BatteryParameter>',
       `      <Name>${this.escapeXml(param.name)}</Name>`,
-      `      <Value>${param.value}</Value>`
+      `      <Value>${this.escapeXml(String(param.value))}</Value>`,
     ];
 
     if (param.unit) {
