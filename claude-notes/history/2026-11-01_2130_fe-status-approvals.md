@@ -51,3 +51,11 @@ Tests were written first and seen failing (new modules missing, old behaviour as
 
 ## Next
 Browser-check approve / re-approve / history against a real backend; fix the export tests and build on main.
+
+## Outcome
+- **Status:** done. Merged into main with `--no-ff`; browser check still open (no backend in this session).
+- **What changed for the user:** see the list at the top (status in plain words, manual override menu, approve with note and open-flag dialog, re-approve banner, resolve-all, approval history, Analyze confirmation, no frontend status writes).
+- **Tests added:** `lib/approvals/view.test.ts` and `lib/approvals/flow.test.ts` (new); `hitl.test.ts`, `persistence.test.ts`, `changeStatus.test.ts` updated to the new contract. All pass.
+- **Full suite:** 607 tests, 566 passed, 41 failed in 4 files, all the known export failures on main: `export-screen.test.ts` 26, `export-names-sign.test.ts` 11, `export.test.ts` 3, `cleared.test.ts` 1. Nothing else fails. Lint clean; `tsc --noEmit` and `npm run build` fail only on the same export errors.
+- **`git diff --stat bd249bb..db2b167`:** 27 files changed, 1346 insertions, 194 deletions (largest: `flow.test.ts` 276, `view.test.ts` 161, `workspace/page.tsx` 119, `ApprovalHistoryCard.tsx` 134, `view.ts` 127, `StatusCard.tsx` 94, `ApproveDialogs.tsx` 92).
+- **Commit:** `db2b167` on `fe/status-approvals`. The merge commit into main is the `--no-ff` merge of this branch (this note edit is committed on the branch before the merge).
