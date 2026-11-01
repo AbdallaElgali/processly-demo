@@ -28,6 +28,7 @@ import { newerCandidateAvailable } from '@/lib/review/newer';
 import NewReleasesOutlinedIcon from '@mui/icons-material/NewReleasesOutlined';
 import { parseCandidateNumber } from '@/lib/excel/highlight';
 import { ConfidenceIndicator, QualifierTags, SecondaryFacts, StateBadge } from './indicators';
+import { SendFeedbackButton } from '@/components/feedback/SendFeedbackButton';
 import { ValueCell } from './ValueCell';
 import { WhyThisValue } from './WhyThisValue';
 import type { Density } from '@/components/ui/DensityToggle';
@@ -332,6 +333,7 @@ function RowDetail({
             />
           </Box>
         )}
+        <SendFeedbackButton parameter={{ key: field.id, alias: field.parameter_alias || field.label }} />
       </Stack>
 
       <Stack spacing={2.5} sx={{ minWidth: 0 }}>

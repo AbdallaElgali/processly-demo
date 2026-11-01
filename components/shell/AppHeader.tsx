@@ -14,6 +14,8 @@ import { layout } from '@/theme/layout';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemeToggle } from './ThemeToggle';
 import { JobTray } from '@/components/jobs/JobTray';
+import { FeedbackDialog } from '@/components/feedback/FeedbackDialog';
+import FeedbackOutlinedIcon from '@mui/icons-material/FeedbackOutlined';
 
 /**
  * The app shell's header: wordmark, breadcrumb, browser-wide job tray, theme
@@ -23,6 +25,7 @@ import { JobTray } from '@/components/jobs/JobTray';
 export function AppHeader({ breadcrumb }: { breadcrumb?: React.ReactNode }) {
   const { user, logout } = useAuth();
   const [anchor, setAnchor] = useState<null | HTMLElement>(null);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const pathname = usePathname();
 
   return (
@@ -104,6 +107,10 @@ export function AppHeader({ breadcrumb }: { breadcrumb?: React.ReactNode }) {
           </Typography>
         </Box>
         <Divider />
+        <MenuItem onClick={() => { setAnchor(null); setFeedbackOpen(true); }}>
+          <ListItemIcon><FeedbackOutlinedIcon fontSize="small" /></ListItemIcon>
+          Send feedback
+        </MenuItem>
         <MenuItem component={Link} href="/register" onClick={() => setAnchor(null)}>
           <ListItemIcon><PersonAddAltOutlinedIcon fontSize="small" /></ListItemIcon>
           Register a user
@@ -120,6 +127,7 @@ export function AppHeader({ breadcrumb }: { breadcrumb?: React.ReactNode }) {
           Sign out
         </MenuItem>
       </Menu>
+      {feedbackOpen && <FeedbackDialog onClose={() => setFeedbackOpen(false)} />}
     </Box>
   );
 }

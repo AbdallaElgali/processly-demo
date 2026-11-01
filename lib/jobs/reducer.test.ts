@@ -90,7 +90,7 @@ describe('interruption', () => {
       type: 'interrupt', jobId: 'j1', at: 20,
     });
     expect(only(state).status).toBe('interrupted');
-    expect(only(state).error).toMatch(/closed or refreshed/i);
+    expect(only(state).error).toMatch(/closed or reloaded/i);
   });
 
   it('never rewrites a job that already finished', () => {

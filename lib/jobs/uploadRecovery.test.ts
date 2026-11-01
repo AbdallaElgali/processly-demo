@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   CHECKING_TEXT,
-  NOT_SAVED_TEXT,
   RECOVERY_ATTEMPTS,
   RECOVERY_INTERVAL_MS,
   SAVED_AWAY_TEXT,
@@ -88,20 +87,21 @@ describe('texts', () => {
   it('has the wording the brief asks for', () => {
     expect(CHECKING_TEXT).toBe('Checking whether the server finished…');
     expect(SAVED_AWAY_TEXT).toBe('Saved while you were away');
-    expect(NOT_SAVED_TEXT).toBe('Not saved. Add the file again with Add documents');
+  });
+  it('names the file, says what happened and what to do', () => {
+    const text = interruptedUploadText({ state: 'missing', missing: ['a.pdf'], saved: 0 });
+    expect(text).toMatch(/upload of a\.pdf stopped before it finished/i);
+    expect(text).toMatch(/add it again with Add documents/i);
+    expect(text).not.toMatch(/run again|re-?send|tab/i);
+  });
+  it('does not call a file lost while the server may still be processing it', () => {
+    expect(interruptedUploadText({ state: 'missing', missing: ['a.pdf'], saved: 0 })).toMatch(/still being processed/i);
   });
   it('reads the check state', () => {
     expect(interruptedUploadText(undefined)).toBe(CHECKING_TEXT);
     expect(interruptedUploadText({ state: 'checking' })).toBe(CHECKING_TEXT);
-    expect(interruptedUploadText({ state: 'missing', missing: ['a.pdf'], saved: 0 })).toBe(NOT_SAVED_TEXT);
-    expect(interruptedUploadText({ state: 'missing', missing: ['b.pdf'], saved: 1 })).toBe(
-      '1 file saved while you were away; 1 not saved. Add it again with Add documents',
-    );
+    expect(interruptedUploadText({ state: 'missing', missing: ['b.pdf'], saved: 1 })).toMatch(/^1 file was saved; The upload of b\.pdf/);
     expect(interruptedUploadText({ state: 'unknown' })).toMatch(/could not check/i);
-  });
-  it('never offers to run an upload again; it tells the person to add the file', () => {
-    expect(NOT_SAVED_TEXT).not.toMatch(/run again|re-?send/i);
-    expect(NOT_SAVED_TEXT).toMatch(/Add documents/);
   });
   it('does not claim "nothing was saved" anywhere', () => {
     const checks: Array<UploadCheck | undefined> = [undefined, { state: 'checking' }, { state: 'unknown' }, { state: 'missing', missing: ['a'], saved: 0 }];

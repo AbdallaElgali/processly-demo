@@ -12,8 +12,7 @@ import type { UploadCheck } from './types';
 
 export const CHECKING_TEXT = 'Checking whether the server finished…';
 export const SAVED_AWAY_TEXT = 'Saved while you were away';
-export const NOT_SAVED_TEXT = 'Not saved. Add the file again with Add documents';
-export const UNKNOWN_TEXT = 'Could not check whether the server finished. Open the project again to see its documents';
+export const UNKNOWN_TEXT = 'We could not check whether the upload finished. Look at the document list; if a file is missing, add it again with Add documents';
 
 /** First check at once, then every interval: 5 waits of 12 s is about 60 s. */
 export const RECOVERY_ATTEMPTS = 6;
@@ -71,10 +70,22 @@ export async function checkUploadOutcome(opts: {
   return outcome;
 }
 
+const fileList = (names: readonly string[]) =>
+  names.length === 0 ? 'The file' : names.length <= 2 ? names.join(' and ') : `${names.slice(0, 2).join(', ')} and ${names.length - 2} more`;
+
+/**
+ * Files not listed yet are not known to be lost: the server lists a document
+ * only once it is fully processed, which can take longer than the check waits.
+ */
+export function notSavedText(missing: readonly string[]): string {
+  const plural = missing.length > 1;
+  return `The upload of ${fileList(missing)} stopped before it finished, or ${plural ? 'the files are' : 'the file is'} still being processed. Check the document list in a minute; if ${plural ? 'they are' : 'it is'} still missing, add ${plural ? 'them' : 'it'} again with Add documents.`;
+}
+
 /** The one line an interrupted upload shows, from the state of its check. */
 export function interruptedUploadText(check: UploadCheck | undefined): string {
   if (!check || check.state === 'checking') return CHECKING_TEXT;
   if (check.state === 'unknown') return UNKNOWN_TEXT;
-  if (check.saved === 0) return NOT_SAVED_TEXT;
-  return `${check.saved} ${check.saved === 1 ? 'file' : 'files'} saved while you were away; ${check.missing.length} not saved. Add ${check.missing.length === 1 ? 'it' : 'them'} again with Add documents`;
+  if (check.saved === 0) return notSavedText(check.missing);
+  return `${check.saved} ${check.saved === 1 ? 'file was' : 'files were'} saved; ${notSavedText(check.missing)}`;
 }

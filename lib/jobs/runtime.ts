@@ -1,4 +1,4 @@
-import { apiGetProjectDetails } from '@/api/projects';
+import { apiGetExtractionRuns, apiGetProjectDetails } from '@/api/projects';
 import { reloadAfterRun } from '@/lib/project-data/actions';
 import {
   deletePendingFiles,
@@ -14,6 +14,7 @@ import { planSchedulePass, tabLockName, withSchedulerLock } from './scheduler';
 import { jobStore } from './store';
 import { checkUploadOutcome } from './uploadRecovery';
 import { canEnqueue } from './ordering';
+import { runSavedSince, stillRunning } from './outcome';
 import { canRetry, finishedJobIds, jobsToSweep } from './tray';
 import { fileRefsOf } from './uploadGuard';
 import type { Job, JobPayload } from './types';
@@ -41,6 +42,8 @@ export class JobRuntime {
   private pumpQueued = false;
   /** Interrupted uploads this tab is currently checking against the project's documents. */
   private recovering = new Set<string>();
+  /** Extractions and corrections whose lost run this tab is checking with the server. */
+  private settling = new Set<string>();
 
   readonly tabId =
     typeof crypto !== 'undefined' && crypto.randomUUID
@@ -54,7 +57,11 @@ export class JobRuntime {
   onJobSettled: (job: Job, outcome: RunOutcome) => void = () => undefined;
 
   setUserId(userId: string | null) {
+    const changed = this.userId !== userId;
     this.userId = userId;
+    // Jobs left in the queue by the last session wait for the user to be
+    // known; start them now.
+    if (changed && userId && this.started) void this.pump();
   }
 
   /** Mounted once by the provider. Safe to call repeatedly. */
@@ -227,6 +234,48 @@ export class JobRuntime {
     }
   }
 
+  /**
+   * A running extraction or correction whose tab is gone is not known to be
+   * lost: the stream may have reached `complete` and been saved a moment
+   * before the tab closed. Ask the server for the project's runs first. A run
+   * newer than the job means it finished; only otherwise is it interrupted,
+   * and if the server cannot be asked the message says so instead of
+   * claiming nothing was saved.
+   */
+  async settleLostRun(
+    jobId: string,
+    fetchRuns: (projectId: string) => Promise<readonly { extraction_type: string; created_at: string | null }[]> = apiGetExtractionRuns,
+  ) {
+    if (this.settling.has(jobId)) return;
+    const job = jobStore.getJob(jobId);
+    if (!job || job.status !== 'running' || job.kind === 'upload') return;
+    // One tab asks per job.
+    const release = await this.locks.tryHold(`bda-settle-${jobId}`);
+    if (!release) return;
+    this.settling.add(jobId);
+    try {
+      let runs: Awaited<ReturnType<typeof fetchRuns>> | null;
+      try {
+        runs = await fetchRuns(job.projectId);
+      } catch {
+        runs = null;
+      }
+      if (jobStore.getJob(jobId)?.status !== 'running') return;
+      if (runs && runSavedSince(runs, job)) {
+        await reloadAfterRun(job.projectId);
+        // Not marked seen: "Saved while you were away" is the news.
+        jobStore.dispatch({ type: 'complete', jobId, at: Date.now(), seen: false, savedWhileAway: true });
+      } else {
+        jobStore.dispatch({ type: 'interrupt', jobId, at: Date.now(), runCheck: runs ? 'lost' : 'unknown' });
+      }
+      this.publish();
+      void this.pump();
+    } finally {
+      this.settling.delete(jobId);
+      release();
+    }
+  }
+
   async cancel(jobId: string) {
     const job = jobStore.getJob(jobId);
     if (!job) return;
@@ -304,12 +353,18 @@ export class JobRuntime {
       const heldLockNames = await this.locks.heldNames();
       const plan = planSchedulePass({ jobs, tabId: this.tabId, heldLockNames });
 
-      for (const job of plan.interrupted) {
+      // The owner may have finished and published between the read above and
+      // the lock query: a job the record now shows as finished is not dead.
+      const lost = stillRunning(plan.interrupted, readJobs());
+      const lostUploads = lost.filter((job) => job.kind === 'upload');
+      const lostRuns = lost.filter((job) => job.kind !== 'upload');
+      for (const job of lostUploads) {
         jobStore.dispatch({ type: 'interrupt', jobId: job.id, at: Date.now() });
       }
-      const interruptedUploads = plan.interrupted.filter((job) => job.kind === 'upload');
 
-      for (const job of plan.toStart) {
+      // Nothing starts until the user is known: a job claimed without one
+      // would be dropped and later reported as interrupted.
+      for (const job of this.userId ? plan.toStart : []) {
         // Claim by taking the per-job lock BEFORE marking it running, so a
         // concurrent liveness sweep can never see a running job with no lock.
         const release = await this.locks.tryHold(jobLockName(job.id));
@@ -319,8 +374,9 @@ export class JobRuntime {
         claimed.push({ job: jobStore.getJob(job.id)!, release });
       }
 
-      if (plan.interrupted.length > 0 || claimed.length > 0) this.publish();
-      for (const job of interruptedUploads) void this.recoverUpload(job.id);
+      if (lostUploads.length > 0 || claimed.length > 0) this.publish();
+      for (const job of lostUploads) void this.recoverUpload(job.id);
+      for (const job of lostRuns) void this.settleLostRun(job.id);
     });
 
     // Run outside the scheduler lock: a run takes minutes and must not block
@@ -364,6 +420,7 @@ export class JobRuntime {
       // A stream aborted part-way has already put partial candidates into the
       // rows in memory; the backend saved none of them (D9).
       if (job.payload.kind === 'extraction' || job.payload.kind === 'correction') await reloadAfterRun(job.projectId);
+      this.publish();
       this.releaseJobLock(job.id);
       void this.pump();
       return;
@@ -392,8 +449,10 @@ export class JobRuntime {
     }
     this.onJobSettled(job, outcome);
 
-    this.releaseJobLock(job.id);
+    // Publish BEFORE letting go of the lock: another tab that sees the lock
+    // gone must also see the outcome, or it marks a finished job interrupted.
     this.publish();
+    this.releaseJobLock(job.id);
     void this.pump();
   }
 
