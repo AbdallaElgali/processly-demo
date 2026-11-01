@@ -87,50 +87,6 @@ export function useAdminData() {
     });
   }, [projects, searchQuery, selectedUser, dateFilter]);
 
-  // --- 2. Compute Dashboard Data ---
-  const dashboardData = useMemo(() => {
-    const targetProjects = selectedProjectId 
-      ? projects.filter(p => p.id === selectedProjectId)
-      : projects;
-
-    if (targetProjects.length === 0) return null;
-
-    // Charts Data
-    const recentProjects = [...targetProjects]
-      .sort((a, b) => b.date.localeCompare(a.date))
-      .slice(0, 5)
-      .reverse();
-    
-    const chartData = recentProjects.map(p => ({
-      name: p.name.substring(0, 10) + '...',
-      f1Score: p.f1Score,
-      totalParams: p.totalParams,
-      aiParams: p.aiParams
-    }));
-
-    // Key Insights Data
-    const totalF1 = targetProjects.reduce((acc, p) => acc + p.f1Score, 0);
-    const avgF1 = (totalF1 / targetProjects.length).toFixed(2);
-
-    const totalAi = targetProjects.reduce((acc, p) => acc + p.aiParams, 0);
-    const totalAccepted = targetProjects.reduce((acc, p) => acc + p.acceptedParams, 0);
-    
-    const totalParams = targetProjects.reduce((acc, p) => acc + p.totalParams, 0);
-    const avgAcceptanceRate = totalParams > 0 ? Number((totalAccepted / totalParams) * 100).toFixed(1) : 0;
-
-    const totalAssistedProjects = targetProjects.filter(p => p.aiParams > 0).length;
-
-    return {
-      chartData,
-      insights: {
-        avgF1,
-        avgAcceptanceRate,
-        totalAssistedProjects,
-        totalAiParams: totalAi
-      }
-    };
-  }, [projects, selectedProjectId]);
-
   return {
     projects,
     filteredProjects,
@@ -149,7 +105,6 @@ export function useAdminData() {
     dateFilter,
     setDateFilter,
     users: uniqueUsers, // Now feeds from actual database reviewers
-    dashboardData,
     feedbacks
   };
 }

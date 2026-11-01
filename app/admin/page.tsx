@@ -12,7 +12,7 @@ import { AppHeader } from '@/components/shell/AppHeader';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { SkeletonRows } from '@/components/ui/Skeletons';
 
-import GlobalOverview from './components/GlobalOverview';
+import AnalyticsOverview from './components/AnalyticsOverview';
 import ProjectSummary from './components/ProjectSummary';
 import FeedbackArea from './components/FeedbackArea'; // Import the new component
 
@@ -31,7 +31,6 @@ export default function AdminPage() {
     dateFilter,
     setDateFilter,
     users,
-    dashboardData,
     feedbacks,
     isLoading,
     error,
@@ -138,7 +137,7 @@ export default function AdminPage() {
                 ) : isLoading ? (
                   <SkeletonRows count={6} columns={3} />
                 ) : (
-                  <GlobalOverview dashboardData={dashboardData} />
+                  <AnalyticsOverview />
                 )
               )}
             </Box>
