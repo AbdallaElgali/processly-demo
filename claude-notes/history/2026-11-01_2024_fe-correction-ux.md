@@ -49,3 +49,12 @@ Make correcting values simple for battery engineers against the new backend cont
 
 ## Next
 Browser-check the correction flow with a real backend; fix the export tests/build on `main`.
+
+## Outcome
+- **Finished:** 2026-11-01 21:19 (local).
+- **Status:** done. Merged into main with `--no-ff`; browser check still open (no backend or extraction run in this session).
+- **Tests added:** 42 in four files: `lib/review/corrections.test.ts` (25), `lib/review/correctionActions.test.ts` (9), `lib/jobs/correctionRun.test.ts` (5), `lib/jobs/correctionReload.test.ts` (3). All pass.
+- **Full suite:** 562 tests, 521 passed, 41 failed in 4 files, all the export failures that also fail on main: `export-screen.test.ts` 26, `export-names-sign.test.ts` 11, `export.test.ts` 3, `cleared.test.ts` 1. Nothing else fails.
+- **Lint:** clean. **`tsc --noEmit`:** the only errors are the same export errors as on main (in the four test files above and two `ExportReport.unconvertible` errors in `workspace/page.tsx`).
+- **`git diff --stat c47c007..5111e72`** (main before the branch, to the feature commit): 24 files changed, 1335 insertions, 180 deletions (main files: `ParameterRow.tsx` 292, `corrections.test.ts` 238, `correctionActions.test.ts` 195, `corrections.ts` 130, `correctionRun.test.ts` 93, `actions.ts` 92).
+- **Commit:** `5111e72`. **Merge commit:** `b27ef2e` (this note's Outcome was added afterwards in a follow-up commit and merge, below).
