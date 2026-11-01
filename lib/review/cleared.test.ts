@@ -7,7 +7,7 @@ import { editValue, revertValue, selectCandidate, canRevert } from '@/lib/review
 import { whyThisValue } from '@/lib/review/why';
 import { hasLocation, fieldAnchors } from '@/lib/review/anchors';
 import { reviewProgress } from '@/lib/overview/progress';
-import { BATTERY_EXPORT_KEYS, FrontendBatteryFileExport, missingExportKeys } from '@/static/battery-template';
+import { FrontendBatteryFileExport, missingExportKeys } from '@/static/battery-template';
 
 const candidate = (over: Record<string, unknown> = {}) => ({
   id: 'c1', ai_value: 3.65, expected_unit: 'V', unit: 'V', confidence: 0.9,
@@ -126,19 +126,19 @@ describe('editing a cleared row (contract 4)', () => {
 });
 
 const exportField = (f: InputField, key = 'U_MAX'): InputField => ({ ...f, id: key, label: key });
-const valueOf = (xml: string, name: string) => xml.match(new RegExp(`<Name>${BATTERY_EXPORT_KEYS.find((e) => e.key === name)?.exportName ?? name}</Name>\\s*<Value>([^<]*)</Value>`))?.[1];
+const valueOf = (xml: string, name: string) => xml.match(new RegExp(`<Name>${name}</Name>[^<]*<Value>([^<]*)</Value>`))?.[1];
 
 describe('.battery export (contract 5)', () => {
   it('writes a cleared parameter as no value, never the AI candidate', () => {
     const fields = [exportField(cleared())];
-    expect(missingExportKeys(fields)).toContain('U_MAX');
-    const { content } = new FrontendBatteryFileExport().generate(fields, 'P');
-    expect(valueOf(content, 'U_MAX')).toBe('99999999');
+    expect(missingExportKeys(fields)).toContain('U max');
+    const { content } = new FrontendBatteryFileExport(null).generate(fields, 'P');
+    expect(valueOf(content, 'U max')).toBe('99999999');
     expect(content).not.toContain('<Value>3.65</Value>');
   });
   it('still writes a valued parameter', () => {
     const f = exportField(dbParamToInputField(param()));
-    const { content } = new FrontendBatteryFileExport().generate([f], 'P');
+    const { content } = new FrontendBatteryFileExport(null).generate([f], 'P');
     expect(content).toContain('<Value>3.65</Value>');
   });
 });
