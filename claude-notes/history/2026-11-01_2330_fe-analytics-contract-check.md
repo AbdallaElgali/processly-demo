@@ -28,3 +28,7 @@ The analytics page (ddc4b5f) was built against the four-view contract before the
 
 ### Other
 No extraction runs, no OpenAI calls; BDA/, export and build configuration untouched.
+
+### Commit and merge
+- Commit on `fe/analytics-contract-check`: `e45e591` (5 files, +687 / -2, see `git diff --stat` above).
+- Merged into main with `--no-ff` (merge commit is the head of main).
