@@ -3,7 +3,6 @@ import {
   apiAddContributor,
   apiAddProjectParameter,
   apiUpdateProjectStatus,
-  apiApproveProjectParameters,
   apiCreateProject,
   apiGetProjectDetails,
   apiGetUserProjects,
@@ -14,6 +13,8 @@ import {
   type ProjectCreateInput,
   type updateProjectParameter,
 } from '@/api/projects';
+import { apiApprove, apiResolveAllFlags, type ApproveOptions } from '@/api/approvals';
+import type { ApproveResult } from '@/api/types/approvals';
 import type { FullProjectDetails, ProjectBase, ProjectStatus } from '@/api/types/projects';
 import type { InputField } from '@/types';
 import { dbParamToInputField, inputFieldToParameterInput } from '@/lib/parameter-adapter';
@@ -64,6 +65,7 @@ export async function loadProjectDetails(
       dbParamToInputField(p as unknown as ProjectParameter),
     );
     projectDataStore.setDetails(projectId, details, fields);
+    projectsIndex.mergeProject(details);
     return details;
   } catch (error) {
     projectDataStore.setError(
@@ -105,14 +107,28 @@ export async function saveFields(
 }
 
 /**
- * `POST /projects/{id}/approve`: every PENDING parameter becomes ACCEPTED (a
- * MODIFIED or REJECTED row is left alone). Returns how many. The project is
- * read back at once, so the next save starts from what the backend now holds.
+ * `POST /projects/{id}/approve`: stores an immutable approval version (or
+ * confirms the latest when nothing changed, `created: false`). The backend
+ * decides about open flags: with some and `resolveOpenFlags` false it answers
+ * 409 and this throws `OpenFlagsError` (nothing changed, so no re-read). On
+ * success the project is read back, so status, approval fields and the flag
+ * count are what the backend now holds.
  */
-export async function approveProject(projectId: string, userId: string | null = null): Promise<number> {
-  const result = await apiApproveProjectParameters(projectId, userId);
+export async function approveProject(
+  projectId: string,
+  userId: string | null = null,
+  options: ApproveOptions = {},
+): Promise<ApproveResult> {
+  const result = await apiApprove(projectId, userId, options);
   await loadProjectDetails(projectId, { background: true });
-  return typeof result?.parameters_approved === 'number' ? result.parameters_approved : 0;
+  return result;
+}
+
+/** `POST /projects/{id}/flags/resolve-all`, then re-reads the project. Returns how many flags were resolved. */
+export async function resolveAllFlags(projectId: string, userId: string | null): Promise<number> {
+  const count = await apiResolveAllFlags(projectId, userId);
+  await loadProjectDetails(projectId, { background: true });
+  return count;
 }
 
 /**
@@ -140,6 +156,8 @@ export async function addParameterToProject(
   const row = await apiAddProjectParameter(projectId, buildAddParameterBody(parameterId, userId));
   const field = dbParamToInputField(row);
   projectDataStore.appendField(projectId, field);
+  // The status can move with a new parameter: read the project instead of setting anything.
+  void loadProjectDetails(projectId, { background: true });
   return field;
 }
 
@@ -162,26 +180,16 @@ export async function addAuditor(projectId: string, username: string): Promise<v
   await apiAddAuditor(projectId, username);
 }
 
-/** The route answered 200 but stored a different status than the one requested. */
-export class StatusNotAppliedError extends Error {
-  constructor(requested: ProjectStatus, actual: ProjectStatus | undefined) {
-    super(`The status is ${actual ?? 'not set'} instead of ${requested}. Nothing was changed.`);
-    this.name = 'StatusNotAppliedError';
-  }
-}
-
 /**
- * Sets the project's status and uses the `status` the route returns (the value
- * now in the database, backend step 3.1) for the project list; the project is
- * refreshed in the background. A 404 or 422 throws with the backend's text
- * (`errorMessage` unwraps it). Does NOT touch review state: Approve and the
- * status are separate (B10).
+ * The manual override (`POST /projects/update-project-status`; NEW,
+ * PENDING_REVIEW or IN_REVIEW only, APPROVED is a 409). Sends `user_id`, then
+ * re-reads the project: the list and the header show what the backend stored
+ * (and `status_overridden`), never what was requested. A failure throws with
+ * the backend's body (`errorMessage` unwraps it).
  */
-export async function changeProjectStatus(projectId: string, status: ProjectStatus): Promise<void> {
-  const stored = await apiUpdateProjectStatus(projectId, status);
-  projectsIndex.updateStatus(projectId, stored);
-  void loadProjectDetails(projectId, { background: true });
-  if (stored !== status) throw new StatusNotAppliedError(status, stored);
+export async function changeProjectStatus(projectId: string, status: ProjectStatus, userId: string | null = null): Promise<void> {
+  await apiUpdateProjectStatus(projectId, status, userId);
+  await loadProjectDetails(projectId, { background: true });
 }
 
 export async function updateParameterMetadata(

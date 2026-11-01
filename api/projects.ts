@@ -1,6 +1,7 @@
 import { config } from './config';
 import { statusFormBody } from '@/lib/overview/status';
 import type { ProjectStatus } from './types/projects';
+import { apiApprove } from './approvals';
 
 const API_URL = config.api;
 
@@ -215,20 +216,23 @@ export const apiAddAuditor = (projectId: string, username: string): Promise<void
   addMember(projectId, 'auditors', username);
 
 /**
- * POST /projects/update-project-status. **Form-encoded**, not JSON: the route
- * declares `Body_update_project_status_...` as
- * `application/x-www-form-urlencoded` with `project_id` and `new_status`.
+ * POST /projects/update-project-status: the MANUAL override (NEW, PENDING_REVIEW
+ * or IN_REVIEW; APPROVED is a 409, use Approve). **Form-encoded**, not JSON.
+ * `user_id` is optional; an unknown one is a 422. The caller shows the
+ * backend's text on error and re-reads the project.
  */
-export const apiUpdateProjectStatus = async (projectId: string, status: ProjectStatus): Promise<ProjectStatus> => {
+export const apiUpdateProjectStatus = async (
+  projectId: string,
+  status: ProjectStatus,
+  userId: string | null = null,
+): Promise<{ status: ProjectStatus; previous_status?: ProjectStatus }> => {
   const response = await fetch(`${API_BASE_URL}/update-project-status`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: statusFormBody(projectId, status).toString(),
+    body: statusFormBody(projectId, status, userId).toString(),
   });
   if (!response.ok) throw new Error(await response.text());
-  // `{message, status}`: `status` is what the database now holds (backend step 3.1).
-  const body: { status: ProjectStatus } = await response.json();
-  return body.status;
+  return response.json();
 };
 
 /**
@@ -249,19 +253,8 @@ export const apiSaveProjectParameters = async (
   if (!response.ok) throw new Error(await response.text());
 };
 
-/** POST /projects/{id}/approve with the optional ApproveInput body; 422 for an unknown reviewer. */
-export const apiApproveProjectParameters = async (
-  projectId: string,
-  reviewerId: string | null = null,
-): Promise<{ message: string, parameters_approved: number }> => {
-  const response = await fetch(`${API_BASE_URL}/${projectId}/approve`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ reviewer_id: reviewerId }),
-  });
-  if (!response.ok) throw new Error(await response.text());
-  return response.json();
-};
+/** POST /projects/{id}/approve (api/approvals.ts: 409 throws OpenFlagsError; 422 for an unknown reviewer). */
+export const apiApproveProjectParameters = apiApprove;
 
 /**
  * GET /projects/{id}/extraction-runs -- every extraction attempt, newest

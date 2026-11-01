@@ -12,6 +12,7 @@ import AddIcon from '@mui/icons-material/Add';
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import DoneAllIcon from '@mui/icons-material/DoneAll';
+import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
@@ -42,6 +43,10 @@ import {
 } from '@/lib/review/actions';
 import { approvalCheck, approveBlockReason } from '@/lib/review/approval';
 import { errorMessage } from '@/lib/errors';
+import { OpenFlagsError } from '@/api/approvals';
+import { analyzeConfirmText, approveToastText, needsAnalyzeConfirm, reapproveBanner, resolveAllLabel } from '@/lib/approvals/view';
+import { resolveAllFlags } from '@/lib/project-data/actions';
+import { ApproveDialog, OpenFlagsDialog } from '@/components/workspace/ApproveDialogs';
 import { COMPACT_KEY, REVIEW_FIRST_KEY } from '@/lib/review/preferences';
 import type { RowBusy } from '@/components/workspace/ParameterRow';
 import { JOB_CAP } from '@/lib/jobs/config';
@@ -86,6 +91,11 @@ export default function WorkspacePage() {
 
   const [isApproving, setApproving] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
+  const [approveNote, setApproveNote] = useState('');
+  const [openFlagsPrompt, setOpenFlagsPrompt] = useState<OpenFlagsError | null>(null);
+  const [resolveOpen, setResolveOpen] = useState(false);
+  const [isResolving, setResolving] = useState(false);
+  const [analyzeOpen, setAnalyzeOpen] = useState(false);
   const [exportCheck, setExportCheck] = useState<ExportReport | null>(null);
 
   // ---- parameters and review actions (step 10) --------------------------
@@ -201,7 +211,8 @@ export default function WorkspacePage() {
         if (!result.allowed) toast.show(result.reason, { severity: 'warning' });
       });
   };
-  const handleAnalyze = () => startRun(false);
+  // A full extraction over existing values asks first (edited, accepted and rejected rows are kept by the backend).
+  const handleAnalyze = () => (needsAnalyzeConfirm(fields) ? setAnalyzeOpen(true) : startRun(false));
   const handleRetryFlagged = () => startRun(true);
   const extractionBusy = activity.running?.kind === 'extraction' || activity.queued?.job.kind === 'extraction';
 
@@ -217,16 +228,36 @@ export default function WorkspacePage() {
     }
   };
 
-  const handleApprove = async () => {
+  // The backend decides about open flags: a 409 lists them and "Approve and resolve" sends the request again.
+  const runApprove = async (resolveOpenFlags: boolean) => {
     setApproveOpen(false);
     setApproving(true);
     try {
-      const n = await saveAndApprove(projectId, userId);
-      toast.show(n === 1 ? 'Approved 1 parameter.' : `Approved ${n} parameters.`, { severity: 'success' });
+      const result = await saveAndApprove(projectId, userId, { note: approveNote, resolveOpenFlags });
+      setOpenFlagsPrompt(null);
+      setApproveNote('');
+      toast.show(approveToastText(result), { severity: 'success' });
     } catch (e) {
-      toast.show(`Approve failed: ${errorMessage(e)}`, { severity: 'error' });
+      if (e instanceof OpenFlagsError) setOpenFlagsPrompt(e);
+      else {
+        setOpenFlagsPrompt(null);
+        toast.show(`Approve failed: ${errorMessage(e)}`, { severity: 'error' });
+      }
     } finally {
       setApproving(false);
+    }
+  };
+
+  const handleResolveAll = async () => {
+    setResolveOpen(false);
+    setResolving(true);
+    try {
+      const n = await resolveAllFlags(projectId, userId);
+      toast.show(n === 1 ? 'Resolved 1 flag.' : `Resolved ${n} flags.`, { severity: 'success' });
+    } catch (e) {
+      toast.show(`Could not resolve the flags: ${errorMessage(e)}`, { severity: 'error' });
+    } finally {
+      setResolving(false);
     }
   };
 
@@ -280,7 +311,12 @@ export default function WorkspacePage() {
   );
   // Rows a correction is about to replace are not saved (lib/review/actions.ts rowsToSave).
   const unsaved = dirty.filter((k) => rowBusy[k]?.kind !== 'queued' && rowBusy[k]?.kind !== 'correcting').length;
-  const approval = useMemo(() => approvalCheck(fields, { unsaved, jobBusy: parameterJobBusy }), [fields, unsaved, parameterJobBusy]);
+  const approval = useMemo(
+    () => approvalCheck(fields, { unsaved, jobBusy: parameterJobBusy, changedSinceApproval: !!details?.changed_since_approval }),
+    [fields, unsaved, parameterJobBusy, details?.changed_since_approval],
+  );
+  const reapprove = reapproveBanner(details ?? {});
+  const resolveAll = resolveAllLabel(details?.open_flag_count);
   const approveBlocked = approveBlockReason(approval);
   const inFlightUploads = uploadJobs.some((j) => j.status === 'queued' || j.status === 'running');
   const noDocuments = !!details && documents.length === 0 && !inFlightUploads;
@@ -395,7 +431,12 @@ export default function WorkspacePage() {
             </Button>
           </span>
         </Tooltip>
-        <Tooltip title={approveBlocked ?? 'Accept every pending parameter of this project'}>
+        {resolveAll && (
+          <Button size="small" startIcon={<FlagOutlinedIcon />} onClick={() => setResolveOpen(true)} loading={isResolving} loadingPosition="start">
+            {resolveAll}
+          </Button>
+        )}
+        <Tooltip title={approveBlocked ?? (reapprove ? 'Save the current state as a new approval version' : 'Accept every pending parameter of this project')}>
           <span>
             <Button
               size="small"
@@ -405,7 +446,7 @@ export default function WorkspacePage() {
               loadingPosition="start"
               disabled={fields.length === 0 || !!approveBlocked}
             >
-              Approve
+              {details?.changed_since_approval ? 'Re-approve' : 'Approve'}
             </Button>
           </span>
         </Tooltip>
@@ -413,6 +454,20 @@ export default function WorkspacePage() {
           Export .battery
         </Button>
       </Stack>
+
+      {reapprove && (
+        <Alert
+          severity="info"
+          sx={{ borderRadius: 0, flexShrink: 0 }}
+          action={
+            <Button color="inherit" size="small" onClick={() => setApproveOpen(true)} disabled={isApproving || !!approveBlocked}>
+              Re-approve
+            </Button>
+          }
+        >
+          {reapprove}
+        </Alert>
+      )}
 
       {correctionReport?.summary && dismissedReport !== correctionReport && (
         <Alert severity="info" onClose={() => setDismissedReport(correctionReport)} sx={{ borderRadius: 0, flexShrink: 0 }}>
@@ -512,13 +567,43 @@ export default function WorkspacePage() {
         </Box>
       )}
 
-      <ConfirmDialog
+      <ApproveDialog
         open={approveOpen}
-        title={`Approve ${details?.alias_id ?? 'this project'}?`}
-        description={<ApproveSummary check={approval} />}
-        confirmLabel={approval.unsaved > 0 ? 'Save and approve' : 'Approve'}
-        onConfirm={() => void handleApprove()}
+        title={`${details?.changed_since_approval ? 'Re-approve' : 'Approve'} ${details?.alias_id ?? 'this project'}?`}
+        confirmLabel={approval.unsaved > 0 ? 'Save and approve' : details?.changed_since_approval ? 'Re-approve' : 'Approve'}
+        summary={<ApproveSummary check={approval} />}
+        note={approveNote}
+        onNoteChange={setApproveNote}
+        onConfirm={() => void runApprove(false)}
         onClose={() => setApproveOpen(false)}
+      />
+
+      <OpenFlagsDialog
+        error={openFlagsPrompt}
+        busy={isApproving}
+        onResolve={() => void runApprove(true)}
+        onClose={() => setOpenFlagsPrompt(null)}
+      />
+
+      <ConfirmDialog
+        open={resolveOpen}
+        title={resolveAll ?? 'Resolve all flags'}
+        description="Marks every open flag of this project as resolved. The values stay as they are."
+        confirmLabel="Resolve flags"
+        onConfirm={() => void handleResolveAll()}
+        onClose={() => setResolveOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={analyzeOpen}
+        title="Run a full extraction again?"
+        description={analyzeConfirmText.replace('Run a full extraction again? ', '')}
+        confirmLabel="Run extraction"
+        onConfirm={() => {
+          setAnalyzeOpen(false);
+          startRun(false);
+        }}
+        onClose={() => setAnalyzeOpen(false)}
       />
 
       <ConfirmDialog
@@ -565,16 +650,16 @@ const EMPTY: readonly string[] = [];
 
 /**
  * The approval confirmation: what Approve does, and the machine's doubts
- * (auto-flags), which warn but do not block (open human flags block; the
- * button is disabled before this dialog can open).
+ * (auto-flags), which warn but do not block. Open human flags do not block
+ * either: the backend answers 409 and the flag list dialog follows.
  */
 function ApproveSummary({ check }: { check: ReturnType<typeof approvalCheck> }) {
   const list = (keys: string[]) => (keys.length > 6 ? `${keys.slice(0, 6).join(', ')} and ${keys.length - 6} more` : keys.join(', '));
   return (
     <Stack spacing={1.25} component="span" sx={{ display: 'flex' }}>
       <Typography component="span" variant="body2">
-        {check.pending === 1 ? '1 pending parameter becomes' : `${check.pending} pending parameters become`} accepted. Approving
-        does not lock the project: a later Save or re-extraction returns the rows it touches to pending.
+        {check.pending === 1 ? '1 pending parameter becomes' : `${check.pending} pending parameters become`} accepted, and the current
+        state is saved as an approval version. Approving does not lock the project: a later Save or re-extraction returns the rows it touches to pending.
       </Typography>
       {check.unsaved > 0 && (
         <Typography component="span" variant="body2">

@@ -2,11 +2,11 @@ import type { InputField } from '@/types';
 import { rowState } from './rowState';
 
 /**
- * What stands between a project and Approve (plan-A 6.4, step 10).
+ * What stands between a project and Approve.
  *
- * - An open **human** flag blocks: a colleague disputed the value, and
- *   approving would accept it over their objection. The reviewer accepts a
- *   value (which resolves the flag) or removes the flag first.
+ * - **Open flags no longer block on the client.** The backend decides: Approve
+ *   answers 409 with the open flags, and the UI offers "Approve and resolve N
+ *   flags" (lib/approvals). `openFlags` is still counted for the dialog.
  * - A running or queued extraction or correction blocks: it will write
  *   parameters (and a correction opens a new chained flag) after the approval.
  * - **Auto-flags** ("Bounds") only warn: the machine's doubt is shown in the
@@ -45,13 +45,15 @@ export interface ApprovalCheck {
    * and stays as it is, so it is not counted.
    */
   pending: number;
+  /** The project changed after its latest approval, so Approve is a re-approval even with nothing pending. */
+  changedSinceApproval: boolean;
 }
 
 export function approvalCheck(
   fields: InputField[],
-  opts: { unsaved: number; jobBusy: boolean },
+  opts: { unsaved: number; jobBusy: boolean; changedSinceApproval?: boolean },
 ): ApprovalCheck {
-  const check: ApprovalCheck = { openFlags: [], bounds: [], empty: [], needsReview: [], unsaved: opts.unsaved, jobBusy: opts.jobBusy, pending: 0 };
+  const check: ApprovalCheck = { openFlags: [], bounds: [], empty: [], needsReview: [], unsaved: opts.unsaved, jobBusy: opts.jobBusy, pending: 0, changedSinceApproval: !!opts.changedSinceApproval };
   for (const f of fields) {
     if (isPendingReview(f)) check.pending += 1;
     const st = rowState(f);
@@ -65,11 +67,10 @@ export function approvalCheck(
 
 /** Why Approve is disabled, or null when it is allowed. */
 export function approveBlockReason(check: ApprovalCheck): string | null {
-  if (check.openFlags.length > 0) {
-    const n = check.openFlags.length;
-    return `${n} open flag${n === 1 ? '' : 's'} (${check.openFlags.join(', ')}). Accept a value or remove the flag first.`;
-  }
   if (check.jobBusy) return 'Wait for the running analysis or re-extraction to finish.';
-  if (check.pending === 0) return 'Nothing is pending: every parameter is already accepted, edited or rejected.';
+  // Open flags are resolved by Approve, and a changed project is re-approved: neither needs a pending row.
+  if (check.pending === 0 && check.openFlags.length === 0 && !check.changedSinceApproval) {
+    return 'Nothing is pending: every parameter is already accepted, edited or rejected.';
+  }
   return null;
 }

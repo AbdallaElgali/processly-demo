@@ -1,38 +1,37 @@
 'use client';
 
 import { useState } from 'react';
-import { Button, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Button, Menu, MenuItem, Stack, Typography } from '@mui/material';
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
-import { StatusChip, projectStatusLabel } from '@/components/ui/StatusChip';
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+import { ProjectStatus } from '@/components/ui/ProjectStatus';
 import { toast } from '@/components/ui/Toast';
 import { changeProjectStatus } from '@/lib/project-data/actions';
 import { errorMessage } from '@/lib/errors';
-import { PROJECT_STATUSES, STATUS_CHANGE_AVAILABLE, STATUS_CHANGE_UNAVAILABLE, isProjectStatus } from '@/lib/overview/status';
-import type { ProjectStatus } from '@/api/types/projects';
+import { OVERRIDE_STATUSES, statusLabel } from '@/lib/approvals/view';
+import type { FullProjectDetails, ProjectStatus as Status } from '@/api/types/projects';
 import { Card } from './Card';
 
 /**
- * The project's status and the form-encoded status change. The status is a
- * label people set; it is not derived from review progress, and Approve does
- * not move it (B10), which the card says so nobody expects it to.
+ * The project's status. The backend moves it by itself (extraction, review,
+ * Approve), so this card only shows it, with a small "Set status manually"
+ * menu for the override (New, Pending review, In review; Approved comes only
+ * from Approve). The project is re-read afterwards; nothing here sets the
+ * status in the UI.
  */
-export function StatusCard({ projectId, status }: { projectId: string; status: ProjectStatus }) {
-  // The choice is kept as an override of the saved status, so after a save or
-  // a refresh the field follows the backend without an effect.
-  const [picked, setPicked] = useState<ProjectStatus | null>(null);
+export function StatusCard({ projectId, project, userId }: { projectId: string; project: FullProjectDetails; userId: string | null }) {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const value = picked ?? status;
 
-  const submit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (value === status || busy) return;
+  const choose = async (status: Status) => {
+    setAnchor(null);
+    if (busy || status === project.status) return;
     setBusy(true);
     setError(null);
     try {
-      await changeProjectStatus(projectId, value);
-      toast.show(`Status set to ${projectStatusLabel(value)}.`, { severity: 'success' });
-      setPicked(null);
+      await changeProjectStatus(projectId, status, userId);
+      toast.show(`Status set to ${statusLabel(status)}.`, { severity: 'success' });
     } catch (e) {
       setError(errorMessage(e, 'Could not change the status.'));
     } finally {
@@ -42,44 +41,35 @@ export function StatusCard({ projectId, status }: { projectId: string; status: P
 
   return (
     <Card title="Project status" icon={FlagOutlinedIcon} id="project-status">
-      <Stack direction="row" alignItems="center" spacing={1}>
-        <StatusChip status={status} size="medium" />
-      </Stack>
-      {!STATUS_CHANGE_AVAILABLE && (
-        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-          {STATUS_CHANGE_UNAVAILABLE}
-        </Typography>
-      )}
-      {STATUS_CHANGE_AVAILABLE && (
-      <Stack component="form" onSubmit={submit} spacing={1.5} noValidate>
-        <TextField
-          select
+      <ProjectStatus project={project} size="medium" />
+      {error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}
+      <div>
+        <Button
           size="small"
-          label="Change status"
-          value={value}
-          onChange={(e) => isProjectStatus(e.target.value) && setPicked(e.target.value)}
-          disabled={busy}
-          error={!!error}
-          helperText={error ?? undefined}
-          slotProps={{ htmlInput: { 'aria-describedby': 'status-note' } }}
+          variant="outlined"
+          color="inherit"
+          endIcon={<ArrowDropDownIcon />}
+          loading={busy}
+          aria-haspopup="menu"
+          aria-expanded={anchor ? 'true' : undefined}
+          onClick={(e) => setAnchor(e.currentTarget)}
         >
-          {PROJECT_STATUSES.map((s) => (
-            <MenuItem key={s} value={s}>{projectStatusLabel(s)}</MenuItem>
+          Set status manually
+        </Button>
+        <Menu anchorEl={anchor} open={!!anchor} onClose={() => setAnchor(null)}>
+          {OVERRIDE_STATUSES.map((s) => (
+            <MenuItem key={s} selected={s === project.status} onClick={() => void choose(s)}>
+              {statusLabel(s)}
+            </MenuItem>
           ))}
-        </TextField>
-        <Stack direction="row" spacing={1}>
-          <Button type="submit" variant="contained" size="small" disabled={value === status} loading={busy}>
-            Update status
-          </Button>
-          <Button type="button" size="small" color="inherit" disabled={busy || picked === null} onClick={() => { setPicked(null); setError(null); }}>
-            Reset
-          </Button>
-        </Stack>
+        </Menu>
+      </div>
+      <Stack>
+        <Typography id="status-note" variant="caption" sx={{ color: 'text.muted' }}>
+          The status changes by itself as you extract, review and approve. Setting it by hand is an override; Approved is only
+          set by Approve.
+        </Typography>
       </Stack>
-      )}
-      <Typography id="status-note" variant="caption" sx={{ color: 'text.muted' }}>
-        The status is set by hand. Approving parameters does not change it, and changing it does not approve anything.
-      </Typography>
     </Card>
   );
 }

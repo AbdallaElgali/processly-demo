@@ -6,7 +6,7 @@ import { Card, CardActionArea, Skeleton, Stack, Typography } from '@mui/material
 import { JobBadge, activityBadge } from '@/components/jobs/JobBadge';
 import { useProjectActivity, useProjectData } from '@/lib/jobs/hooks';
 import { requestProjectCounts } from '@/lib/project-data/lazyDetails';
-import { StatusChip } from './StatusChip';
+import { ProjectStatus } from './ProjectStatus';
 import type { ProjectBase } from '@/api/types/projects';
 
 /**
@@ -57,7 +57,7 @@ export function ProjectCard({
         </Typography>
 
         <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1.5 }}>
-          <StatusChip status={project.status} />
+          <ProjectStatus project={project} />
           <Typography variant="caption" sx={{ color: 'text.muted' }}>
             {project.created_at ? new Date(project.created_at).toLocaleDateString() : ''}
           </Typography>
