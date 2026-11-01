@@ -20,25 +20,6 @@ export interface ProjectMetrics {
   acceptedParams: number;
 }
 
-export interface ChartDataPoint {
-  name: string;
-  f1Score: number;
-  totalParams: number;
-  aiParams: number;
-}
-
-export interface DashboardInsights {
-  avgF1: string | number;
-  avgAcceptanceRate: string | number;
-  totalAssistedProjects: number;
-  totalAiParams: number;
-}
-
-export interface DashboardData {
-  chartData: ChartDataPoint[];
-  insights: DashboardInsights;
-}
-
 export interface GroupInsights {
   totalExtractionRuns: number;
   acceptanceRate: number;
