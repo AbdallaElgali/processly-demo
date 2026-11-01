@@ -4,8 +4,8 @@ import type { ProjectParameter } from '@/api/projects';
 import { dbParamToInputField } from '@/lib/parameter-adapter';
 import { rowState } from '@/lib/review/rowState';
 import {
-  BATTERY_EXPORT_KEYS,
   FrontendBatteryFileExport,
+  exportName,
   exportReport,
   missingExportKeys,
 } from '@/static/battery-template';
@@ -28,13 +28,15 @@ const param = (key: string, over: Record<string, unknown> = {}): ProjectParamete
 
 const fieldsOf = (...params: ProjectParameter[]): InputField[] => params.map(dbParamToInputField);
 
-const generate = (fields: InputField[]) => new FrontendBatteryFileExport().generate(fields, 'P').content;
+const generate = (fields: InputField[]) => new FrontendBatteryFileExport(null).generate(fields, 'P').content;
 
-/** Reads the written <Value> of an entry, by entry name. */
+/** Reads the written <Value> of an entry, by entry name (alias, else key). */
 const written = (xml: string, name: string): string | undefined =>
-  xml.match(new RegExp(`<Name>${BATTERY_EXPORT_KEYS.find((e) => e.key === name)?.exportName ?? name}</Name>\\s*<Value>([^<]*)</Value>`))?.[1];
+  xml.match(new RegExp(`<Name>${name}</Name>[^<]*<Value>([^<]*)</Value>`))?.[1];
 
-const placeholderFor = (key: string) => (key.startsWith('T_MIN_') ? `-${PLACEHOLDER}` : PLACEHOLDER);
+/** The unit written for an entry, if any. */
+const writtenUnit = (xml: string, name: string): string | undefined =>
+  xml.match(new RegExp(`<Name>${name}</Name>[^<]*<Value>[^<]*</Value>[^<]*(?:<Unit>([^<]*)</Unit>)?`))?.[1];
 
 /** What the review row displays for a field: its value, or nothing. */
 const displayed = (f: InputField): string | null => {
@@ -77,7 +79,7 @@ describe('export matches the review screen (FE-R2)', () => {
     expect(written(generate(fields), 'U_MAX')).toBe('4.3');
   });
 
-  it('(h) a cleared safety voltage is the placeholder, never U_MAX + 0.02 / U_MIN - 0.02', () => {
+  it('(h) no safety voltage is derived: a cleared one is the placeholder, a missing one is not written', () => {
     const fields = fieldsOf(
       param('U_MAX'),
       param('U_MAX_SAFETY', { is_human_modified: true, review_action: 'MODIFIED' }),
@@ -86,54 +88,29 @@ describe('export matches the review screen (FE-R2)', () => {
     const xml = generate(fields);
     expect(written(xml, 'U_MAX')).toBe('4.25');
     expect(written(xml, 'U_MAX_SAFETY')).toBe(PLACEHOLDER);
-    // no U_MIN_SAFETY row at all: also the placeholder
-    expect(written(xml, 'U_MIN_SAFETY_DB')).toBe(PLACEHOLDER);
-    expect(missingExportKeys(fields)).toEqual(expect.arrayContaining(['U_MAX_SAFETY', 'U_MIN_SAFETY']));
-  });
-
-  it('(i) mAh is written in Ah without floating artefacts', () => {
-    const fields = fieldsOf(param('C_NOMINAL_AH', { candidates: [candidate({ ai_value: 3200, unit: 'mAh', expected_unit: 'Ah' })] }));
-    expect(written(generate(fields), 'C_NOMINAL_AH')).toBe('3.2');
-    expect(missingExportKeys(fields)).not.toContain('C_NOMINAL_AH');
+    expect(written(xml, 'U_MIN')).toBe('2.8');
+    expect(written(xml, 'U_MIN_SAFETY')).toBeUndefined();
+    expect(written(xml, 'U_MIN_SAFETY_DB')).toBeUndefined();
+    expect(missingExportKeys(fields)).toEqual(['U_MAX_SAFETY']);
   });
 
   it.each([
-    ['E_NOMINAL_WH', 'kWh', 12.5, '12500'],
-    ['E_NOMINAL_WH', 'mWh', 250000, '250'],
-    ['U_MAX', 'mV', 4250, '4.25'],
-    ['U_MAX', ' v ', 4.2, '4.2'],
-    ['I_MAX_CHA_PULSE', 'mA', 1500, '1.5'],
-    ['I_MAX_DCH_PULSE', 'mA', -300000, '-300'],
-    ['C_NOMINAL_AH', 'AH', 2.5, '2.5'],
-    ['C_NOMINAL_AH', 'mAh', 0.1, '0.0001'],
-    ['T_MAX_BODY', 'degC', 60, '60'],
+    ['C_NOMINAL_AH', 'mAh', 3200, '3200'],
+    ['E_NOMINAL_WH', 'kWh', 12.5, '12.5'],
+    ['U_MAX', 'mV', 4250, '4250'],
+    ['I_MAX_CHA_PULSE', 'mA', 1500, '1500'],
+    ['I_MAX_DCH_PULSE', 'mA', -300000, '-300000'],
     ['T_MAX_BODY', '°C', 60, '60'],
-    ['T_MIN_BODY', 'C', -20, '-20'],
+    ['T_MIN_BODY', 'K', 5, '5'],
+    ['I_MAX_CHA_PULSE', 'C', 2, '2'],
     ['EOL_SOH_NOM', '%', 80, '80'],
     ['U_MAX', '', 4.2, '4.2'],
-  ])('%s with unit "%s" and value %s is written as %s', (key, unit, value, expected) => {
+  ])('%s with unit "%s" and value %s is written as %s, unit as shown, never converted', (key, unit, value, expected) => {
     const fields = fieldsOf(param(key, { candidates: [candidate({ ai_value: value, unit })] }));
-    expect(written(generate(fields), key)).toBe(expected);
-    expect(missingExportKeys(fields)).not.toContain(key);
-  });
-
-  it('(j) an unconvertible unit is the placeholder and is reported with its unit', () => {
-    const fields = fieldsOf(
-      param('C_NOMINAL_AH', { candidates: [candidate({ ai_value: 3.2, unit: 'Wh' })] }),
-      param('T_MIN_BODY', { candidates: [candidate({ ai_value: 5, unit: 'K' })] }),
-      param('I_MAX_CHA_PULSE', { candidates: [candidate({ ai_value: 2, unit: 'C' })] }),
-    );
     const xml = generate(fields);
-    expect(written(xml, 'C_NOMINAL_AH')).toBe(PLACEHOLDER);
-    expect(written(xml, 'T_MIN_BODY')).toBe(`-${PLACEHOLDER}`);
-    // "C" is a temperature only for T_* keys; for a current it is a C-rate and is not converted
-    expect(written(xml, 'I_MAX_CHA_PULSE')).toBe(PLACEHOLDER);
-    expect(exportReport(fields).unconvertible).toEqual([
-      { key: 'C_NOMINAL_AH', unit: 'Wh' },
-      { key: 'I_MAX_CHA_PULSE', unit: 'C' },
-      { key: 'T_MIN_BODY', unit: 'K' },
-    ]);
-    expect(missingExportKeys(fields)).toEqual(expect.arrayContaining(['C_NOMINAL_AH', 'T_MIN_BODY', 'I_MAX_CHA_PULSE']));
+    expect(written(xml, key)).toBe(expected);
+    expect(writtenUnit(xml, key)).toBe((rowState(fields[0]).selected?.unit || undefined) as string | undefined);
+    expect(missingExportKeys(fields)).not.toContain(key);
   });
 
   it('keeps the stored sign of discharge currents', () => {
@@ -147,32 +124,43 @@ describe('export matches the review screen (FE-R2)', () => {
     expect(missingExportKeys(fields)).toContain('U_MAX');
   });
 
-  it('every key missingExportKeys returns is the placeholder; every other mapped key is a real value', () => {
+  it('the report lists exactly the parameters written as the placeholder', () => {
     const fields = fieldsOf(
       param('U_MAX'),
-      param('U_MIN', { is_human_modified: true, review_action: 'MODIFIED', selected_candidate_id: 'c1' }),
-      param('C_NOMINAL_AH', { candidates: [candidate({ ai_value: 3200, unit: 'mAh' })] }),
-      param('E_NOMINAL_WH', { candidates: [candidate({ ai_value: 10, unit: 'Ah' })] }),
-      param('T_MAX_BODY', { candidates: [candidate({ ai_value: 55, unit: '°C' })] }),
+      param('U_MIN', { is_human_modified: true, review_action: 'MODIFIED' }),
       param('T_MIN_BODY', { candidates: [] }),
-      param('I_MAX_CHA_PULSE', { candidates: [candidate({ ai_value: 100, unit: 'A' })] }),
     );
     const xml = generate(fields);
-    const missing = new Set(missingExportKeys(fields));
-    expect(missing.size).toBeGreaterThan(0);
-    for (const { key, exportName } of BATTERY_EXPORT_KEYS) {
-      const v = written(xml, key) ?? written(xml, exportName);
-      expect(v, key).toBeDefined();
-      if (missing.has(key)) expect(v, key).toBe(placeholderFor(key));
-      else {
-        expect(v, key).not.toBe(placeholderFor(key));
-        const f = fields.find((x) => x.id === key)!;
-        expect(Number.isFinite(Number(v)), key).toBe(true);
-        expect(displayed(f), key).not.toBeNull();
-      }
+    expect(exportReport(fields).missing).toEqual(['U_MIN', 'T_MIN_BODY']);
+    for (const f of fields) {
+      const isMissing = exportReport(fields).missing.includes(exportName(f));
+      expect(written(xml, exportName(f)) === PLACEHOLDER, f.id).toBe(isMissing);
     }
-    // the dialog's two lists together are exactly the placeholder keys
-    const report = exportReport(fields);
-    expect(new Set([...report.missing, ...report.unconvertible.map((u) => u.key)])).toEqual(missing);
+  });
+});
+
+describe('export equals the review screen state (owner export rule)', () => {
+  const cases: [string, ProjectParameter, string, string, string | undefined][] = [
+    // [case, parameter, entry name, value shown on the review row ('' = none), unit shown]
+    ['negative value', param('T_MIN_BODY', { parameter_alias: 'Min body temp', candidates: [candidate({ ai_value: -20, unit: '°C' })] }), 'Min body temp', '-20', '°C'],
+    ['positive discharge current stays positive', param('I_MAX_DCH_PULSE', { parameter_alias: 'Pulse discharge', candidates: [candidate({ ai_value: 300, unit: 'A' })] }), 'Pulse discharge', '300', 'A'],
+    ['unit that is not converted', param('C_NOMINAL_AH', { parameter_alias: 'Capacity', candidates: [candidate({ ai_value: 3200, unit: 'mAh', expected_unit: 'Ah' })] }), 'Capacity', '3200', 'mAh'],
+    ['alias as the name', param('U_MAX', { parameter_alias: 'Upper cut-off voltage' }), 'Upper cut-off voltage', '4.25', 'V'],
+    ['missing alias falls back to the canonical key', param('U_MAX', { parameter_alias: null }), 'U_MAX', '4.25', 'V'],
+    ['cleared value', param('U_MAX', { parameter_alias: 'Cleared one', is_human_modified: true, review_action: 'MODIFIED' }), 'Cleared one', '', undefined],
+  ];
+
+  it.each(cases)('%s', (_n, p, name, shownValue, shownUnit) => {
+    const [f] = fieldsOf(p);
+    const shown = rowState(f).selected;
+    // what the review row shows
+    expect(displayed(f) ?? '').toBe(shownValue);
+    if (shownValue) expect(shown?.unit).toBe(shownUnit);
+    // what the file holds
+    expect(exportName(f)).toBe(name);
+    const xml = generate([f]);
+    expect(written(xml, name)).toBe(shownValue || PLACEHOLDER);
+    expect(writtenUnit(xml, name)).toBe(shownUnit);
+    expect(missingExportKeys([f]).includes(name)).toBe(shownValue === '');
   });
 });

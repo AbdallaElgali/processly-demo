@@ -627,7 +627,7 @@ export default function WorkspacePage() {
 
       <ConfirmDialog
         open={exportCheck !== null}
-        title={`${(exportCheck?.missing.length ?? 0) + (exportCheck?.unconvertible.length ?? 0)} exported parameter(s) will carry a placeholder`}
+        title="Check the export"
         description={exportCheckText(exportCheck)}
         confirmLabel="Export anyway"
         onConfirm={runExport}
@@ -642,7 +642,7 @@ function exportCheckText(report: ExportReport | null): string {
   if (!report) return '';
   const parts: string[] = [];
   if (report.missing.length > 0) parts.push(`no value: ${report.missing.join(', ')}`);
-  for (const { key, unit } of report.unconvertible) parts.push(`unit not convertible: ${key} (${unit})`);
+  if (report.conflicting.length > 0) parts.push(`skipped, name used by a bench entry: ${report.conflicting.join(', ')}`);
   return `The .battery file will carry a placeholder for these parameters. ${parts.join('. ')}.`;
 }
 
