@@ -5,6 +5,7 @@ import { PARTIAL_FLUSH_MS } from './config';
 import { openSseStream, readSseStream } from './sse';
 import { isTerminal, type SseEvent } from './sse-types';
 import type { Job } from './types';
+import type { CorrectionOutcomeEvent } from '@/lib/review/corrections';
 
 const API = config.api;
 
@@ -18,6 +19,10 @@ export interface RunOutcome {
   error?: string;
   /** Per-file upload failures: the job completes, but with warnings. */
   warnings?: string[];
+  /** Iterative and single-parameter runs: the backend's outcome per corrected parameter. */
+  corrections?: CorrectionOutcomeEvent[];
+  /** Batch correction: parameters whose correction failed, with the backend's message. The run goes on. */
+  parameterErrors?: Record<string, string>;
 }
 
 /**
@@ -65,26 +70,36 @@ async function runStream(
   url: string,
   body: unknown,
   ctx: RunContext,
+  opts: { perParameterErrors?: boolean } = {},
 ): Promise<RunOutcome> {
   const flusher = new PartialFlusher(job.projectId);
   let lastError: string | null = null;
   let sawComplete = false;
+  let corrections: CorrectionOutcomeEvent[] | undefined;
+  const parameterErrors: Record<string, string> = {};
 
   try {
     const stream = await openSseStream(url, body, ctx.signal);
 
     for await (const event of readSseStream(stream, { signal: ctx.signal })) {
+      // In a batch correction one parameter can fail while the others go on:
+      // its error event is not the end of the run and must not turn the
+      // timeline red. The run's own terminal event is `complete`.
+      if (opts.perParameterErrors && event.status === 'error' && event.parameter) {
+        parameterErrors[event.parameter] = event.message ?? 'The AI could not correct this value.';
+        continue;
+      }
       ctx.emit(event);
 
       if ((event.status === 'partial' || event.status === 'partial_correction') && event.specs) {
         flusher.queue(event.specs);
       } else if (event.status === 'complete' && event.final_specs) {
         // Land any queued partial first so the final result is not overwritten
-        // by a stale flush, then apply the final specs and only then the flag
-        // chain -- that order is required, see ProjectDataStore.applyFlagChain.
+        // by a stale flush. The final selection is NOT rebuilt here from
+        // `final_specs`: the runtime reads the project back from the backend
+        // when the run ends, and that is what the screen shows.
         flusher.flush();
-        projectDataStore.applySpecs(job.projectId, event.final_specs);
-        if (event.flag_chain) projectDataStore.applyFlagChain(job.projectId, event.flag_chain);
+        corrections = event.correction_outcomes;
         sawComplete = true;
       } else if (event.status === 'error') {
         lastError = event.message ?? 'The analysis failed for an unknown reason.';
@@ -105,7 +120,7 @@ async function runStream(
     // this the caller would see an empty success and show no failure.
     return { ok: false, error: lastError ?? 'The run ended without a result.' };
   }
-  return { ok: true };
+  return { ok: true, corrections, ...(Object.keys(parameterErrors).length > 0 && { parameterErrors }) };
 }
 
 export async function runExtraction(job: Job, ctx: RunContext, userId: string): Promise<RunOutcome> {
@@ -119,6 +134,7 @@ export async function runExtraction(job: Job, ctx: RunContext, userId: string): 
     `${API}/specs/stream-specs?project_id=${encodeURIComponent(job.projectId)}`,
     body,
     ctx,
+    { perParameterErrors: !!job.payload.previousSpecs },
   );
 }
 

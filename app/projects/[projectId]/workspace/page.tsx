@@ -5,7 +5,9 @@ import '@/hooks/url-polyfill';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { Box, Button, Divider, Skeleton, Stack, Tooltip, Typography } from '@mui/material';
+import { Alert, Box, Button, Divider, Skeleton, Stack, Tooltip, Typography } from '@mui/material';
+import ReplayIcon from '@mui/icons-material/Replay';
+import { retryFlaggedButton } from '@/lib/review/corrections';
 import AddIcon from '@mui/icons-material/Add';
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
@@ -35,7 +37,7 @@ import type { SpecificationSource } from '@/types';
 import { mapFieldsToSpecs } from '@/lib/parameter-adapter';
 import { useCanStart, useJobTray, useJobs, useProjectActivity, useProjectData } from '@/lib/jobs/hooks';
 import {
-  acceptRow, chooseCandidate, editRowValue, flagAndReextract, flagRow, removeFlag, reextractRow, revertRowValue,
+  acceptRow, chooseAlternative, chooseCandidate, editRowValue, flagRow, removeFlag, reextractRow, retryRow, revertCorrectionRow, revertRowValue, saveRow,
   saveAndApprove, saveChanges,
 } from '@/lib/review/actions';
 import { approvalCheck, approveBlockReason } from '@/lib/review/approval';
@@ -92,6 +94,9 @@ export default function WorkspacePage() {
   const fields = useMemo(() => projectState?.fields ?? [], [projectState?.fields]);
   const dirty = projectState?.dirty ?? EMPTY;
   const rowOps = projectState?.rowOps;
+  const correctionReport = projectState?.correctionReport ?? null;
+  // The batch summary stays until it is dismissed or the next run replaces it.
+  const [dismissedReport, setDismissedReport] = useState<unknown>(null);
   const isSaving = projectState?.loading.save ?? false;
   const userId = user?.id ?? null;
 
@@ -138,9 +143,12 @@ export default function WorkspacePage() {
       onFlag: (key: string, reason: string) => {
         if (userId) void flagRow(projectId, key, userId, reason);
       },
-      onFlagAndReextract: (key: string, reason: string) => {
-        if (userId) void flagAndReextract(projectId, key, userId, reason);
+      onRetry: (key: string, hint: string) => {
+        if (userId) void retryRow(projectId, key, userId, hint);
       },
+      onSaveRow: (key: string) => void saveRow(projectId, key, userId),
+      onPickAlternative: (key: string, specId: string) => void chooseAlternative(projectId, key, specId, userId),
+      onRevertCorrection: (key: string) => void revertCorrectionRow(projectId, key, userId),
       onReextract: (key: string, hint: string) => reextractRow(projectId, key, hint),
       onRemoveFlag: (key: string) => void removeFlag(projectId, key, userId),
       onAccept: (key: string) => void acceptRow(projectId, key, userId),
@@ -178,8 +186,8 @@ export default function WorkspacePage() {
   );
 
   const flaggedCount = fields.filter((f) => f.isFlagged).length;
-  const handleAnalyze = () => {
-    const iterative = flaggedCount > 0;
+  const retryButton = retryFlaggedButton(flaggedCount);
+  const startRun = (iterative: boolean) => {
     // The runtime refuses a second extraction for this project even if the button was clicked twice or another tab started one.
     void jobRuntime
       .enqueue(
@@ -193,6 +201,8 @@ export default function WorkspacePage() {
         if (!result.allowed) toast.show(result.reason, { severity: 'warning' });
       });
   };
+  const handleAnalyze = () => startRun(false);
+  const handleRetryFlagged = () => startRun(true);
   const extractionBusy = activity.running?.kind === 'extraction' || activity.queued?.job.kind === 'extraction';
 
   // ---- save / approve / export ------------------------------------------
@@ -336,9 +346,7 @@ export default function WorkspacePage() {
               ? analyzeGate.reason
               : documents.length === 0
                 ? 'Add a document first'
-                : flaggedCount > 0
-                  ? `${flaggedCount} flagged parameter(s) will be sent back as an iterative correction`
-                  : 'Extract every parameter from this project\'s documents'
+                : 'Extract every parameter from this project\'s documents'
           }
         >
           <span>
@@ -352,7 +360,22 @@ export default function WorkspacePage() {
               loadingPosition="start"
               disabled={documents.length === 0 || !analyzeGate.allowed}
             >
-              {flaggedCount > 0 ? `Analyze (${flaggedCount} flagged)` : 'Analyze'}
+              Analyze
+            </Button>
+          </span>
+        </Tooltip>
+        <Tooltip title={!analyzeGate.allowed && 'reason' in analyzeGate && flaggedCount > 0 ? analyzeGate.reason : retryButton.tooltip}>
+          <span>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<ReplayIcon />}
+              onClick={handleRetryFlagged}
+              loading={extractionBusy}
+              loadingPosition="start"
+              disabled={retryButton.disabled || documents.length === 0 || !analyzeGate.allowed}
+            >
+              {retryButton.label}
             </Button>
           </span>
         </Tooltip>
@@ -391,6 +414,12 @@ export default function WorkspacePage() {
         </Button>
       </Stack>
 
+      {correctionReport?.summary && dismissedReport !== correctionReport && (
+        <Alert severity="info" onClose={() => setDismissedReport(correctionReport)} sx={{ borderRadius: 0, flexShrink: 0 }}>
+          Retry finished: {correctionReport.summary}.
+        </Alert>
+      )}
+
       {/* ---- body ---- */}
       {firstLoad ? (
         <Box sx={{ flex: 1, display: 'flex', gap: 0.75, p: 2 }} aria-busy="true">
@@ -416,6 +445,7 @@ export default function WorkspacePage() {
               loading={detailsLoading}
               job={extractionJob?.kind === 'extraction' ? extractionJob : undefined}
               rowBusy={rowBusy}
+              correctionErrors={correctionReport?.errors}
               dirty={dirty}
               density={compact ? 'compact' : 'comfortable'}
               onDensityChange={(d) => setCompact(d === 'compact')}

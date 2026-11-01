@@ -14,6 +14,29 @@ export interface SpecificationSource {
 // MODIFIED = a human edited the value, ACCEPTED = approved (backend-owned).
 export type ReviewAction = 'PENDING' | 'MODIFIED' | 'ACCEPTED' | 'REJECTED';
 
+/** One result of the backend's rule checks on a candidate (`ai_metric_candidates.rule_results`). */
+export interface RuleResult {
+  code: string;
+  severity: 'hard' | 'soft' | 'info';
+  penalty: number;
+  /** Written by the backend, in words. */
+  text: string;
+  related_candidate_id?: string | null;
+}
+
+/** `latest_correction` of a parameter in `GET /projects/{id}` (contract item 6). */
+export interface LatestCorrection {
+  correction_id: string;
+  outcome: 'new_value' | 'confirmed' | 'no_new_value' | (string & {});
+  previous_candidate_id: string | null;
+  new_candidate_id: string | null;
+  previous_value: string | number | null;
+  previous_unit: string | null;
+  previous_is_human_modified: boolean;
+  reverted_at: string | null;
+  created_at: string;
+}
+
 export interface Specification {
   // Stable id used for React keys and `selectedSpecId`. For an AI candidate this
   // equals `candidateId`; for a human-entered value it is a generated UUID.
@@ -48,6 +71,12 @@ export interface Specification {
   original?: { value: string; unit: string | null; confidence: number | null };
   /** The extraction run this candidate came from (`run_number` in the project payload). */
   runNumber?: number | null;
+  /** The value as extracted, before a fixed-factor unit conversion (`original_value`); null when the backend recorded none. */
+  originalValue?: string | null;
+  originalUnit?: string | null;
+  /** Confidence before the rule penalties, on the UI's 0-100 scale (`confidence_raw`). */
+  confidenceRaw?: number | null;
+  ruleResults?: RuleResult[];
 }
 
 export interface InputField {
@@ -76,6 +105,8 @@ export interface InputField {
    * that was then accepted is ACCEPTED and still human-modified.
    */
   isHumanModified?: boolean;
+  /** The parameter's latest correction outcome from the backend, or null. */
+  latestCorrection?: LatestCorrection | null;
 }
 
 // PDFSource and ExcelSource represent the resolved highlight target passed to viewers.

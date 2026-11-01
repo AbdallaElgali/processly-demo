@@ -6,8 +6,8 @@ import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import FindInPageOutlinedIcon from '@mui/icons-material/FindInPageOutlined';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
-import type { Specification } from '@/types';
-import { NO_REASONING, NO_SOURCE_TEXT, whyThisValue } from '@/lib/review/why';
+import type { InputField, Specification } from '@/types';
+import { candidateFacts, NO_SOURCE_TEXT, whyThisValue } from '@/lib/review/why';
 
 const MODEL_NOTE =
   'Written by the extraction model together with its answer. It is the model’s explanation, not a quote from the document, ' +
@@ -25,8 +25,11 @@ export function WhyThisValue({
   documentName,
   onJump,
   dense = false,
+  field,
 }: {
   spec: Specification;
+  /** The row, for the candidate's confidence, rule checks, conversion and markers. */
+  field?: InputField;
   /** "Page 4" or "Sheet 3 · B10:D15". */
   location: string | null;
   documentName: string | null;
@@ -36,9 +39,30 @@ export function WhyThisValue({
 }) {
   const why = whyThisValue(spec);
   const where = [location, documentName].filter(Boolean).join(' · ');
+  const facts = field ? candidateFacts(spec, field) : null;
 
   return (
     <Stack spacing={dense ? 1 : 1.25}>
+      {facts && (facts.confidence || facts.convertedFrom || facts.rules.length > 0) && (
+        <Stack spacing={0.5} aria-label="Checks on this value">
+          {facts.confidence && (
+            <Typography variant="body2" sx={{ color: 'text.primary' }}>
+              <Box component="span" sx={{ color: 'text.secondary' }}>Confidence: </Box>{facts.confidence}
+            </Typography>
+          )}
+          {facts.convertedFrom && (
+            <Typography variant="body2" sx={{ color: 'text.primary' }}>
+              <Box component="span" sx={{ color: 'text.secondary' }}>Converted from </Box>{facts.convertedFrom}
+            </Typography>
+          )}
+          {facts.rules.map((r, i) => (
+            <Typography key={i} variant="body2" sx={{ color: r.severity === 'hard' ? 'status.danger' : r.severity === 'soft' ? 'status.warning' : 'text.secondary' }}>
+              <Box component="span" sx={{ fontWeight: 600 }}>{r.label}: </Box>{r.text}
+            </Typography>
+          ))}
+        </Stack>
+      )}
+
       {why.reasonCode ? (
         <Block icon={<RemoveCircleOutlineIcon sx={{ fontSize: 15 }} />} label="Why there is no value" tone="neutral">
           <Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 600 }}>{why.reasonCode.label}</Typography>
@@ -47,25 +71,23 @@ export function WhyThisValue({
           </Typography>
         </Block>
       ) : (
-        <Block
-          icon={<AutoAwesomeOutlinedIcon sx={{ fontSize: 15 }} />}
-          label="Model’s explanation"
-          tone="model"
-          info={MODEL_NOTE}
-        >
-          <Prose text={why.explanation} empty={NO_REASONING} />
-        </Block>
+        // When the AI wrote no explanation, nothing is shown (and nothing is invented).
+        why.explanation && (
+          <Block icon={<AutoAwesomeOutlinedIcon sx={{ fontSize: 15 }} />} label="Model’s explanation" tone="model" info={MODEL_NOTE}>
+            <Prose text={why.explanation} />
+          </Block>
+        )
       )}
 
-      {!why.reasonCode && (
+      {!why.reasonCode && why.sourceNote && (
         <Block icon={<AutoAwesomeOutlinedIcon sx={{ fontSize: 15 }} />} label="Model’s note on the source" tone="model" info={MODEL_NOTE}>
-          <Prose text={why.sourceNote} empty={NO_REASONING} />
+          <Prose text={why.sourceNote} />
         </Block>
       )}
 
-      {why.calculated && (
+      {why.calculated && why.calculation && (
         <Block icon={<AutoAwesomeOutlinedIcon sx={{ fontSize: 15 }} />} label="Calculation (computed, not read)" tone="model" info={MODEL_NOTE}>
-          <Prose text={why.calculation} empty={NO_REASONING} />
+          <Prose text={why.calculation} />
         </Block>
       )}
 
@@ -143,10 +165,6 @@ function Block({
   );
 }
 
-function Prose({ text, empty }: { text: string | null; empty: string }) {
-  return text ? (
-    <Typography variant="body2" sx={{ color: 'text.primary', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{text}</Typography>
-  ) : (
-    <Typography variant="body2" sx={{ color: 'text.muted', fontStyle: 'italic' }}>{empty}</Typography>
-  );
+function Prose({ text }: { text: string }) {
+  return <Typography variant="body2" sx={{ color: 'text.primary', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{text}</Typography>;
 }

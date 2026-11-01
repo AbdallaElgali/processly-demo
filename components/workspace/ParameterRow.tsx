@@ -24,6 +24,12 @@ import { matchReasonCode } from '@/lib/review/reasonCodes';
 import { formatDisplayValue } from '@/lib/review/format';
 import { fieldAnchors, hasLocation } from '@/lib/review/anchors';
 import { canRevert } from '@/lib/review/edits';
+import { availableRowActions, correctionBadge } from '@/lib/review/corrections';
+import { candidateFacts } from '@/lib/review/why';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
+import AutoFixHighOutlinedIcon from '@mui/icons-material/AutoFixHighOutlined';
 import { newerCandidateAvailable } from '@/lib/review/newer';
 import NewReleasesOutlinedIcon from '@mui/icons-material/NewReleasesOutlined';
 import { parseCandidateNumber } from '@/lib/excel/highlight';
@@ -41,9 +47,17 @@ export interface ParameterRowHandlers {
   onSelectCandidate: (fieldId: string, specId: string) => void;
   onEdit: (fieldId: string, value: string, unit: string) => void;
   onRevert: (fieldId: string) => void;
-  onFlag: (fieldId: string, reason: string) => void;
-  onFlagAndReextract: (fieldId: string, reason: string) => void;
+  /** The hint is optional: an empty string flags without a reason. */
+  onFlag: (fieldId: string, hint: string) => void;
+  /** Retry: flag (hint optional) and run the single-parameter correction. */
+  onRetry: (fieldId: string, hint: string) => void;
   onReextract: (fieldId: string, hint: string) => void;
+  /** Saves this row's value, unit and chosen candidate now. */
+  onSaveRow: (fieldId: string) => void;
+  /** Pick alternative: choose another candidate and save it now. */
+  onPickAlternative: (fieldId: string, specId: string) => void;
+  /** Undo the latest correction (offered only under the contract rule). */
+  onRevertCorrection: (fieldId: string) => void;
   onRemoveFlag: (fieldId: string) => void;
   onAccept: (fieldId: string) => void;
   /** True when the document is a workbook, so locations read as sheet and cell range. */
@@ -56,7 +70,7 @@ export interface ParameterRowHandlers {
  * own controls are disabled; the rest of the table stays usable (CLAUDE.md 8.1).
  */
 export type RowBusy =
-  | { kind: 'flag' | 'unflag' | 'select' | 'accept' }
+  | { kind: 'flag' | 'unflag' | 'select' | 'accept' | 'save' | 'revert' }
   | { kind: 'queued' }
   | { kind: 'correcting'; phase?: string };
 
@@ -65,6 +79,8 @@ const BUSY_LABEL: Record<RowBusy['kind'], string> = {
   unflag: 'Removing flag…',
   select: 'Recording choice…',
   accept: 'Accepting…',
+  save: 'Saving…',
+  revert: 'Reverting…',
   queued: 'Queued for re-extraction',
   correcting: 'Re-extracting…',
 };
@@ -113,12 +129,15 @@ function ParameterRowImpl({
   dirty,
   density,
   handlers,
+  correctionError = null,
 }: {
   field: InputField;
   state: RowState;
   expanded: boolean;
   focused: boolean;
   busy: RowBusy | null;
+  /** The backend's message when this parameter's correction failed in the last run. */
+  correctionError?: string | null;
   /** Has an unsaved edit. */
   dirty: boolean;
   density: Density;
@@ -231,6 +250,7 @@ function ParameterRowImpl({
         <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
           <StateBadge state={state} flagReason={field.flagReason} />
           <SecondaryFacts facts={state.secondary} />
+          <CorrectionChip field={field} error={correctionError} />
         </Stack>
 
         <Box onClick={(e) => e.stopPropagation()}>
@@ -256,7 +276,7 @@ function ParameterRowImpl({
       </Box>
 
       <Collapse in={expanded} unmountOnExit timeout={160}>
-        <RowDetail field={field} state={state} busy={busy} handlers={handlers} />
+        <RowDetail field={field} state={state} busy={busy} dirty={dirty} correctionError={correctionError} handlers={handlers} />
       </Collapse>
     </Box>
   );
@@ -279,15 +299,35 @@ function BusyLine({ busy }: { busy: RowBusy }) {
   );
 }
 
+/** The outcome of the latest correction, in words, with an icon so it never relies on colour alone. */
+function CorrectionChip({ field, error }: { field: InputField; error: string | null }) {
+  const badge = correctionBadge(field, error);
+  if (!badge) return null;
+  const Icon = badge.kind === 'error' ? ErrorOutlineIcon : badge.kind === 'corrected' ? AutoFixHighOutlinedIcon : badge.kind === 'confirmed' ? CheckCircleOutlineIcon : RemoveCircleOutlineIcon;
+  const color = badge.kind === 'error' ? 'status.danger' : badge.kind === 'corrected' ? 'status.info' : 'text.secondary';
+  return (
+    <Tooltip title={badge.text}>
+      <Stack direction="row" spacing={0.5} alignItems="center" sx={{ color, minWidth: 0 }}>
+        <Icon sx={{ fontSize: 15 }} aria-hidden />
+        <Typography variant="caption" noWrap sx={{ fontWeight: 600, minWidth: 0 }}>{badge.text}</Typography>
+      </Stack>
+    </Tooltip>
+  );
+}
+
 function RowDetail({
   field,
   state,
   busy,
+  dirty,
+  correctionError,
   handlers,
 }: {
   field: InputField;
   state: RowState;
   busy: RowBusy | null;
+  dirty: boolean;
+  correctionError: string | null;
   handlers: ParameterRowHandlers;
 }) {
   const selected = state.selected;
@@ -309,7 +349,7 @@ function RowDetail({
           <CandidateList
             field={field}
             selectedId={selected?.id}
-            onSelect={(specId) => handlers.onSelectCandidate(field.id, specId)}
+            onSelect={(specId) => handlers.onPickAlternative(field.id, specId)}
             onJump={(src) => handlers.onJumpToSource(src, field.id)}
             where={where}
             documentName={handlers.documentName}
@@ -327,6 +367,7 @@ function RowDetail({
             <SectionLabel>Why this value</SectionLabel>
             <WhyThisValue
               spec={selected}
+              field={field}
               location={where(selected)}
               documentName={handlers.documentName(selected.source?.documentId)}
               onJump={hasLocation(selected.source) ? () => handlers.onJumpToSource(selected.source!, field.id) : undefined}
@@ -337,8 +378,8 @@ function RowDetail({
       </Stack>
 
       <Stack spacing={2.5} sx={{ minWidth: 0 }}>
-        <ValueEditor key={selected?.id ?? 'none'} field={field} spec={selected} disabled={locked} handlers={handlers} />
-        <ReviewActions field={field} busy={busy} handlers={handlers} />
+        <ValueEditor key={selected?.id ?? 'none'} field={field} spec={selected} disabled={locked} dirty={dirty} handlers={handlers} />
+        <ReviewActions field={field} busy={busy} correctionError={correctionError} handlers={handlers} />
       </Stack>
     </Box>
   );
@@ -361,11 +402,13 @@ function ValueEditor({
   field,
   spec,
   disabled,
+  dirty,
   handlers,
 }: {
   field: InputField;
   spec: Specification | undefined;
   disabled: boolean;
+  dirty: boolean;
   handlers: ParameterRowHandlers;
 }) {
   const [draft, setDraft] = useState<{ value: string; unit: string } | null>(null);
@@ -431,36 +474,55 @@ function ValueEditor({
           </Button>
         </Stack>
       )}
+      {dirty && (
+        <Button
+          size="small"
+          variant="contained"
+          disableElevation
+          disabled={disabled}
+          onClick={() => {
+            setDraft(null);
+            handlers.onSaveRow(field.id);
+          }}
+          sx={{ mt: 1 }}
+        >
+          Save value
+        </Button>
+      )}
       <Typography variant="caption" sx={{ color: 'text.muted', display: 'block', mt: 0.5 }}>
-        Edits stay on this screen until Save. Editing marks the value as changed by a person.
+        Save value saves this row now; Save in the toolbar saves every edited row. Editing marks the value as changed by a person.
       </Typography>
     </Box>
   );
 }
 
 /**
- * Accept, flag with a reason, flag and re-extract, re-extract, remove flag
- * (step 10). A parameter with no AI candidate cannot be flagged by any
- * current route (B9), so its flag controls are disabled with the reason.
+ * Accept, flag (the hint is optional), Retry, remove flag, and the outcome of
+ * the latest correction with Revert when the backend allows it. Actions that
+ * cannot work for the row are not shown.
  */
 function ReviewActions({
   field,
   busy,
+  correctionError,
   handlers,
 }: {
   field: InputField;
   busy: RowBusy | null;
+  correctionError: string | null;
   handlers: ParameterRowHandlers;
 }) {
-  const [reason, setReason] = useState('');
-  const reasonId = useId();
+  const [hint, setHint] = useState('');
+  const hintId = useId();
   const locked = !!busy;
   const correcting = busy?.kind === 'queued' || busy?.kind === 'correcting';
   const approved = field.reviewAction === 'ACCEPTED';
   const newer = newerCandidateAvailable(field);
-  const candidateId = field.specifications.find((s) => s.id === field.selectedSpecId)?.candidateId ?? null;
-  const flaggable = !!candidateId;
-  const text = reason.trim();
+  const actions = availableRowActions(field, { busy: locked, correcting });
+  const badge = correctionBadge(field, correctionError);
+  const text = hint.trim();
+  const canFlagOnly = !field.isFlagged && actions.retry;
+  const canRetry = actions.retry || (field.isFlagged && !locked && !correcting);
 
   return (
     <Box component="section" aria-label="Review">
@@ -474,23 +536,46 @@ function ReviewActions({
         </Note>
       )}
 
+      {badge && (
+        <Note tone={badge.kind === 'error' ? 'danger' : 'info'} icon={badge.kind === 'error' ? <ErrorOutlineIcon sx={{ fontSize: 16 }} /> : <AutoFixHighOutlinedIcon sx={{ fontSize: 16 }} />}>
+          {badge.text}
+          {actions.revert && (
+            <Button size="small" startIcon={<UndoIcon fontSize="small" />} onClick={() => handlers.onRevertCorrection(field.id)} sx={{ ml: 1, py: 0, minHeight: 0 }}>
+              Revert
+            </Button>
+          )}
+        </Note>
+      )}
+
       {newer && (
         <Note tone="info" icon={<NewReleasesOutlinedIcon sx={{ fontSize: 16 }} />}>
           <strong>Newer AI candidate available.</strong> A later extraction run found a candidate this row does not use. Your decision was kept; choose it from the candidates if you want it.
         </Note>
       )}
 
-      {field.isFlagged ? (
-        <Stack spacing={1.25}>
-          <Note tone="danger" icon={<FlagIcon sx={{ fontSize: 16 }} />}>
-            <strong>Flagged by a reviewer.</strong> {field.flagReason ? `“${field.flagReason}”` : 'No reason recorded.'}
-          </Note>
-          <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }} useFlexGap>
-            <Tooltip title="Resolves the flag with the value shown above and saves this row">
+      {field.isFlagged && (
+        <Note tone="danger" icon={<FlagIcon sx={{ fontSize: 16 }} />}>
+          <strong>Flagged by a reviewer.</strong> {field.flagReason ? `“${field.flagReason}”` : 'No hint was given.'}
+        </Note>
+      )}
+
+      <Stack spacing={1.25}>
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap' }} useFlexGap>
+          {approved && !field.isFlagged ? (
+            <Stack direction="row" spacing={0.75} alignItems="center" sx={{ color: 'status.success' }} role="status">
+              <DoneAllIcon sx={{ fontSize: 18 }} aria-hidden />
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>Accepted</Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                Saved. Editing the value or choosing another candidate makes it a new decision.
+              </Typography>
+            </Stack>
+          ) : (
+            <Tooltip title={field.isFlagged ? 'Resolves the flag with the value shown above and saves this row' : 'Saves this row’s value now and marks it accepted'}>
               <span>
                 <Button
                   size="small"
-                  variant="contained"
+                  variant={field.isFlagged ? 'contained' : 'outlined'}
+                  color={field.isFlagged ? 'primary' : 'success'}
                   disableElevation
                   startIcon={<DoneIcon fontSize="small" />}
                   disabled={locked}
@@ -498,123 +583,71 @@ function ReviewActions({
                   loadingPosition="start"
                   onClick={() => handlers.onAccept(field.id)}
                 >
-                  Accept value and resolve flag
+                  {field.isFlagged ? 'Accept value and resolve flag' : 'Accept'}
                 </Button>
               </span>
             </Tooltip>
+          )}
+          {field.isFlagged && (
             <Button size="small" color="error" disabled={locked} loading={busy?.kind === 'unflag'} onClick={() => handlers.onRemoveFlag(field.id)}>
               Remove flag
             </Button>
-          </Stack>
-          <TextField
-            id={reasonId}
-            size="small"
-            fullWidth
-            label="Hint for re-extraction (optional)"
-            placeholder={field.flagReason ?? 'e.g. use the table on page 4'}
-            value={reason}
-            disabled={locked}
-            onChange={(e) => setReason(e.target.value)}
-          />
-          <Box>
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<ReplayIcon fontSize="small" />}
-              disabled={locked}
-              loading={correcting}
-              loadingPosition="start"
-              onClick={() => {
-                handlers.onReextract(field.id, reason);
-                setReason('');
-              }}
-            >
-              Re-extract this parameter
-            </Button>
-          </Box>
+          )}
         </Stack>
-      ) : (
-        <Stack spacing={1.25}>
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap' }} useFlexGap>
-            {approved ? (
-              <Stack direction="row" spacing={0.75} alignItems="center" sx={{ color: 'status.success' }} role="status">
-                <DoneAllIcon sx={{ fontSize: 18 }} aria-hidden />
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>Accepted</Typography>
-                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                  Saved. Editing the value or choosing another candidate makes it a new decision.
-                </Typography>
-              </Stack>
-            ) : (
-              <Tooltip title="Saves this row’s value now and marks it accepted">
-                <span>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    color="success"
-                    startIcon={<DoneIcon fontSize="small" />}
-                    disabled={locked}
-                    loading={busy?.kind === 'accept'}
-                    loadingPosition="start"
-                    onClick={() => handlers.onAccept(field.id)}
-                  >
-                    Accept
-                  </Button>
-                </span>
-              </Tooltip>
-            )}
-          </Stack>
 
-          <TextField
-            id={reasonId}
-            size="small"
-            fullWidth
-            required
-            label="Reason for the flag"
-            placeholder="e.g. wrong table, value is for the module, check page 4"
-            value={reason}
-            disabled={locked || !flaggable}
-            onChange={(e) => setReason(e.target.value)}
-            helperText={
-              flaggable
-                ? 'Tells the next reviewer, and the re-extraction, what is wrong.'
-                : 'This parameter has no extracted candidate, so it cannot be flagged yet Run Analyze first.'
-            }
-          />
-          <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }} useFlexGap>
-            <Button
+        {(canFlagOnly || canRetry) && (
+          <>
+            <TextField
+              id={hintId}
               size="small"
-              variant="outlined"
-              startIcon={<FlagOutlinedIcon fontSize="small" />}
-              disabled={locked || !flaggable || !text}
-              loading={busy?.kind === 'flag'}
-              loadingPosition="start"
-              onClick={() => {
-                handlers.onFlag(field.id, text);
-                setReason('');
-              }}
-            >
-              Flag
-            </Button>
-            <Tooltip title="Flags the value, then extracts this parameter again with your reason as a hint. Costs one model run.">
-              <span>
+              fullWidth
+              label="Hint for the AI (optional)"
+              placeholder={field.flagReason ?? 'e.g. use the table on page 4'}
+              value={hint}
+              disabled={locked}
+              onChange={(e) => setHint(e.target.value)}
+              helperText="Tells the AI, and the next reviewer, what to look at. You can leave it empty."
+            />
+            <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }} useFlexGap>
+              {canFlagOnly && (
                 <Button
                   size="small"
-                  variant="contained"
-                  disableElevation
-                  startIcon={<ReplayIcon fontSize="small" />}
-                  disabled={locked || !flaggable || !text}
+                  variant="outlined"
+                  startIcon={<FlagOutlinedIcon fontSize="small" />}
+                  loading={busy?.kind === 'flag'}
+                  loadingPosition="start"
+                  disabled={locked}
                   onClick={() => {
-                    handlers.onFlagAndReextract(field.id, text);
-                    setReason('');
+                    handlers.onFlag(field.id, text);
+                    setHint('');
                   }}
                 >
-                  Flag and re-extract
+                  Flag
                 </Button>
-              </span>
-            </Tooltip>
-          </Stack>
-        </Stack>
-      )}
+              )}
+              {canRetry && (
+                <Tooltip title="Asks the AI to look at this value again, using your hint if you wrote one. Costs one model run.">
+                  <span>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      disableElevation
+                      startIcon={<ReplayIcon fontSize="small" />}
+                      disabled={locked}
+                      onClick={() => {
+                        handlers.onRetry(field.id, text);
+                        setHint('');
+                      }}
+                    >
+                      Retry
+                    </Button>
+                  </span>
+                </Tooltip>
+              )}
+            </Stack>
+          </>
+        )}
+      </Stack>
     </Box>
   );
 }
@@ -692,6 +725,7 @@ function CandidateList({
               <Button
                 role="radio"
                 aria-checked={selected}
+                title={selected || !valued ? undefined : 'Use this value (saves now)'}
                 size="small"
                 disabled={disabled || selected || !valued}
                 onClick={() => onSelect(s.id)}
@@ -707,6 +741,11 @@ function CandidateList({
                 )}
               </Button>
               {valued && <ConfidenceIndicator confidence={s.confidence} human={!s.candidateId || !!s.original} />}
+              {candidateFacts(s, field).markers.map((m) => (
+                <Typography key={m} variant="caption" sx={{ color: m === 'selected' ? 'accent.text' : 'text.secondary', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                  {m === 'selected' ? 'Selected' : 'Replaced by the correction'}
+                </Typography>
+              ))}
               {at && (
                 <Typography variant="caption" sx={{ color: 'text.muted', whiteSpace: 'nowrap' }}>
                   {at}
@@ -749,6 +788,7 @@ function CandidateList({
                   <WhyThisValue
                     dense
                     spec={s}
+                    field={field}
                     location={at}
                     documentName={documentName(s.source?.documentId)}
                     onJump={hasLocation(s.source) && s.source ? () => onJump(s.source!) : undefined}

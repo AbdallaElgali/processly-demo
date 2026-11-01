@@ -21,6 +21,8 @@ export const flagParameter = async (
     parent_flag_id: string | null = null,
     flag_reason: string | null = null
 ): Promise<string> => {
+    // The reason is optional: blank is stored as null by the backend, and sent as null here.
+    const reason = flag_reason?.trim() ? flag_reason.trim() : null;
     const response = await fetch(`${API_BASE_URL}/ai-flag-parameter`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -29,7 +31,7 @@ export const flagParameter = async (
             parameter_id, 
             ai_metric_candidate_id, 
             parent_flag_id, 
-            flag_reason 
+            flag_reason: reason 
         }),
     });
     
@@ -71,3 +73,21 @@ export const updateResolvedBy = async (
     if (!response.ok) throw new Error(await response.text());
 }
 
+
+/** A refusal from the revert route, with its HTTP status so the caller can tell a conflict from a failure. */
+export class RevertCorrectionError extends Error {
+    constructor(message: string, readonly status: number) {
+        super(message);
+        this.name = 'RevertCorrectionError';
+    }
+}
+
+/** POST /flagging/revert-correction: 404 unknown correction, 409 not revertable (or the row changed), 422 unknown user. */
+export const revertCorrection = async (correction_id: string, user_id: string): Promise<void> => {
+    const response = await fetch(`${API_BASE_URL}/revert-correction`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ correction_id, user_id }),
+    });
+    if (!response.ok) throw new RevertCorrectionError(await response.text(), response.status);
+};

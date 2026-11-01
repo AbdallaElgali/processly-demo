@@ -82,6 +82,18 @@ export interface SseEvent {
   /** complete, single-parameter path only */
   scope?: string;
 
+  /** complete (iterative and single-parameter): what each flagged parameter's correction came to. */
+  correction_outcomes?: Array<{
+    parameter: string;
+    project_parameter_id?: string;
+    outcome: 'new_value' | 'confirmed' | 'no_new_value' | (string & {});
+    correction_id?: string;
+    previous_candidate_id?: string | null;
+    new_candidate_id?: string | null;
+  }>;
+  /** complete: candidates dropped by the backend. */
+  discarded_count?: number;
+
   /** ready_to_save */
   model_name?: string | null;
   reasoning_effort?: string | null;

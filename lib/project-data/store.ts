@@ -2,6 +2,7 @@ import type { InputField } from '@/types';
 import type { FullProjectDetails } from '@/api/types/projects';
 import { specsStreamToInputFields } from '@/lib/parameter-adapter';
 import { mergeLocalEdits } from '@/lib/review/edits';
+import type { CorrectionReport } from '@/lib/review/corrections';
 
 /**
  * Per-project data, keyed by projectId.
@@ -36,10 +37,12 @@ export interface ProjectState {
   dirty: readonly string[];
   /** A backend call in flight for one row: that row, and only that row, shows it (CLAUDE.md 8.1). */
   rowOps: Readonly<Record<string, RowOp>>;
+  /** What the last correction run reported (outcomes, per-parameter errors, summary), until the next run starts. */
+  correctionReport: CorrectionReport | null;
 }
 
 /** What a row is waiting for. Corrections are jobs, read from the job store instead. */
-export type RowOp = 'flag' | 'unflag' | 'select' | 'accept';
+export type RowOp = 'flag' | 'unflag' | 'select' | 'accept' | 'save' | 'revert';
 
 export const emptyProjectState = (projectId: string): ProjectState => ({
   projectId,
@@ -51,6 +54,7 @@ export const emptyProjectState = (projectId: string): ProjectState => ({
   error: null,
   dirty: [],
   rowOps: {},
+  correctionReport: null,
 });
 
 /**
@@ -308,6 +312,37 @@ export class ProjectDataStore {
         return successor ? { ...f, activeFlagId: successor } : f;
       }),
     }));
+  }
+
+  /**
+   * Records what a correction run reported. A batch replaces the report; a
+   * single-parameter run (`merge`) replaces only its own parameters' entries
+   * and leaves the summary of the batch alone.
+   */
+  setCorrectionReport(projectId: string, report: CorrectionReport | null, merge = false) {
+    this.update(projectId, (prev) => {
+      if (!merge || !prev.correctionReport || !report) return { ...prev, correctionReport: report };
+      const keys = new Set([...report.outcomes.map((o) => o.parameter), ...Object.keys(report.errors)]);
+      const errors = Object.fromEntries(Object.entries(prev.correctionReport.errors).filter(([k]) => !keys.has(k)));
+      return {
+        ...prev,
+        correctionReport: {
+          outcomes: [...prev.correctionReport.outcomes.filter((o) => !keys.has(o.parameter)), ...report.outcomes],
+          errors: { ...errors, ...report.errors },
+          summary: prev.correctionReport.summary,
+        },
+      };
+    });
+  }
+
+  /** A new run on these parameters starts: their old error is no longer true. */
+  clearCorrectionErrors(projectId: string, keys?: readonly string[]) {
+    this.update(projectId, (prev) => {
+      const report = prev.correctionReport;
+      if (!report) return prev;
+      const errors = keys ? Object.fromEntries(Object.entries(report.errors).filter(([k]) => !keys.includes(k))) : {};
+      return { ...prev, correctionReport: keys ? { ...report, errors } : null };
+    });
   }
 
   clearLiveSpecs(projectId: string) {
