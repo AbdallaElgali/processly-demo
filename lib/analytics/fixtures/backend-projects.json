@@ -1,0 +1,231 @@
+{
+  "summary": {
+    "project_count": 2,
+    "approved_project_count": 2,
+    "not_approved_project_count": 0,
+    "pooled": {
+      "views": {
+        "blind_first": {
+          "tp": 2,
+          "fp": 3,
+          "fn": 2,
+          "ignored": 1,
+          "scored": 8,
+          "precision": 0.4,
+          "recall": 0.5,
+          "f1": 0.4444444444444444,
+          "avg_candidates": null
+        },
+        "blind_any": {
+          "tp": 3,
+          "fp": 2,
+          "fn": 2,
+          "ignored": 1,
+          "scored": 8,
+          "precision": 0.6,
+          "recall": 0.6,
+          "f1": 0.6,
+          "avg_candidates": 0.875
+        },
+        "final_first": {
+          "tp": 5,
+          "fp": 2,
+          "fn": 1,
+          "ignored": 1,
+          "scored": 9,
+          "precision": 0.7142857142857143,
+          "recall": 0.8333333333333334,
+          "f1": 0.7692307692307693,
+          "avg_candidates": null
+        },
+        "final_any": {
+          "tp": 6,
+          "fp": 1,
+          "fn": 1,
+          "ignored": 1,
+          "scored": 9,
+          "precision": 0.8571428571428571,
+          "recall": 0.8571428571428571,
+          "f1": 0.8571428571428571,
+          "avg_candidates": 1.2222222222222223
+        }
+      },
+      "acceptance_rate": 0.3333333333333333,
+      "origin_mix": {
+        "AI_SELECTED": 3,
+        "AI_CORRECTED": 3,
+        "HUMAN_ENTERED": 5
+      },
+      "excluded": {
+        "coverage_gap": 2,
+        "never_asked": 1,
+        "unranked": 0,
+        "parameter_removed": 1
+      },
+      "parameter_count": 11
+    },
+    "per_project_average": {
+      "views": {
+        "blind_first": {
+          "precision": 0.625,
+          "recall": 0.6666666666666666,
+          "f1": 0.6428571428571428
+        },
+        "blind_any": {
+          "precision": 0.75,
+          "recall": 0.75,
+          "f1": 0.75
+        },
+        "final_first": {
+          "precision": 0.8333333333333333,
+          "recall": 0.9,
+          "f1": 0.8636363636363636
+        },
+        "final_any": {
+          "precision": 0.9166666666666667,
+          "recall": 0.9166666666666667,
+          "f1": 0.9166666666666667
+        }
+      },
+      "acceptance_rate": 0.6
+    }
+  },
+  "projects": [
+    {
+      "project_id": "a89a31fc-c700-4702-9c14-20bc54bf4fe3",
+      "alias": "test-b15-66cc0ce0",
+      "customer": null,
+      "status": "APPROVED",
+      "approval_state": "approved",
+      "approval_version": 2,
+      "approved_at": "2026-11-01T21:35:31.589478+00:00",
+      "parameter_count": 10,
+      "views": {
+        "blind_first": {
+          "tp": 1,
+          "fp": 3,
+          "fn": 2,
+          "ignored": 1,
+          "scored": 7,
+          "precision": 0.25,
+          "recall": 0.3333333333333333,
+          "f1": 0.2857142857142857,
+          "avg_candidates": null
+        },
+        "blind_any": {
+          "tp": 2,
+          "fp": 2,
+          "fn": 2,
+          "ignored": 1,
+          "scored": 7,
+          "precision": 0.5,
+          "recall": 0.5,
+          "f1": 0.5,
+          "avg_candidates": 0.8571428571428571
+        },
+        "final_first": {
+          "tp": 4,
+          "fp": 2,
+          "fn": 1,
+          "ignored": 1,
+          "scored": 8,
+          "precision": 0.6666666666666666,
+          "recall": 0.8,
+          "f1": 0.7272727272727273,
+          "avg_candidates": null
+        },
+        "final_any": {
+          "tp": 5,
+          "fp": 1,
+          "fn": 1,
+          "ignored": 1,
+          "scored": 8,
+          "precision": 0.8333333333333334,
+          "recall": 0.8333333333333334,
+          "f1": 0.8333333333333334,
+          "avg_candidates": 1.25
+        }
+      },
+      "acceptance_rate": 0.2,
+      "origin_mix": {
+        "AI_SELECTED": 2,
+        "AI_CORRECTED": 3,
+        "HUMAN_ENTERED": 5
+      },
+      "excluded": {
+        "coverage_gap": 2,
+        "never_asked": 1,
+        "unranked": 0,
+        "parameter_removed": 1
+      }
+    },
+    {
+      "project_id": "c94bae33-51c3-483c-9397-fc7cc28aab49",
+      "alias": "test-b15-bf0720f5",
+      "customer": null,
+      "status": "APPROVED",
+      "approval_state": "approved",
+      "approval_version": 1,
+      "approved_at": "2026-11-01T21:35:31.589478+00:00",
+      "parameter_count": 1,
+      "views": {
+        "blind_first": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "ignored": 0,
+          "scored": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "avg_candidates": null
+        },
+        "blind_any": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "ignored": 0,
+          "scored": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "avg_candidates": 1.0
+        },
+        "final_first": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "ignored": 0,
+          "scored": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "avg_candidates": null
+        },
+        "final_any": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "ignored": 0,
+          "scored": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "avg_candidates": 1.0
+        }
+      },
+      "acceptance_rate": 1.0,
+      "origin_mix": {
+        "AI_SELECTED": 1,
+        "AI_CORRECTED": 0,
+        "HUMAN_ENTERED": 0
+      },
+      "excluded": {
+        "coverage_gap": 0,
+        "never_asked": 0,
+        "unranked": 0,
+        "parameter_removed": 0
+      }
+    }
+  ]
+}
