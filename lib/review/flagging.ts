@@ -46,7 +46,8 @@ export interface RaiseFlagInput {
   candidateId: string | null;
   /** Chains onto an existing flag when re-flagging. */
   parentFlagId: string | null;
-  reason: string;
+  /** Optional hint for the AI; blank is sent as null. */
+  reason?: string | null;
 }
 
 export interface RaiseFlagResult {
@@ -61,7 +62,7 @@ export async function raiseHumanFlag(input: RaiseFlagInput): Promise<RaiseFlagRe
     input.projectParameterId,
     input.candidateId,
     input.parentFlagId,
-    input.reason,
+    input.reason ?? null,
   );
   return { flagId };
 }

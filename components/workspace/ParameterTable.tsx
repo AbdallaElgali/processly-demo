@@ -49,6 +49,7 @@ export function ParameterTable({
   loading,
   job,
   rowBusy,
+  correctionErrors,
   dirty,
   density,
   onDensityChange,
@@ -62,6 +63,8 @@ export function ParameterTable({
   job: Job | undefined;
   /** Rows waiting on the backend or a correction job. Only those rows show it (CLAUDE.md 8.1). */
   rowBusy: Readonly<Record<string, RowBusy>>;
+  /** Parameter key -> the backend's message, for corrections that failed in the last run. */
+  correctionErrors?: Readonly<Record<string, string>>;
   /** Rows with unsaved edits. */
   dirty: readonly string[];
   density: Density;
@@ -267,6 +270,7 @@ export function ParameterTable({
                     expanded={expanded.has(field.id)}
                     focused={field.id === activeKey}
                     busy={rowBusy[field.id] ?? null}
+                    correctionError={correctionErrors?.[field.id] ?? null}
                     dirty={dirty.includes(field.id)}
                     density={density}
                     handlers={rowHandlers}

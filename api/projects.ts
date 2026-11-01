@@ -123,6 +123,8 @@ export interface ProjectParameter {
   parameter_id?: string | null;
   /** Since backend step 3.5. Null or absent groups the row under "Other". */
   category?: string | null;
+  /** Contract item 6: the latest correction outcome, or null. */
+  latest_correction?: import('@/types').LatestCorrection | null;
 }
 
 export interface Project {

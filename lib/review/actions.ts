@@ -1,7 +1,7 @@
 import { toast } from '@/components/ui/Toast';
-import { updateResolvedBy } from '@/api/parameters';
+import { RevertCorrectionError, revertCorrection, updateResolvedBy } from '@/api/parameters';
 import { projectDataStore, type RowOp } from '@/lib/project-data/store';
-import { approveProject, saveFields } from '@/lib/project-data/actions';
+import { approveProject, reloadAfterRun, saveFields } from '@/lib/project-data/actions';
 import { mapFieldsToSpecs } from '@/lib/parameter-adapter';
 import { createJob, jobRuntime } from '@/lib/jobs/runtime';
 import { jobStore } from '@/lib/jobs/store';
@@ -10,6 +10,7 @@ import { errorMessage } from '@/lib/errors';
 import { clearHumanFlag, raiseHumanFlag, resolveHumanFlag } from './flagging';
 import { acceptField, editValue, revertValue, selectCandidate } from './edits';
 import { selectedSpec } from './rowState';
+import { canRevertCorrection, REVERT_CONFLICT_TEXT, REVERT_UNAVAILABLE_TEXT } from './corrections';
 
 /**
  * The human-in-the-loop actions of the Workspace (plan-A 6.4, step 10).
@@ -92,11 +93,14 @@ export async function chooseCandidate(projectId: string, key: string, specId: st
 
 // ---- flags (persisted at once by the /flagging routes) ---------------------
 
-/** Raise a human flag with a reason. Returns the new flag id, or null on failure. */
-export async function flagRow(projectId: string, key: string, userId: string, reason: string): Promise<string | null> {
+/**
+ * Raise a human flag. The reason ("Hint for the AI") is optional: blank is
+ * sent as null. Returns the new flag id, or null on failure.
+ */
+export async function flagRow(projectId: string, key: string, userId: string, reason: string = ''): Promise<string | null> {
   const field = fieldOf(projectId, key);
   const text = reason.trim();
-  if (!field || !text) return null;
+  if (!field) return null;
   const candidateId = selectedSpec(field)?.candidateId ?? null;
 
   const flagId = await onRow(projectId, key, 'flag', async () => {
@@ -111,7 +115,7 @@ export async function flagRow(projectId: string, key: string, userId: string, re
       // No batch save afterwards: the flag route stores the flag, and the
       // batch save ignores flag fields (B9). The old "persist on flag" saved
       // every other row's unsaved edits as a side effect.
-      projectDataStore.updateField(projectId, key, (f) => ({ ...f, isFlagged: true, flagReason: text, activeFlagId: id }));
+      projectDataStore.updateField(projectId, key, (f) => ({ ...f, isFlagged: true, flagReason: text || null, activeFlagId: id }));
       return id;
     } catch (e) {
       toast.show(`Could not flag ${key}: ${message(e)}`, { severity: 'error' });
@@ -160,10 +164,78 @@ export function reextractRow(projectId: string, key: string, hint: string) {
   );
 }
 
-/** Flag, then re-extract. A correction needs a flagged metric, so nothing is queued if the flag fails. */
-export async function flagAndReextract(projectId: string, key: string, userId: string, reason: string) {
-  const flagId = await flagRow(projectId, key, userId, reason);
-  if (flagId) reextractRow(projectId, key, reason);
+/**
+ * Retry: flag the row (the hint is optional) and run the single-parameter
+ * correction. A correction needs a flagged metric, so nothing is queued if the
+ * flag fails; a row that is already flagged is not flagged twice.
+ */
+export async function retryRow(projectId: string, key: string, userId: string, hint: string = '') {
+  const field = fieldOf(projectId, key);
+  if (!field || correctionsInFlight(projectId).has(key)) return;
+  const flagged = field.isFlagged && field.activeFlagId ? field.activeFlagId : await flagRow(projectId, key, userId, hint);
+  if (flagged) reextractRow(projectId, key, hint);
+}
+
+/** Kept for existing callers: the same as Retry. */
+export const flagAndReextract = retryRow;
+
+/** Pick alternative: choose another candidate and save the row at once. */
+export async function chooseAlternative(projectId: string, key: string, specId: string, userId: string | null): Promise<boolean> {
+  await chooseCandidate(projectId, key, specId);
+  const field = fieldOf(projectId, key);
+  if (!field || field.selectedSpecId !== specId) return false;
+  return saveRow(projectId, key, userId);
+}
+
+/** Save one row's value, unit and chosen candidate now (Edit, Pick alternative). */
+export async function saveRow(projectId: string, key: string, userId: string | null): Promise<boolean> {
+  const done = await onRow(projectId, key, 'save', async () => {
+    const field = fieldOf(projectId, key);
+    if (!field) return false;
+    try {
+      await saveFields(projectId, [field], userId, { silent: true });
+      return true;
+    } catch (e) {
+      toast.show(`Could not save ${key}: ${message(e)}`, { severity: 'error' });
+      return false;
+    }
+  });
+  return !!done;
+}
+
+export type RevertResult = { ok: true } | { ok: false; message: string };
+
+/**
+ * Undo the latest correction of a row (`POST /flagging/revert-correction`),
+ * then read the project back. Only offered under the contract rule
+ * (`canRevertCorrection`). A 409 means the row changed after the correction.
+ */
+export async function revertCorrectionRow(projectId: string, key: string, userId: string | null): Promise<RevertResult> {
+  const field = fieldOf(projectId, key);
+  const correction = field?.latestCorrection;
+  if (!field || !correction || !userId || !canRevertCorrection(field)) return { ok: false, message: REVERT_UNAVAILABLE_TEXT };
+  const result = await onRow<RevertResult>(projectId, key, 'revert', async () => {
+    try {
+      await revertCorrection(correction.correction_id, userId);
+      projectDataStore.dropDirty(projectId, key);
+      await reloadAfterRun(projectId);
+      toast.show(`${key} is back to its earlier value.`, { severity: 'success' });
+      return { ok: true };
+    } catch (e) {
+      const text = revertErrorText(e);
+      toast.show(text, { severity: 'error' });
+      return { ok: false, message: text };
+    }
+  });
+  return result ?? { ok: false, message: 'This row is busy. Try again in a moment.' };
+}
+
+function revertErrorText(e: unknown): string {
+  const status = e instanceof RevertCorrectionError ? e.status : 0;
+  if (status === 409) return REVERT_CONFLICT_TEXT;
+  if (status === 404) return 'This correction no longer exists, so there is nothing to revert.';
+  if (status >= 500) return 'The server could not revert this value. Try again in a moment.';
+  return errorMessage(e, 'This value could not be reverted.');
 }
 
 // ---- accept, save, approve -------------------------------------------------

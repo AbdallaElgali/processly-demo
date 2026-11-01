@@ -17,6 +17,8 @@ import { canEnqueue } from './ordering';
 import { runSavedSince, stillRunning } from './outcome';
 import { canRetry, finishedJobIds, jobsToSweep } from './tray';
 import { fileRefsOf } from './uploadGuard';
+import { buildCorrectionReport } from '@/lib/review/corrections';
+import { projectDataStore } from '@/lib/project-data/store';
 import type { Job, JobPayload } from './types';
 
 /**
@@ -401,6 +403,10 @@ export class JobRuntime {
     const controller = new AbortController();
     jobStore.registerController(job.id, controller);
 
+    // A new correction run: the last run's errors are no longer true.
+    if (job.payload.kind === 'correction') projectDataStore.clearCorrectionErrors(job.projectId, [job.payload.parameterKey]);
+    else if (job.payload.kind === 'extraction' && job.payload.previousSpecs) projectDataStore.setCorrectionReport(job.projectId, null);
+
     const ctx: RunContext = {
       signal: controller.signal,
       emit: (event) => jobStore.dispatch({ type: 'event', jobId: job.id, event }),
@@ -431,6 +437,7 @@ export class JobRuntime {
       // Completion refreshes that project in the background and never
       // navigates (CLAUDE.md 8.1).
       await reloadAfterRun(job.projectId);
+      this.recordCorrections(job, outcome);
       jobStore.dispatch({
         type: 'complete',
         jobId: job.id,
@@ -440,6 +447,10 @@ export class JobRuntime {
       });
     } else {
       if (job.payload.kind === 'extraction' || job.payload.kind === 'correction') await reloadAfterRun(job.projectId);
+      // A single-parameter correction that errors says so on its own row.
+      if (job.payload.kind === 'correction' && outcome.error && outcome.error !== 'Cancelled.') {
+        projectDataStore.setCorrectionReport(job.projectId, buildCorrectionReport([], { [job.payload.parameterKey]: outcome.error }), true);
+      }
       jobStore.dispatch({
         type: 'fail',
         jobId: job.id,
@@ -454,6 +465,17 @@ export class JobRuntime {
     this.publish();
     this.releaseJobLock(job.id);
     void this.pump();
+  }
+
+  /** Keeps what a correction run reported, for the row badges and the batch summary. */
+  private recordCorrections(job: Job, outcome: RunOutcome) {
+    const batch = job.payload.kind === 'extraction' && !!job.payload.previousSpecs;
+    if (!batch && job.payload.kind !== 'correction') return;
+    projectDataStore.setCorrectionReport(
+      job.projectId,
+      buildCorrectionReport(outcome.corrections ?? [], outcome.parameterErrors ?? {}),
+      !batch,
+    );
   }
 
   private runByKind(job: Job, ctx: RunContext, payload: JobPayload): Promise<RunOutcome> {

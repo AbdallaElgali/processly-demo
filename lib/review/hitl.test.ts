@@ -5,7 +5,7 @@ import { ProjectDataStore } from '@/lib/project-data/store';
 import type { FullProjectDetails } from '@/api/types/projects';
 import { canRevert, editValue, mergeLocalEdits, revertValue, selectCandidate } from './edits';
 import { approvalCheck, approveBlockReason } from './approval';
-import { NO_REASONING, whyThisValue } from './why';
+import { whyThisValue } from './why';
 import { rowState } from './rowState';
 import { REASON_SEARCHED_ABSENT } from './reasonCodes';
 
@@ -197,7 +197,6 @@ describe('Why this value (AM15)', () => {
     expect(w.sourceNote).toBe('Row "U max"');
     expect(w.snippet).toBe('U max 4.2 V');
     expect(w.calculation).toBeNull();
-    expect(NO_REASONING).toBe('No reasoning recorded');
   });
 
   it('treats whitespace as empty and does not repeat the calculation as the source note', () => {

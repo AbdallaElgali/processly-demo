@@ -82,6 +82,11 @@ export interface AiMetricCandidate {
   param_name?: string | null;
   extraction_run_id?: string | null;
   run_number?: number | null;
+  /** Rules v1; null on older rows. `original_*` is the value before a fixed-factor unit conversion. */
+  original_value?: number | string | null;
+  original_unit?: string | null;
+  confidence_raw?: number | null;
+  rule_results?: import('@/types').RuleResult[] | null;
 }
 
 export interface FullProjectParameter {
@@ -119,6 +124,8 @@ export interface FullProjectParameter {
   parameter_id: string | null;
   /** The parameter's category (Title_Case, e.g. `End_Of_Life`), or null. Since backend step 3.5. */
   category: string | null;
+  /** The parameter's latest correction outcome (contract item 6), or null. */
+  latest_correction?: import('@/types').LatestCorrection | null;
 }
 
 export interface FullProjectDetails extends ProjectBase {

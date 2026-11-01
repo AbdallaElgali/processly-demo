@@ -99,6 +99,10 @@ const candidateToSpecification = (item: Record<string, unknown>): Specification 
     extractionLogic: (item.extraction_logic as string) ?? null,
     calculationLogic: (item.calculation_logic as string) ?? null,
     runNumber: typeof item.run_number === 'number' ? item.run_number : null,
+    originalValue: item.original_value !== null && item.original_value !== undefined ? String(item.original_value) : null,
+    originalUnit: (item.original_unit as string) ?? null,
+    confidenceRaw: toUiConfidence(item.confidence_raw),
+    ruleResults: Array.isArray(item.rule_results) ? (item.rule_results as Specification['ruleResults']) : [],
   };
 };
 
@@ -134,6 +138,7 @@ export const dbParamToInputField = (p: ProjectParameter): InputField => {
     activeFlagId: p.active_flag_id ?? null,
     reviewAction: ((p.review_action as ReviewAction) || 'PENDING') as ReviewAction,
     isHumanModified: !!p.is_human_modified,
+    latestCorrection: p.latest_correction ?? null,
   };
 
   const specifications = (p.candidates ?? []).map(c =>
