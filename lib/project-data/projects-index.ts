@@ -1,4 +1,10 @@
-import type { ProjectBase, ProjectStatus } from '@/api/types/projects';
+import type { ProjectBase } from '@/api/types/projects';
+
+/** The list entry fields that change after the project is created and are re-read with it. */
+const PROJECT_LIST_FIELDS = [
+  'status', 'approval_version', 'approved_at', 'approved_by', 'approved_by_username',
+  'changed_since_approval', 'open_flag_count', 'status_overridden',
+] as const satisfies readonly (keyof ProjectBase)[];
 
 /**
  * The user's project list, plus which project is on screen.
@@ -66,9 +72,24 @@ class ProjectsIndex {
     this.update({ projects: [...this.state.projects, project] });
   }
 
-  updateStatus(projectId: string, status: ProjectStatus) {
-    if (!this.state.projects.some((p) => p.id === projectId && p.status !== status)) return;
-    this.update({ projects: this.state.projects.map((p) => (p.id === projectId ? { ...p, status } : p)) });
+  /**
+   * Takes the fields of a freshly read project (status, approval fields, open
+   * flag count) into the list entry. The status is never set by an action:
+   * the project is re-read and the list follows what the backend says.
+   */
+  mergeProject(fresh: Partial<ProjectBase> & { id: string }) {
+    const known = this.state.projects.find((p) => p.id === fresh.id);
+    if (!known) return;
+    const merged: ProjectBase = { ...known };
+    let changed = false;
+    for (const key of PROJECT_LIST_FIELDS) {
+      if (key in fresh && fresh[key] !== known[key]) {
+        (merged as unknown as Record<string, unknown>)[key] = fresh[key];
+        changed = true;
+      }
+    }
+    if (!changed) return;
+    this.update({ projects: this.state.projects.map((p) => (p.id === fresh.id ? merged : p)) });
   }
 
   setActive(projectId: string | null) {

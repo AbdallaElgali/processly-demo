@@ -6,9 +6,11 @@ import { useMemo } from 'react';
 import { Box, Button, Skeleton, Stack, Typography } from '@mui/material';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { ErrorState } from '@/components/ui/ErrorState';
-import { StatusChip } from '@/components/ui/StatusChip';
+import { ProjectStatus } from '@/components/ui/ProjectStatus';
+import { useAuth } from '@/contexts/AuthContext';
 import { ReviewProgressCard } from '@/components/overview/ReviewProgressCard';
 import { StatusCard } from '@/components/overview/StatusCard';
+import { ApprovalHistoryCard } from '@/components/overview/ApprovalHistoryCard';
 import { DocumentsCard, JobStateCard, LastRunCard } from '@/components/overview/ActivityCards';
 import { useExtractionRuns } from '@/hooks/useExtractionRuns';
 import { useJobs, useProjectData } from '@/lib/jobs/hooks';
@@ -30,6 +32,7 @@ const GRID = {
  */
 export default function OverviewPage() {
   const { projectId } = useParams<{ projectId: string }>();
+  const { user } = useAuth();
   const state = useProjectData(projectId);
   const details = state?.details ?? null;
   const fields = state?.fields;
@@ -62,7 +65,7 @@ export default function OverviewPage() {
         <Box sx={{ flex: 1, minWidth: 240 }}>
           <Stack direction="row" alignItems="center" spacing={1.5} useFlexGap sx={{ flexWrap: 'wrap' }}>
             <Typography variant="h4" component="h1" sx={{ color: 'text.primary' }}>{details.alias_id}</Typography>
-            <StatusChip status={details.status} />
+            <ProjectStatus project={details} />
           </Stack>
           <Typography variant="body2" sx={{ color: details.description ? 'text.secondary' : 'text.muted', fontStyle: details.description ? 'normal' : 'italic', mt: 0.5, maxWidth: 720 }}>
             {details.description || 'No description.'}
@@ -83,7 +86,8 @@ export default function OverviewPage() {
 
       <Box sx={GRID}>
         <ReviewProgressCard progress={progress} />
-        <StatusCard projectId={projectId} status={details.status} />
+        <StatusCard projectId={projectId} project={details} userId={user?.id ?? null} />
+        <ApprovalHistoryCard projectId={projectId} approvalVersion={details.approval_version ?? null} />
         <DocumentsCard projectId={projectId} documents={details.documents ?? []} />
         {/* The activity row spans the grid and splits it in two, so a wide screen is not left with half a row empty. */}
         <Box sx={{ ...GRID, gridColumn: '1 / -1', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))' }}>

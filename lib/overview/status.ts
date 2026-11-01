@@ -12,18 +12,16 @@ export function isProjectStatus(value: string): value is ProjectStatus {
 }
 
 /**
- * The status-change control. It was hidden while `POST
- * /projects/update-project-status` answered 200 and wrote nothing (backend
- * item B22); backend step 3.1 fixed that and the route now returns the stored
- * status, so the control is on. Flip to `false` to hide it again.
+ * The backend moves the status by itself (extraction, review, approval). A
+ * person can only override it by hand, to one of `OVERRIDE_STATUSES`
+ * (lib/approvals/view.ts); APPROVED comes only from Approve.
  */
-export const STATUS_CHANGE_AVAILABLE = true;
-export const STATUS_CHANGE_UNAVAILABLE =
-  'Changing the status is turned off for now. The status is shown as stored.';
 
-/** The form-encoded body of `POST /projects/update-project-status`. */
-export function statusFormBody(projectId: string, status: ProjectStatus): URLSearchParams {
-  return new URLSearchParams({ project_id: projectId, new_status: status });
+/** The form-encoded body of `POST /projects/update-project-status`; `user_id` only when known. */
+export function statusFormBody(projectId: string, status: ProjectStatus, userId: string | null = null): URLSearchParams {
+  const body = new URLSearchParams({ project_id: projectId, new_status: status });
+  if (userId) body.set('user_id', userId);
+  return body;
 }
 
 /** What an extraction run's `extraction_type` is called on screen (Overview, Runs table). */

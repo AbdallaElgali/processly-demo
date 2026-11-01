@@ -38,6 +38,19 @@ export interface ProjectBase {
   created_at: string;
   source_template_id: string | null;
   customer_id: string | null;
+  /**
+   * Set by the backend, never by the frontend: the status moves by itself, so
+   * the project is re-read after review actions. Optional so an older backend
+   * (or a fixture) without them still type-checks; absent means null/false/0.
+   */
+  approval_version?: number | null;
+  approved_at?: string | null;
+  approved_by?: string | null;
+  approved_by_username?: string | null;
+  changed_since_approval?: boolean;
+  open_flag_count?: number;
+  /** True while the latest status change was a manual override. */
+  status_overridden?: boolean;
 }
 
 export interface ProjectDocument {

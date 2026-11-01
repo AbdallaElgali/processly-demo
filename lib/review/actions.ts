@@ -2,6 +2,8 @@ import { toast } from '@/components/ui/Toast';
 import { RevertCorrectionError, revertCorrection, updateResolvedBy } from '@/api/parameters';
 import { projectDataStore, type RowOp } from '@/lib/project-data/store';
 import { approveProject, reloadAfterRun, saveFields } from '@/lib/project-data/actions';
+import type { ApproveOptions } from '@/api/approvals';
+import type { ApproveResult } from '@/api/types/approvals';
 import { mapFieldsToSpecs } from '@/lib/parameter-adapter';
 import { createJob, jobRuntime } from '@/lib/jobs/runtime';
 import { jobStore } from '@/lib/jobs/store';
@@ -84,6 +86,7 @@ export async function chooseCandidate(projectId: string, key: string, specId: st
   await onRow(projectId, key, 'select', async () => {
     try {
       await updateResolvedBy(flagId, candidateId);
+      void reloadAfterRun(projectId);
     } catch (e) {
       projectDataStore.updateField(projectId, key, () => before);
       toast.show(`Could not record the chosen candidate for ${key}: ${message(e)}`, { severity: 'error' });
@@ -116,6 +119,8 @@ export async function flagRow(projectId: string, key: string, userId: string, re
       // batch save ignores flag fields (B9). The old "persist on flag" saved
       // every other row's unsaved edits as a side effect.
       projectDataStore.updateField(projectId, key, (f) => ({ ...f, isFlagged: true, flagReason: text || null, activeFlagId: id }));
+      // The flag moves the status and the open-flag count: read them back.
+      void reloadAfterRun(projectId);
       return id;
     } catch (e) {
       toast.show(`Could not flag ${key}: ${message(e)}`, { severity: 'error' });
@@ -133,6 +138,7 @@ export async function removeFlag(projectId: string, key: string, userId: string 
     try {
       await clearHumanFlag(field.activeFlagId, userId);
       projectDataStore.updateField(projectId, key, (f) => ({ ...f, isFlagged: false, flagReason: null, activeFlagId: null }));
+      void reloadAfterRun(projectId);
       toast.show(`Flag removed from ${key}.`, { severity: 'success' });
       return true;
     } catch (e) {
@@ -289,8 +295,13 @@ export async function saveChanges(projectId: string, userId: string | null): Pro
   return rows.length;
 }
 
-/** Save pending edits first, then approve. Returns how many parameters the backend approved. */
-export async function saveAndApprove(projectId: string, userId: string | null): Promise<number> {
+/**
+ * Save pending edits first, then approve (`approveProject`). With open flags
+ * and no `resolveOpenFlags` the backend answers 409 and this throws
+ * `OpenFlagsError`; the caller lists the flags and may call again with
+ * `resolveOpenFlags: true`.
+ */
+export async function saveAndApprove(projectId: string, userId: string | null, options: ApproveOptions = {}): Promise<ApproveResult> {
   await saveChanges(projectId, userId);
-  return approveProject(projectId, userId);
+  return approveProject(projectId, userId, options);
 }

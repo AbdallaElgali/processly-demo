@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Box, Typography } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { Card, Fact } from '@/components/overview/Card';
-import { StatusChip } from '@/components/ui/StatusChip';
+import { ProjectStatus } from '@/components/ui/ProjectStatus';
 import { getUserTemplates } from '@/api/templates';
 import type { FullProjectDetails } from '@/api/types/projects';
 
@@ -33,7 +33,7 @@ function useTemplateName(templateId: string | null, userId: string | null): { lo
 
 /**
  * The project's fixed facts. Read-only: the backend has no route that changes
- * a project's alias or description, and the status change is switched off (B22).
+ * a project's alias or description, and the status moves by itself.
  */
 export function ProjectDetailsCard({ details, userId }: { details: FullProjectDetails; userId: string | null }) {
   const template = useTemplateName(details.source_template_id, userId);
@@ -41,7 +41,7 @@ export function ProjectDetailsCard({ details, userId }: { details: FullProjectDe
     <Card title="Project details" icon={InfoOutlinedIcon} id="project-details">
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 1.5 }}>
         <Fact label="Name">{details.alias_id}</Fact>
-        <Fact label="Status"><StatusChip status={details.status} /></Fact>
+        <Fact label="Status"><ProjectStatus project={details} /></Fact>
         <Fact label="Created">{new Date(details.created_at).toLocaleDateString()}</Fact>
         <Fact label="Template used">
           {!details.source_template_id

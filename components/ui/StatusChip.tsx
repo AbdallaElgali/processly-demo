@@ -22,12 +22,13 @@ export function projectStatusLabel(status: ProjectStatus): string {
   return STATUS_STYLE[status]?.label ?? status;
 }
 
-export function StatusChip({ status, size = 'small' }: { status: ProjectStatus; size?: 'small' | 'medium' }) {
+/** `label` overrides the plain status word (the approved / changed-since-approval line). */
+export function StatusChip({ status, size = 'small', label }: { status: ProjectStatus; size?: 'small' | 'medium'; label?: string }) {
   const style = STATUS_STYLE[status] ?? STATUS_STYLE.NEW;
   return (
     <Chip
       size={size}
-      label={style.label}
+      label={label ?? style.label}
       sx={{ bgcolor: style.bg, color: style.fg, fontWeight: 600 }}
     />
   );

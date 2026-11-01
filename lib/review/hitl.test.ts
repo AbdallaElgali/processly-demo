@@ -153,17 +153,28 @@ describe('ProjectDataStore: dirty rows (step 10)', () => {
 });
 
 describe('Approve gate (step 10)', () => {
-  it('an open human flag blocks; an auto-flag only warns', () => {
+  it('an open human flag no longer blocks on the client (the backend answers 409); an auto-flag only warns', () => {
     const flagged = field({ isFlagged: true, activeFlagId: 'f1' });
     const bounds = field({ id: 'I_MAX' }, [spec({ rule_violations: ['above max'] })]);
-    const blocked = approvalCheck([flagged, bounds], { unsaved: 0, jobBusy: false });
-    expect(blocked.openFlags).toEqual(['U_MAX']);
-    expect(blocked.bounds).toEqual(['I_MAX']);
-    expect(approveBlockReason(blocked)).toMatch(/1 open flag/);
+    const withFlag = approvalCheck([flagged, bounds], { unsaved: 0, jobBusy: false });
+    expect(withFlag.openFlags).toEqual(['U_MAX']);
+    expect(withFlag.bounds).toEqual(['I_MAX']);
+    expect(approveBlockReason(withFlag)).toBeNull();
 
     const warnOnly = approvalCheck([bounds], { unsaved: 2, jobBusy: false });
     expect(approveBlockReason(warnOnly)).toBeNull();
     expect(warnOnly.bounds).toEqual(['I_MAX']);
+  });
+
+  it('an open flag alone is enough to approve, even with nothing pending (Approve resolves it)', () => {
+    const flaggedAccepted = field({ isFlagged: true, activeFlagId: 'f1', reviewAction: 'ACCEPTED' });
+    expect(approveBlockReason(approvalCheck([flaggedAccepted], { unsaved: 0, jobBusy: false }))).toBeNull();
+  });
+
+  it('a project changed since approval can be re-approved even with nothing pending', () => {
+    const accepted = field({ reviewAction: 'ACCEPTED' });
+    expect(approveBlockReason(approvalCheck([accepted], { unsaved: 0, jobBusy: false }))).toMatch(/Nothing is pending/);
+    expect(approveBlockReason(approvalCheck([accepted], { unsaved: 0, jobBusy: false, changedSinceApproval: true }))).toBeNull();
   });
 
   it('a running or queued re-extraction blocks', () => {

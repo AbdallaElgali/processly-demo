@@ -187,7 +187,7 @@ describe('reviewer_id and user_id on the wire (step 4)', () => {
     await apiApproveProjectParameters('p1', 'user-1');
     expect(calls[0].body).toEqual({ parameters: [], reviewer_id: 'user-1' });
     expect(calls[1].url).toMatch(/\/p1\/approve$/);
-    expect(calls[1].body).toEqual({ reviewer_id: 'user-1' });
+    expect(calls[1].body).toEqual({ reviewer_id: 'user-1', resolve_open_flags: false, note: null });
   });
 
   it('without a user the body still carries the field, null (the backend accepts the old body too)', async () => {
@@ -195,7 +195,7 @@ describe('reviewer_id and user_id on the wire (step 4)', () => {
     await apiSaveProjectParameters('p1', [], null);
     await apiApproveProjectParameters('p1', null);
     expect(calls[0].body).toMatchObject({ reviewer_id: null });
-    expect(calls[1].body).toEqual({ reviewer_id: null });
+    expect(calls[1].body).toEqual({ reviewer_id: null, resolve_open_flags: false, note: null });
   });
 
   it('removing a flag and resolving one send user_id; resolving is one call with resolved_by (3.2)', async () => {
@@ -251,10 +251,10 @@ describe('reload after approve and after a run (step 5)', () => {
   it('approve sends the reviewer and reloads the project, so no stale review state is saved back', async () => {
     const { approveProject } = await import('@/lib/project-data/actions');
     const { projectDataStore } = await import('@/lib/project-data/store');
-    respond = (c) => (isDetailsGet(c) ? { status: 200, body: detailsBody } : { status: 200, body: { parameters_approved: 1 } });
-    expect(await approveProject('p1', 'user-1')).toBe(1);
+    respond = (c) => (isDetailsGet(c) ? { status: 200, body: detailsBody } : { status: 200, body: { parameters_approved: 1, created: true, approval: { version: 1 } } });
+    expect((await approveProject('p1', 'user-1')).parameters_approved).toBe(1);
     expect(calls.map((c) => c.method)).toEqual(['POST', 'GET']);
-    expect(calls[0].body).toEqual({ reviewer_id: 'user-1' });
+    expect(calls[0].body).toEqual({ reviewer_id: 'user-1', resolve_open_flags: false, note: null });
     expect(projectDataStore.get('p1').fields[0].reviewAction).toBe('ACCEPTED');
   });
 
