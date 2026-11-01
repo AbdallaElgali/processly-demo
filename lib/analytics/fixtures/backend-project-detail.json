@@ -1,0 +1,345 @@
+{
+  "project_id": "a89a31fc-c700-4702-9c14-20bc54bf4fe3",
+  "alias": "test-b15-66cc0ce0",
+  "customer": null,
+  "status": "APPROVED",
+  "approval_state": "approved",
+  "approval_version": 2,
+  "approved_at": "2026-11-01T21:35:31.589478+00:00",
+  "parameter_count": 10,
+  "views": {
+    "blind_first": {
+      "tp": 1,
+      "fp": 3,
+      "fn": 2,
+      "ignored": 1,
+      "scored": 7,
+      "precision": 0.25,
+      "recall": 0.3333333333333333,
+      "f1": 0.2857142857142857,
+      "avg_candidates": null
+    },
+    "blind_any": {
+      "tp": 2,
+      "fp": 2,
+      "fn": 2,
+      "ignored": 1,
+      "scored": 7,
+      "precision": 0.5,
+      "recall": 0.5,
+      "f1": 0.5,
+      "avg_candidates": 0.8571428571428571
+    },
+    "final_first": {
+      "tp": 4,
+      "fp": 2,
+      "fn": 1,
+      "ignored": 1,
+      "scored": 8,
+      "precision": 0.6666666666666666,
+      "recall": 0.8,
+      "f1": 0.7272727272727273,
+      "avg_candidates": null
+    },
+    "final_any": {
+      "tp": 5,
+      "fp": 1,
+      "fn": 1,
+      "ignored": 1,
+      "scored": 8,
+      "precision": 0.8333333333333334,
+      "recall": 0.8333333333333334,
+      "f1": 0.8333333333333334,
+      "avg_candidates": 1.25
+    }
+  },
+  "acceptance_rate": 0.2,
+  "origin_mix": {
+    "AI_SELECTED": 2,
+    "AI_CORRECTED": 3,
+    "HUMAN_ENTERED": 5
+  },
+  "excluded": {
+    "coverage_gap": 2,
+    "never_asked": 1,
+    "unranked": 0,
+    "parameter_removed": 1
+  },
+  "parameters": [
+    {
+      "project_parameter_id": "13da6eb9-1991-44c6-a44f-6afd6f2727cb",
+      "alias": "A",
+      "canonical_name": "TEST_B15_A_66cc0ce0",
+      "truth_value": "3.65",
+      "truth_unit": "V",
+      "origin": "HUMAN_ENTERED",
+      "blind_first": {
+        "value": "3.1",
+        "unit": "V"
+      },
+      "final_first": {
+        "value": "3.1",
+        "unit": "V"
+      },
+      "blind_candidate_count": 3,
+      "final_candidate_count": 3,
+      "matched_candidate": {
+        "value": "3.65",
+        "unit": "V",
+        "run_type": "BLIND",
+        "rank": 1
+      },
+      "outcomes": {
+        "blind_first": "FP",
+        "blind_any": "TP",
+        "final_first": "FP",
+        "final_any": "TP"
+      }
+    },
+    {
+      "project_parameter_id": "1d8f30fc-4547-4693-b731-5b1bd32e93a6",
+      "alias": "B",
+      "canonical_name": "TEST_B15_B_66cc0ce0",
+      "truth_value": "2",
+      "truth_unit": "A",
+      "origin": "HUMAN_ENTERED",
+      "blind_first": {
+        "value": "2000",
+        "unit": "mA"
+      },
+      "final_first": {
+        "value": "2",
+        "unit": "A"
+      },
+      "blind_candidate_count": 1,
+      "final_candidate_count": 2,
+      "matched_candidate": {
+        "value": "2000",
+        "unit": "mA",
+        "run_type": "BLIND",
+        "rank": 0
+      },
+      "outcomes": {
+        "blind_first": "TP",
+        "blind_any": "TP",
+        "final_first": "TP",
+        "final_any": "TP"
+      }
+    },
+    {
+      "project_parameter_id": "645eb5b7-980b-4097-8b6d-f5812194579f",
+      "alias": "C",
+      "canonical_name": "TEST_B15_C_66cc0ce0",
+      "truth_value": "6",
+      "truth_unit": "V",
+      "origin": "AI_CORRECTED",
+      "blind_first": {
+        "value": "5",
+        "unit": "V"
+      },
+      "final_first": {
+        "value": "6",
+        "unit": "V"
+      },
+      "blind_candidate_count": 1,
+      "final_candidate_count": 2,
+      "matched_candidate": {
+        "value": "6",
+        "unit": "V",
+        "run_type": "ITERATIVE",
+        "rank": 0
+      },
+      "outcomes": {
+        "blind_first": "FP",
+        "blind_any": "FP",
+        "final_first": "TP",
+        "final_any": "TP"
+      }
+    },
+    {
+      "project_parameter_id": "8f7c7811-dcce-4d59-a2e7-cd8e5bc6f20f",
+      "alias": "D",
+      "canonical_name": "TEST_B15_D_66cc0ce0",
+      "truth_value": "7",
+      "truth_unit": "V",
+      "origin": "HUMAN_ENTERED",
+      "blind_first": {
+        "value": null,
+        "unit": null
+      },
+      "final_first": {
+        "value": null,
+        "unit": null
+      },
+      "blind_candidate_count": 0,
+      "final_candidate_count": 0,
+      "matched_candidate": null,
+      "outcomes": {
+        "blind_first": "FN",
+        "blind_any": "FN",
+        "final_first": "FN",
+        "final_any": "FN"
+      }
+    },
+    {
+      "project_parameter_id": "bf61cda4-aa21-46e5-8413-abcd932bf18e",
+      "alias": "E",
+      "canonical_name": "TEST_B15_E_66cc0ce0",
+      "truth_value": null,
+      "truth_unit": null,
+      "origin": "HUMAN_ENTERED",
+      "blind_first": {
+        "value": "4.2",
+        "unit": "V"
+      },
+      "final_first": {
+        "value": "4.2",
+        "unit": "V"
+      },
+      "blind_candidate_count": 1,
+      "final_candidate_count": 1,
+      "matched_candidate": null,
+      "outcomes": {
+        "blind_first": "FP",
+        "blind_any": "FP",
+        "final_first": "FP",
+        "final_any": "FP"
+      }
+    },
+    {
+      "project_parameter_id": "93206c1a-9e88-4b97-b6a4-0419a6e1f734",
+      "alias": "F",
+      "canonical_name": "TEST_B15_F_66cc0ce0",
+      "truth_value": null,
+      "truth_unit": null,
+      "origin": "AI_SELECTED",
+      "blind_first": {
+        "value": null,
+        "unit": null
+      },
+      "final_first": {
+        "value": null,
+        "unit": null
+      },
+      "blind_candidate_count": 0,
+      "final_candidate_count": 0,
+      "matched_candidate": null,
+      "outcomes": {
+        "blind_first": "ignored",
+        "blind_any": "ignored",
+        "final_first": "ignored",
+        "final_any": "ignored"
+      }
+    },
+    {
+      "project_parameter_id": "d7985762-47e9-4591-bc6a-f3b5ab87ae40",
+      "alias": "G",
+      "canonical_name": "TEST_PM_G_9da943be",
+      "truth_value": "1.5",
+      "truth_unit": "V",
+      "origin": "AI_CORRECTED",
+      "blind_first": {
+        "value": null,
+        "unit": null
+      },
+      "final_first": {
+        "value": "1.5",
+        "unit": "V"
+      },
+      "blind_candidate_count": 0,
+      "final_candidate_count": 1,
+      "matched_candidate": {
+        "value": "1.5",
+        "unit": "V",
+        "run_type": "SINGLE_PARAM",
+        "rank": 0
+      },
+      "outcomes": {
+        "blind_first": "excluded_coverage_gap",
+        "blind_any": "excluded_coverage_gap",
+        "final_first": "TP",
+        "final_any": "TP"
+      }
+    },
+    {
+      "project_parameter_id": "8084aaf5-dd6d-4ec2-9f9b-b15ac0b30c51",
+      "alias": "H",
+      "canonical_name": "TEST_B15_H_66cc0ce0",
+      "truth_value": "2.5",
+      "truth_unit": "V",
+      "origin": "AI_CORRECTED",
+      "blind_first": {
+        "value": null,
+        "unit": null
+      },
+      "final_first": {
+        "value": "2.5",
+        "unit": "V"
+      },
+      "blind_candidate_count": 0,
+      "final_candidate_count": 1,
+      "matched_candidate": {
+        "value": "2.5",
+        "unit": "V",
+        "run_type": "SINGLE_PARAM",
+        "rank": 0
+      },
+      "outcomes": {
+        "blind_first": "FN",
+        "blind_any": "FN",
+        "final_first": "TP",
+        "final_any": "TP"
+      }
+    },
+    {
+      "project_parameter_id": "8663e410-3433-4c6d-a4a4-05da23767f99",
+      "alias": "N",
+      "canonical_name": "TEST_PM_N_56151c3d",
+      "truth_value": "9",
+      "truth_unit": "V",
+      "origin": "HUMAN_ENTERED",
+      "blind_first": {
+        "value": null,
+        "unit": null
+      },
+      "final_first": {
+        "value": null,
+        "unit": null
+      },
+      "blind_candidate_count": 0,
+      "final_candidate_count": 0,
+      "matched_candidate": null,
+      "outcomes": {
+        "blind_first": "excluded_coverage_gap",
+        "blind_any": "excluded_coverage_gap",
+        "final_first": "excluded_never_asked",
+        "final_any": "excluded_never_asked"
+      }
+    },
+    {
+      "project_parameter_id": null,
+      "alias": "R",
+      "canonical_name": "TEST_B15_R_66cc0ce0",
+      "truth_value": "1",
+      "truth_unit": "V",
+      "origin": "AI_SELECTED",
+      "blind_first": {
+        "value": null,
+        "unit": null
+      },
+      "final_first": {
+        "value": null,
+        "unit": null
+      },
+      "blind_candidate_count": 0,
+      "final_candidate_count": 0,
+      "matched_candidate": null,
+      "outcomes": {
+        "blind_first": "excluded_removed",
+        "blind_any": "excluded_removed",
+        "final_first": "excluded_removed",
+        "final_any": "excluded_removed"
+      }
+    }
+  ]
+}

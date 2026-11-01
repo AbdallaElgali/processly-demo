@@ -31,9 +31,9 @@ export const HELP = {
   avgCandidates: 'How many values the AI offered per parameter on average. "Found" views get easier with more candidates; read them together.',
   acceptance: 'The share of approved values the engineers kept exactly as the AI first extracted them.',
   leftOut:
-    'Parameters added after the first extraction, never sent to the AI, from extractions too old to show the AI\'s pick, or deleted after approval. Not scored in the views they don\'t apply to.',
+    'Parameters added after the first extraction, not covered by any AI run before approval, from runs too old to show the AI\'s pick, or deleted after approval. Not scored in the views they don\'t apply to.',
   pooledVsAverage:
-    'Pooled adds up all parameters of all approved projects, so large projects weigh more. Average scores each project, then averages, so each project weighs the same.',
+    'Pooled adds up all parameters of all approved projects, so large projects weigh more. Average scores each project, then averages, so each project weighs the same; projects with no score ("—") are left out of the average.',
 } as const;
 
 /** A rate (0..1) for display; null is "—", never 0. */
