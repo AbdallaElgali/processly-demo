@@ -84,6 +84,8 @@ export interface Job {
    * `warnings` above instead.
    */
   uploadWarnings?: string[];
+  /** Interrupted extractions and corrections: whether the server confirmed that no run was saved. */
+  runCheck?: 'lost' | 'unknown';
   /** Interrupted uploads only: what the project's documents say about the files. */
   uploadCheck?: UploadCheck;
   /** An interrupted upload found complete in the project ("Saved while you were away"). */
@@ -104,7 +106,7 @@ export type JobAction =
   | { type: 'event'; jobId: string; event: SseEvent }
   | { type: 'complete'; jobId: string; at: number; seen: boolean; warnings?: string[]; savedWhileAway?: boolean }
   | { type: 'fail'; jobId: string; at: number; error: string }
-  | { type: 'interrupt'; jobId: string; at: number }
+  | { type: 'interrupt'; jobId: string; at: number; runCheck?: 'lost' | 'unknown' }
   | { type: 'uploadCheck'; jobId: string; check: UploadCheck }
   | { type: 'cancel'; jobId: string; at: number }
   | { type: 'markSeen'; projectId: string }

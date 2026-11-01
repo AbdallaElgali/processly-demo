@@ -8,6 +8,7 @@ import { useProjectActivity } from '@/lib/jobs/hooks';
 import { JobBanner } from '@/components/jobs/JobBanner';
 import { failedJobText, jobKindLabel, runningJobText } from '@/lib/jobs/label';
 import { keepOpenText } from '@/lib/jobs/closeGuard';
+import { interruptedRunText } from '@/lib/jobs/outcome';
 import { SAVED_AWAY_TEXT, interruptedUploadText } from '@/lib/jobs/uploadRecovery';
 
 type Tone = 'info' | 'warning' | 'danger' | 'success';
@@ -46,7 +47,7 @@ export function JobStatusLine({ projectId }: { projectId: string }) {
     // goes (D9); a sent upload is checked against the project (backend U1).
     text = interrupted.kind === 'upload'
       ? interruptedUploadText(interrupted.uploadCheck)
-      : `${jobKindLabel(interrupted.kind)} interrupted; nothing was saved`;
+      : interruptedRunText(interrupted);
   } else if (failed) {
     tone = 'danger';
     text = failedJobText(failed);

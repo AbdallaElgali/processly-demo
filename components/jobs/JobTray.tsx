@@ -10,6 +10,8 @@ import WorkHistoryOutlinedIcon from '@mui/icons-material/WorkHistoryOutlined';
 import { useJobs, useJobTray } from '@/lib/jobs/hooks';
 import { keepOpenText } from '@/lib/jobs/closeGuard';
 import { failedJobText, jobKindLabel } from '@/lib/jobs/label';
+import { interruptedRunText } from '@/lib/jobs/outcome';
+import { interruptedUploadText } from '@/lib/jobs/uploadRecovery';
 import { jobRuntime } from '@/lib/jobs/runtime';
 import { finishedJobIds, trayEntries } from '@/lib/jobs/tray';
 import type { Job } from '@/lib/jobs/types';
@@ -47,7 +49,7 @@ function statusText(job: Job): string {
     case 'completed': return (job.uploadWarnings?.length ?? 0) > 0
       ? `Upload done · ${job.uploadWarnings!.length} not accepted`
       : `${jobKindLabel(job.kind)} · done`;
-    case 'interrupted': return `${jobKindLabel(job.kind)} · interrupted`;
+    case 'interrupted': return job.kind === 'upload' ? interruptedUploadText(job.uploadCheck) : interruptedRunText(job);
     case 'failed': return failedJobText(job);
     default: return jobKindLabel(job.kind);
   }

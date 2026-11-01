@@ -119,7 +119,8 @@ export function jobsReducer(state: JobsState, action: JobAction): JobsState {
               ...job,
               status: 'interrupted',
               endedAt: action.at,
-              error: 'The tab running this job was closed or refreshed.',
+              error: 'The page running this work was closed or reloaded.',
+              runCheck: action.runCheck,
             }
           : job,
       );

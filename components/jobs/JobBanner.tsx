@@ -1,6 +1,7 @@
 'use client';
 
 import { KEEP_TAB_OPEN_TEXT, KEEP_UPLOAD_OPEN_TEXT } from '@/lib/jobs/closeGuard';
+import { interruptedRunText } from '@/lib/jobs/outcome';
 import { SAVED_AWAY_TEXT, interruptedUploadText } from '@/lib/jobs/uploadRecovery';
 import { useState } from 'react';
 import { Alert, Box, Button, LinearProgress, Stack, Typography } from '@mui/material';
@@ -137,21 +138,7 @@ export function JobBanner({ projectId, padded = true }: { projectId: string | nu
               Re-running costs tokens and creates a new run, so it stays the
               user's choice. An upload is different (backend U1): a fully sent
               file keeps going on the server, so its outcome is checked. */}
-          {interrupted.kind === 'upload' ? (
-            <>
-              The tab sending this upload was closed or refreshed. {interruptedUploadText(interrupted.uploadCheck)}
-              {interrupted.uploadCheck?.state === 'missing' && (
-                <Typography variant="caption" sx={{ display: 'block' }}>
-                  Not in the project: {interrupted.uploadCheck.missing.join(', ')}. Add the file again with Add documents.
-                </Typography>
-              )}
-            </>
-          ) : (
-            <>
-              The tab running this {KIND_LABEL[interrupted.kind].toLowerCase()} was closed or
-              refreshed, so it saved nothing.
-            </>
-          )}
+          {interrupted.kind === 'upload' ? interruptedUploadText(interrupted.uploadCheck) : interruptedRunText(interrupted)}
         </Alert>
       )}
 
