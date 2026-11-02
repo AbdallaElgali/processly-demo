@@ -1,4 +1,3 @@
-import { addMemberResult, type AddMemberResult } from '@/lib/members/members';
 import { apiFetch } from '@/lib/http/apiFetch';
 import { config } from './config';
 import { statusFormBody } from '@/lib/overview/status';
@@ -190,35 +189,6 @@ export const apiGetProjectDetails = async (projectId: string): Promise<Project> 
   if (!response.ok) throw new Error(await response.text());
   return response.json();
 };
-
-/** A username the backend does not know (404 on the member routes). */
-export class UserNotFoundError extends Error {
-  constructor(username: string) {
-    super(`User not found: no user is named "${username}".`);
-    this.name = 'UserNotFoundError';
-  }
-}
-
-async function addMember(projectId: string, role: 'contributors' | 'auditors', username: string): Promise<AddMemberResult> {
-  const response = await apiFetch(`${API_BASE_URL}/${projectId}/${role}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username }),
-  });
-  if (response.status === 404) throw new UserNotFoundError(username);
-  if (!response.ok) throw new Error(await response.text());
-  // 201 {added: true, member} / 200 {added: false, member} with enforcement; 200 {message} before.
-  const body: unknown = await response.json().catch(() => null);
-  return addMemberResult(body);
-}
-
-/** POST /projects/{id}/contributors { username }. */
-export const apiAddContributor = (projectId: string, username: string): Promise<AddMemberResult> =>
-  addMember(projectId, 'contributors', username);
-
-/** POST /projects/{id}/auditors { username }. */
-export const apiAddAuditor = (projectId: string, username: string): Promise<AddMemberResult> =>
-  addMember(projectId, 'auditors', username);
 
 /**
  * POST /projects/update-project-status: the MANUAL override (NEW, PENDING_REVIEW
