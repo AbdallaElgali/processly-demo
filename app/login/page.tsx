@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Alert, Box, Button, Paper, Stack, TextField, Typography } from '@mui/material';
 import { useAuth } from '@/contexts/AuthContext';
+import { LOGIN_EXPIRED_MESSAGE } from '@/lib/http/session';
 
 function LoginForm() {
   const params = useSearchParams();
@@ -12,6 +13,7 @@ function LoginForm() {
   const [username, setUsername] = useState(params.get('username') ?? '');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const expired = params.get('expired') === '1';
   const { login, user } = useAuth();
   const router = useRouter();
 
@@ -48,6 +50,7 @@ function LoginForm() {
 
       <form onSubmit={handleLogin} noValidate>
         <Stack spacing={2.5}>
+          {expired && !error && <Alert severity="info">{LOGIN_EXPIRED_MESSAGE}</Alert>}
           {error && <Alert severity="error">{error}</Alert>}
 
           <TextField

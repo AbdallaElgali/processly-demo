@@ -24,7 +24,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { SkeletonCardGrid, SkeletonRows } from '@/components/ui/Skeletons';
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
-import { toast, ToastHost } from '@/components/ui/Toast';
+import { toast } from '@/components/ui/Toast';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { FormDialog } from '@/components/ui/FormDialog';
 import { DensityToggle, type Density } from '@/components/ui/DensityToggle';
@@ -82,7 +82,6 @@ export default function GalleryPage() {
 
   return (
     <Box sx={{ minHeight: '100dvh', bgcolor: 'surface.canvas' }}>
-      <ToastHost />
       {!tourDismissed && (
         <GuidedTour
           storageKey="gallery.tour.dismissed"

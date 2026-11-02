@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/http/apiFetch';
 import { config } from './config';
 
 const API_URL = config.api;
@@ -13,7 +14,7 @@ export interface UserSettings {
 }
 
 export const update_user_settings = async (userId: string, settings: UserSettings): Promise<boolean> => {
-    const response = await fetch(`${API_BASE_URL}/update-user-settings`, {
+    const response = await apiFetch(`${API_BASE_URL}/update-user-settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings),

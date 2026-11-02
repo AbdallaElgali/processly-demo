@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/http/apiFetch';
 import { config } from './config';
 import { uploadErrorText } from './upload-error';
 
@@ -39,7 +40,7 @@ export const uploadDocuments = async (
     formData.append('files', file);
   });
 
-  const response = await fetch(API_URL + '/files/upload-documents/', {
+  const response = await apiFetch(API_URL + '/files/upload-documents/', {
     method: 'POST',
     body: formData,
     signal,

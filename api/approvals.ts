@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/http/apiFetch';
 import { config } from './config';
 import type { Approval, ApprovalDetail, ApproveResult, OpenFlag } from './types/approvals';
 
@@ -31,7 +32,7 @@ export interface ApproveOptions {
  */
 export async function apiApprove(projectId: string, reviewerId: string | null, options: ApproveOptions = {}): Promise<ApproveResult> {
   const note = options.note?.trim() ? options.note.trim() : null;
-  const response = await fetch(`${BASE}/${projectId}/approve`, {
+  const response = await apiFetch(`${BASE}/${projectId}/approve`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ reviewer_id: reviewerId, resolve_open_flags: options.resolveOpenFlags ?? false, note }),
@@ -49,7 +50,7 @@ export async function apiApprove(projectId: string, reviewerId: string | null, o
 
 /** POST /projects/{id}/flags/resolve-all -> number of flags resolved. */
 export async function apiResolveAllFlags(projectId: string, userId: string | null): Promise<number> {
-  const response = await fetch(`${BASE}/${projectId}/flags/resolve-all`, {
+  const response = await apiFetch(`${BASE}/${projectId}/flags/resolve-all`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ user_id: userId }),
@@ -61,7 +62,7 @@ export async function apiResolveAllFlags(projectId: string, userId: string | nul
 
 /** GET /projects/{id}/approvals -> versions, newest first ([] when never approved). */
 export async function apiGetApprovals(projectId: string): Promise<Approval[]> {
-  const response = await fetch(`${BASE}/${projectId}/approvals`);
+  const response = await apiFetch(`${BASE}/${projectId}/approvals`);
   if (!response.ok) throw new Error(await response.text());
   const body: { approvals?: Approval[] } = await response.json();
   return body.approvals ?? [];
@@ -69,7 +70,7 @@ export async function apiGetApprovals(projectId: string): Promise<Approval[]> {
 
 /** GET /projects/{id}/approvals/{version} (404 when the project has no such version). */
 export async function apiGetApproval(projectId: string, version: number): Promise<ApprovalDetail> {
-  const response = await fetch(`${BASE}/${projectId}/approvals/${version}`);
+  const response = await apiFetch(`${BASE}/${projectId}/approvals/${version}`);
   if (!response.ok) throw new Error(await response.text());
   return response.json();
 }

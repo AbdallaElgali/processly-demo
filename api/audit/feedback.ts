@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/http/apiFetch';
 import { config } from '@/api/config';
 import { collectAllPages } from '@/lib/audit/feedback';
 
@@ -47,7 +48,7 @@ function toQuery(filters: FeedbackFilters): string {
 
 /** One page. The route returns no total, so `total` is the size of this page only. */
 export const fetch_feedback = async (filters: FeedbackFilters, signal?: AbortSignal): Promise<FeedbackResponse> => {
-    const response = await fetch(`${API_BASE_URL}/feedback-list?${toQuery(filters)}`, { signal });
+    const response = await apiFetch(`${API_BASE_URL}/feedback-list?${toQuery(filters)}`, { signal });
     if (!response.ok) throw new Error(await response.text());
     const data = await response.json();
     const feedbacks: FeedbackItem[] = data.feedbacks ?? [];

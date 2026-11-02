@@ -7,6 +7,7 @@ import { JobBadge, activityBadge } from '@/components/jobs/JobBadge';
 import { useProjectActivity, useProjectData } from '@/lib/jobs/hooks';
 import { requestProjectCounts } from '@/lib/project-data/lazyDetails';
 import { ProjectStatus } from './ProjectStatus';
+import { RoleBadge } from './RoleBadge';
 import type { ProjectBase } from '@/api/types/projects';
 
 /**
@@ -49,6 +50,7 @@ export function ProjectCard({
           <Typography variant="h6" noWrap sx={{ color: 'text.primary', flex: 1 }} title={project.alias_id}>
             {project.alias_id}
           </Typography>
+          <RoleBadge role={project.my_role} />
           {badge && <JobBadge kind={badge} />}
         </Stack>
 

@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/http/apiFetch';
 import { config } from './config';
 import type { PromptVersion } from './prompts';
 
@@ -33,7 +34,7 @@ export interface CustomerSettings {
 }
 
 async function call<T>(path: string, init?: RequestInit, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(`${config.api}${path}`, {
+  const response = await apiFetch(`${config.api}${path}`, {
     ...init,
     signal,
     headers: init?.body ? { 'Content-Type': 'application/json' } : undefined,

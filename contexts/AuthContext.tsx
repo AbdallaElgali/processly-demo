@@ -1,5 +1,8 @@
 'use client';
 
+import { apiFetch, configureHttp, setRequestUser } from '@/lib/http/apiFetch';
+import { toast } from '@/components/ui/Toast';
+import { LOGIN_EXPIRED_URL } from '@/lib/http/session';
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useColorScheme } from '@mui/material/styles';
@@ -42,9 +45,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => { userRef.current = user; }, [user]);
 
   const logout = useCallback(() => {
+    setRequestUser(null);
     setUser(null);
     localStorage.removeItem('bda_user');
     router.push('/login');
+  }, [router]);
+
+  // 401 from any backend request: the stored user is not valid. 403: the
+  // backend says why, shown as it is. Once per burst, not once per request.
+  useEffect(() => {
+    let expired = false;
+    let lastForbidden = { detail: '', at: 0 };
+    configureHttp({
+      onUnauthorized: () => {
+        if (expired) return;
+        expired = true;
+        setRequestUser(null);
+        userRef.current = null;
+        setUser(null);
+        localStorage.removeItem('bda_user');
+        router.push(LOGIN_EXPIRED_URL);
+      },
+      onForbidden: (detail) => {
+        const now = Date.now();
+        if (detail === lastForbidden.detail && now - lastForbidden.at < 2000) return;
+        lastForbidden = { detail, at: now };
+        toast.show(detail, { severity: 'error' });
+      },
+    });
+    return () => configureHttp({});
   }, [router]);
 
   useEffect(() => {
@@ -55,10 +84,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const parsedUser: User = JSON.parse(storedUserData);
           // RE-VERIFY with the backend
-          const response = await fetch(`${AUTH_API_URL}/user?username=${encodeURIComponent(parsedUser.username)}`);
+          const response = await apiFetch(`${AUTH_API_URL}/user?username=${encodeURIComponent(parsedUser.username)}`);
           
           if (response.ok) {
             const freshData = await response.json();
+            setRequestUser(freshData.id);
             setUser({ 
               id: freshData.id, 
               username: freshData.username, 
@@ -105,7 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (username: string) => {
     try {
-      const response = await fetch(`${AUTH_API_URL}/user?username=${encodeURIComponent(username)}`);
+      const response = await apiFetch(`${AUTH_API_URL}/user?username=${encodeURIComponent(username)}`);
       
       if (response.ok) {
         const data = await response.json();
@@ -121,6 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
         
         userRef.current = currentUser;
+        setRequestUser(currentUser.id);
         setUser(currentUser);
         localStorage.setItem('bda_user', JSON.stringify(currentUser));
         // S1: the stored choice follows the person to this browser. Only at

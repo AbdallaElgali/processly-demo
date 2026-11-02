@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/http/apiFetch';
 import { config } from './config';
 
 const API_URL = config.api;
@@ -131,7 +132,7 @@ async function rawFailure(response: Response): Promise<HttpError> {
 
 /** `POST /extraction-templates/parameters`: define a new canonical parameter. 409 name taken, 422 invalid. */
 export async function createCanonicalParameter(data: CanonicalParameterCreate): Promise<CanonicalParameter> {
-    const response = await fetch(`${API_BASE_URL}/parameters`, {
+    const response = await apiFetch(`${API_BASE_URL}/parameters`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -142,7 +143,7 @@ export async function createCanonicalParameter(data: CanonicalParameterCreate): 
 
 /** `PUT /extraction-templates/parameters/{id}`: description and unit. 409 for the 27 built-in parameters. */
 export async function updateCanonicalParameter(parameterId: string, data: CanonicalParameterUpdate): Promise<CanonicalParameter> {
-    const response = await fetch(`${API_BASE_URL}/parameters/${parameterId}`, {
+    const response = await apiFetch(`${API_BASE_URL}/parameters/${parameterId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -155,7 +156,7 @@ export async function updateCanonicalParameter(parameterId: string, data: Canoni
  * Fetches the core dictionary of canonical parameters.
  */
 export async function getParameters(): Promise<CanonicalParameter[]> {
-    const response = await fetch(`${API_BASE_URL}/parameters`, {
+    const response = await apiFetch(`${API_BASE_URL}/parameters`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
     });
@@ -168,7 +169,7 @@ export async function getParameters(): Promise<CanonicalParameter[]> {
  * Creates a new empty extraction template.
  */
 export async function createTemplate(data: TemplateCreate): Promise<ExtractionTemplateBase> {
-    const response = await fetch(`${API_BASE_URL}/`, {
+    const response = await apiFetch(`${API_BASE_URL}/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -182,7 +183,7 @@ export async function createTemplate(data: TemplateCreate): Promise<ExtractionTe
  * Fetches all templates a user has access to (own, global, system).
  */
 export async function getUserTemplates(userId: string): Promise<ExtractionTemplateBase[]> {
-    const response = await fetch(`${API_BASE_URL}/user/${userId}`, {
+    const response = await apiFetch(`${API_BASE_URL}/user/${userId}`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
     });
@@ -195,7 +196,7 @@ export async function getUserTemplates(userId: string): Promise<ExtractionTempla
  * Fetches a complete template and all its associated parameter rules.
  */
 export async function getTemplateDetails(templateId: string): Promise<TemplateWithRules> {
-    const response = await fetch(`${API_BASE_URL}/${templateId}`, {
+    const response = await apiFetch(`${API_BASE_URL}/${templateId}`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
     });
@@ -211,7 +212,7 @@ export async function upsertTemplateRule(
     templateId: string, 
     data: TemplateRuleUpsert
 ): Promise<TemplateRule> {
-    const response = await fetch(`${API_BASE_URL}/${templateId}/rules`, {
+    const response = await apiFetch(`${API_BASE_URL}/${templateId}/rules`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -225,7 +226,7 @@ export async function upsertTemplateRule(
  * Deletes a template (cascades to rules automatically).
  */
 export async function deleteTemplate(templateId: string): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/${templateId}`, {
+    const response = await apiFetch(`${API_BASE_URL}/${templateId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
     });
@@ -238,7 +239,7 @@ export async function deleteTemplate(templateId: string): Promise<void> {
  * Clones a project's active parameters back into a reusable template.
  */
 export async function createTemplateFromProject(data: ProjectToTemplate): Promise<ExtractionTemplateBase> {
-    const response = await fetch(`${API_BASE_URL}/from-project`, {
+    const response = await apiFetch(`${API_BASE_URL}/from-project`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),

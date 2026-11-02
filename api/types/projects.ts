@@ -15,6 +15,8 @@
  * Replace with generated types once RFC 5 P0 lands (Task B).
  */
 
+import type { Role } from '@/lib/permissions/access';
+
 /** projects.status_enum in the DB schema. */
 export type ProjectStatus = 'NEW' | 'PENDING_REVIEW' | 'IN_REVIEW' | 'APPROVED';
 
@@ -51,6 +53,8 @@ export interface ProjectBase {
   open_flag_count?: number;
   /** True while the latest status change was a manual override. */
   status_overridden?: boolean;
+  /** The caller's role in this project (the X-User-Id user); null if none. Absent on an older backend. */
+  my_role?: Role | null;
 }
 
 export interface ProjectDocument {

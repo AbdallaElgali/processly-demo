@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/http/apiFetch';
 import { config } from './config';
 import { analyticsErrorMessage } from '@/lib/analytics/detail';
 import type { ProjectMetricsDetail, ProjectMetricsResponse } from './types/analytics';
@@ -14,7 +15,7 @@ export class AnalyticsError extends Error {
 }
 
 async function getJson<T>(url: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(url, { signal });
+  const response = await apiFetch(url, { signal });
   if (!response.ok) throw new AnalyticsError(response.status);
   return (await response.json()) as T;
 }

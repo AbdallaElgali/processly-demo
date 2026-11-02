@@ -1,3 +1,4 @@
+import type { AddMemberResult } from '@/lib/members/members';
 import {
   apiAddAuditor,
   apiAddContributor,
@@ -171,13 +172,14 @@ export async function createProject(input: ProjectCreateInput): Promise<ProjectB
   return project;
 }
 
-export async function addContributor(projectId: string, username: string): Promise<void> {
-  await apiAddContributor(projectId, username);
+export async function addContributor(projectId: string, username: string): Promise<AddMemberResult> {
+  const result = await apiAddContributor(projectId, username);
   await loadProjectDetails(projectId, { background: true });
+  return result;
 }
 
-export async function addAuditor(projectId: string, username: string): Promise<void> {
-  await apiAddAuditor(projectId, username);
+export async function addAuditor(projectId: string, username: string): Promise<AddMemberResult> {
+  return apiAddAuditor(projectId, username);
 }
 
 /**

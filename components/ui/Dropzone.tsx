@@ -19,28 +19,36 @@ const ACCEPT = '.pdf,.xlsx,.xlsm';
 export function Dropzone({
   onFiles,
   queuedHint = false,
+  disabledReason,
   sx,
 }: {
   onFiles: (files: File[]) => void;
   queuedHint?: boolean;
+  /** When set, the dropzone does not accept files and shows this text instead (e.g. the person may not upload). */
+  disabledReason?: string | null;
   /** Layout overrides, e.g. filling an empty Workspace (AM11). */
   sx?: SxProps<Theme>;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
 
-  const openPicker = () => inputRef.current?.click();
+  const disabled = !!disabledReason;
+  const openPicker = () => {
+    if (!disabled) inputRef.current?.click();
+  };
 
   const handleFiles = (list: FileList | null) => {
-    if (!list || list.length === 0) return;
+    if (disabled || !list || list.length === 0) return;
     onFiles(Array.from(list));
   };
 
   return (
     <Box
       role="button"
-      tabIndex={0}
+      tabIndex={disabled ? -1 : 0}
       aria-label="Upload documents"
+      aria-disabled={disabled}
+      title={disabledReason ?? undefined}
       onClick={openPicker}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -65,9 +73,10 @@ export function Dropzone({
         bgcolor: dragOver ? 'accent.tint' : 'surface.panel',
         p: 5,
         textAlign: 'center',
-        cursor: 'pointer',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.6 : 1,
         transition: (t) => t.transitions.create(['border-color', 'background-color']),
-        '&:hover': { borderColor: 'accent.fill', bgcolor: 'surface.hover' },
+        '&:hover': disabled ? undefined : { borderColor: 'accent.fill', bgcolor: 'surface.hover' },
         '&:focus-visible': {
           outline: '2px solid',
           outlineColor: 'accent.focus',
@@ -89,10 +98,10 @@ export function Dropzone({
       />
       <CloudUploadOutlinedIcon sx={{ fontSize: 36, color: 'text.muted' }} />
       <Typography variant="body1" sx={{ color: 'text.primary', fontWeight: 600, mt: 1 }}>
-        Drop documents here, or click to choose files
+        {disabled ? 'No documents yet' : 'Drop documents here, or click to choose files'}
       </Typography>
       <Typography variant="caption" sx={{ color: 'text.muted', display: 'block', mt: 0.5 }}>
-        PDF and Excel (.xlsx, .xlsm)
+        {disabledReason ?? 'PDF and Excel (.xlsx, .xlsm)'}
       </Typography>
       {queuedHint && (
         <Typography variant="caption" sx={{ color: 'status.info', display: 'block', mt: 1.5 }}>

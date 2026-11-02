@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Alert, Button, Menu, MenuItem, Stack, Typography } from '@mui/material';
+import { Alert, Button, Menu, MenuItem, Stack, Tooltip, Typography } from '@mui/material';
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { ProjectStatus } from '@/components/ui/ProjectStatus';
@@ -11,6 +11,7 @@ import { errorMessage } from '@/lib/errors';
 import { OVERRIDE_STATUSES, statusLabel } from '@/lib/approvals/view';
 import type { FullProjectDetails, ProjectStatus as Status } from '@/api/types/projects';
 import { Card } from './Card';
+import { useControl } from '@/components/shell/ProjectAccessProvider';
 
 /**
  * The project's status. The backend moves it by itself (extraction, review,
@@ -21,6 +22,7 @@ import { Card } from './Card';
  */
 export function StatusCard({ projectId, project, userId }: { projectId: string; project: FullProjectDetails; userId: string | null }) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const statusCtl = useControl('setStatus');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,18 +46,23 @@ export function StatusCard({ projectId, project, userId }: { projectId: string; 
       <ProjectStatus project={project} size="medium" />
       {error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}
       <div>
+        <Tooltip title={statusCtl.reason ?? ''}>
+        <span>
         <Button
           size="small"
           variant="outlined"
           color="inherit"
           endIcon={<ArrowDropDownIcon />}
           loading={busy}
+          disabled={!statusCtl.enabled}
           aria-haspopup="menu"
           aria-expanded={anchor ? 'true' : undefined}
           onClick={(e) => setAnchor(e.currentTarget)}
         >
           Set status manually
         </Button>
+        </span>
+        </Tooltip>
         <Menu anchorEl={anchor} open={!!anchor} onClose={() => setAnchor(null)}>
           {OVERRIDE_STATUSES.map((s) => (
             <MenuItem key={s} selected={s === project.status} onClick={() => void choose(s)}>

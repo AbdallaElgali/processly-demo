@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, Box, Button, Chip, Stack, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, Stack, Tooltip, Typography } from '@mui/material';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import { apiGetPromptResolution, apiResetProjectPin, apiSetProjectPin } from '@/api/prompts';
 import { ErrorState } from '@/components/ui/ErrorState';
@@ -11,6 +11,7 @@ import { useResource } from '@/hooks/useResource';
 import { errorMessage } from '@/lib/errors';
 import { PINS_FROZEN_TEXT, pinsEditable, projectSlotRows, resolutionNote } from '@/lib/prompts/scoped';
 import { VersionPickerDialog } from './VersionPickerDialog';
+import { useControl } from '@/components/shell/ProjectAccessProvider';
 
 /**
  * The category prompts this project will use at its first extraction, where each
@@ -22,6 +23,7 @@ export function ProjectPromptSettings({ projectId }: { projectId: string }) {
   const { data, error, loading, reload } = useResource(load, 'Could not load the project’s prompts.');
   const rows = useMemo(() => projectSlotRows(data), [data]);
   const editable = pinsEditable(data);
+  const pinCtl = useControl('promptPins');
   const [choosing, setChoosing] = useState<string | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -69,8 +71,12 @@ export function ProjectPromptSettings({ projectId }: { projectId: string }) {
             <Chip size="small" variant="outlined" label={r.source} sx={{ height: 22 }} />
             {editable ? (
               <>
-                <Button size="small" disabled={busyKey !== null} onClick={() => setChoosing(r.slotKey)}>Change for this project</Button>
-                <Button size="small" color="inherit" disabled={busyKey !== null || !r.canReset} onClick={() => void reset(r.slotKey, r.label)}>Reset</Button>
+                <Tooltip title={pinCtl.reason ?? ''}>
+                  <span>
+                    <Button size="small" disabled={busyKey !== null || !pinCtl.enabled} onClick={() => setChoosing(r.slotKey)}>Change for this project</Button>
+                    <Button size="small" color="inherit" disabled={busyKey !== null || !r.canReset || !pinCtl.enabled} onClick={() => void reset(r.slotKey, r.label)}>Reset</Button>
+                  </span>
+                </Tooltip>
               </>
             ) : (
               <Chip size="small" icon={<LockOutlinedIcon />} label={PINS_FROZEN_TEXT} sx={{ height: 22 }} />

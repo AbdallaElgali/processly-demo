@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/http/apiFetch';
 import { config } from './config';
 
 /**
@@ -85,7 +86,7 @@ export interface SlotSummary {
 }
 
 async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(`${config.api}${path}`, { signal });
+  const response = await apiFetch(`${config.api}${path}`, { signal });
   if (!response.ok) throw new Error(await response.text());
   return response.json();
 }
@@ -97,7 +98,7 @@ export const apiGetPromptResolution = (projectId: string, signal?: AbortSignal) 
   getJson<ProjectPromptResolution>(`/projects/${encodeURIComponent(projectId)}/prompt-resolution`, signal);
 
 async function send<T>(path: string, init: RequestInit): Promise<T> {
-  const response = await fetch(`${config.api}${path}`, { ...init, headers: init.body ? { 'Content-Type': 'application/json' } : undefined });
+  const response = await apiFetch(`${config.api}${path}`, { ...init, headers: init.body ? { 'Content-Type': 'application/json' } : undefined });
   if (!response.ok) throw new Error((await response.text().catch(() => '')) || response.statusText || String(response.status));
   return response.status === 204 ? (undefined as T) : response.json();
 }

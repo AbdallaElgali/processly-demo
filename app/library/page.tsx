@@ -10,7 +10,6 @@ import { AppHeader } from '@/components/shell/AppHeader';
 import { SectionTabs } from '@/components/ui/SectionTabs';
 import { TemplatesPanel } from '@/components/parameters/TemplatesPanel';
 import { ParametersSection } from '@/components/library/ParametersSection';
-import { ToastHost } from '@/components/ui/Toast';
 import { CustomersSection } from '@/components/library/CustomersSection';
 
 /**
@@ -53,7 +52,6 @@ export default function LibraryPage() {
           ]}
         />
       </Box>
-      <ToastHost />
     </Box>
   );
 }
