@@ -26,3 +26,7 @@ Command used: `npm install --save-exact next@16.4.1 eslint-config-next@16.4.1` (
 **Gates:** `npx vitest run` 709 passed, 0 failed (59 files); `npm run lint` clean; `npx tsc --noEmit` clean; `npm run build` three times in a row: exit 0, 0, 0, no SecurityFatalError text in any log.
 **Files:** package.json (2 lines), package-lock.json.
 **Commit, merge, push:** see the final lines appended below.
+
+- Commit on `chore/next-security-patch`: `0f1f841`.
+- Merged into main with `--no-ff`: `72e0f8b`.
+- Pushed (no force, nothing to origin/main) to `origin/integration/2026-11-02`; this note was appended after the merge and committed on top.
