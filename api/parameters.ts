@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/http/apiFetch';
 // api/parameters.ts
 import { config } from './config';
 
@@ -23,7 +24,7 @@ export const flagParameter = async (
 ): Promise<string> => {
     // The reason is optional: blank is stored as null by the backend, and sent as null here.
     const reason = flag_reason?.trim() ? flag_reason.trim() : null;
-    const response = await fetch(`${API_BASE_URL}/ai-flag-parameter`, {
+    const response = await apiFetch(`${API_BASE_URL}/ai-flag-parameter`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -51,7 +52,7 @@ export const unFlagParameter = async (
     status: FlagStatus = "DISMISSED",
     user_id: string | null = null
 ): Promise<void> => {
-   const response = await fetch(`${API_BASE_URL}/ai-unflag-parameter`, {
+   const response = await apiFetch(`${API_BASE_URL}/ai-unflag-parameter`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ flag_id, resolved_by, status, user_id }),
@@ -64,7 +65,7 @@ export const updateResolvedBy = async (
     flag_id: string, 
     resolved_by: string | null = null
 ): Promise<void> => {
-   const response = await fetch(`${API_BASE_URL}/select-correct-ai-candidate`, {
+   const response = await apiFetch(`${API_BASE_URL}/select-correct-ai-candidate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ flag_id, resolved_by }),
@@ -84,7 +85,7 @@ export class RevertCorrectionError extends Error {
 
 /** POST /flagging/revert-correction: 404 unknown correction, 409 not revertable (or the row changed), 422 unknown user. */
 export const revertCorrection = async (correction_id: string, user_id: string): Promise<void> => {
-    const response = await fetch(`${API_BASE_URL}/revert-correction`, {
+    const response = await apiFetch(`${API_BASE_URL}/revert-correction`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ correction_id, user_id }),

@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/http/apiFetch';
 import { config } from './config';
 
 /** Result of `GET /documents/{doc_id}/file` (D7). */
@@ -18,7 +19,7 @@ export type DocumentFileResult =
  */
 export async function fetchDocumentFile(docId: string, signal?: AbortSignal): Promise<DocumentFileResult> {
   // `no-store`: a file must never come from another user's cached response.
-  const res = await fetch(`${config.api}/documents/${encodeURIComponent(docId)}/file`, { signal, cache: 'no-store' });
+  const res = await apiFetch(`${config.api}/documents/${encodeURIComponent(docId)}/file`, { signal, cache: 'no-store' });
   if (res.status === 404 || res.status === 410) return { kind: 'unavailable', status: res.status };
   if (!res.ok) throw new Error(`The document could not be loaded (HTTP ${res.status}).`);
   return { kind: 'ok', blob: await res.blob() };

@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/http/apiFetch';
 import { config } from './config';
 import { errorMessage } from '@/lib/errors';
 
@@ -14,7 +15,7 @@ export interface Customer {
 // FIXED: Changed [Customer] (a tuple of exactly 1 item) to Customer[] (an array)
 export const fetch_customers = async(): Promise<Customer[] | void> => {
     try {
-        const response = await fetch(API_BASE_URL + '/');
+        const response = await apiFetch(API_BASE_URL + '/');
         if (response.status === 200) {
             const data = await response.json();
             return data;
@@ -37,7 +38,7 @@ export const fetch_customers = async(): Promise<Customer[] | void> => {
  */
 export const create_customer = async (alias_name: string): Promise<void> => {
     try { 
-        const response = await fetch(API_BASE_URL + '/', {
+        const response = await apiFetch(API_BASE_URL + '/', {
             method: 'POST',
             // FIXED: Added Content-Type so FastAPI knows it's receiving JSON
             headers: {

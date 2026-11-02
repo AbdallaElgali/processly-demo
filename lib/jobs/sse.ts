@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/http/apiFetch';
 import type { SseEvent } from './sse-types';
 
 /**
@@ -76,7 +77,7 @@ export async function openSseStream(
   body: unknown,
   signal?: AbortSignal,
 ): Promise<ReadableStream<Uint8Array>> {
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
     body: JSON.stringify(body),

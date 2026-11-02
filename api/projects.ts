@@ -1,3 +1,5 @@
+import { addMemberResult, type AddMemberResult } from '@/lib/members/members';
+import { apiFetch } from '@/lib/http/apiFetch';
 import { config } from './config';
 import { statusFormBody } from '@/lib/overview/status';
 import type { ProjectStatus } from './types/projects';
@@ -144,7 +146,7 @@ export interface Project {
 // --- API Functions ---
 
 export const apiCreateProject = async (data: ProjectCreateInput): Promise<{ project: Project }> => {
-  const response = await fetch(`${API_BASE_URL}/`, {
+  const response = await apiFetch(`${API_BASE_URL}/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -168,7 +170,7 @@ export interface AddParameterBody {
  * is no longer used by the app (the backend removes it later).
  */
 export const apiAddProjectParameter = async (projectId: string, body: AddParameterBody): Promise<ProjectParameter> => {
-  const response = await fetch(`${API_BASE_URL}/${projectId}/parameters`, {
+  const response = await apiFetch(`${API_BASE_URL}/${projectId}/parameters`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -178,13 +180,13 @@ export const apiAddProjectParameter = async (projectId: string, body: AddParamet
 };
 
 export const apiGetUserProjects = async (userId: string): Promise<{ projects: Project[] }> => {
-  const response = await fetch(`${API_BASE_URL}/user/${userId}`);
+  const response = await apiFetch(`${API_BASE_URL}/user/${userId}`);
   if (!response.ok) throw new Error(await response.text());
   return response.json();
 };
 
 export const apiGetProjectDetails = async (projectId: string): Promise<Project> => {
-  const response = await fetch(`${API_BASE_URL}/${projectId}`);
+  const response = await apiFetch(`${API_BASE_URL}/${projectId}`);
   if (!response.ok) throw new Error(await response.text());
   return response.json();
 };
@@ -197,22 +199,25 @@ export class UserNotFoundError extends Error {
   }
 }
 
-async function addMember(projectId: string, role: 'contributors' | 'auditors', username: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/${projectId}/${role}`, {
+async function addMember(projectId: string, role: 'contributors' | 'auditors', username: string): Promise<AddMemberResult> {
+  const response = await apiFetch(`${API_BASE_URL}/${projectId}/${role}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username }),
   });
   if (response.status === 404) throw new UserNotFoundError(username);
   if (!response.ok) throw new Error(await response.text());
+  // 201 {added: true, member} / 200 {added: false, member} with enforcement; 200 {message} before.
+  const body: unknown = await response.json().catch(() => null);
+  return addMemberResult(body);
 }
 
 /** POST /projects/{id}/contributors { username }. */
-export const apiAddContributor = (projectId: string, username: string): Promise<void> =>
+export const apiAddContributor = (projectId: string, username: string): Promise<AddMemberResult> =>
   addMember(projectId, 'contributors', username);
 
 /** POST /projects/{id}/auditors { username }. */
-export const apiAddAuditor = (projectId: string, username: string): Promise<void> =>
+export const apiAddAuditor = (projectId: string, username: string): Promise<AddMemberResult> =>
   addMember(projectId, 'auditors', username);
 
 /**
@@ -226,7 +231,7 @@ export const apiUpdateProjectStatus = async (
   status: ProjectStatus,
   userId: string | null = null,
 ): Promise<{ status: ProjectStatus; previous_status?: ProjectStatus }> => {
-  const response = await fetch(`${API_BASE_URL}/update-project-status`, {
+  const response = await apiFetch(`${API_BASE_URL}/update-project-status`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: statusFormBody(projectId, status, userId).toString(),
@@ -245,7 +250,7 @@ export const apiSaveProjectParameters = async (
   parameters: ParameterInput[],
   reviewerId: string | null = null,
 ): Promise<void> => {
-  const response = await fetch(`${API_BASE_URL}/${projectId}/parameters`, {
+  const response = await apiFetch(`${API_BASE_URL}/${projectId}/parameters`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ parameters, reviewer_id: reviewerId }),
@@ -266,7 +271,7 @@ export const apiGetExtractionRuns = async (
   extractionType?: string,
 ): Promise<import('./types/projects').ExtractionRun[]> => {
   const query = extractionType ? `?extraction_type=${encodeURIComponent(extractionType)}` : '';
-  const response = await fetch(`${API_BASE_URL}/${projectId}/extraction-runs${query}`);
+  const response = await apiFetch(`${API_BASE_URL}/${projectId}/extraction-runs${query}`);
   if (!response.ok) throw new Error(await response.text());
   return response.json();
 };
@@ -275,7 +280,7 @@ export const apiUpdateProjectParameter = async (project_parameter_id: string, pa
   // The trailing slash matters: the route is declared as
   // PATCH /projects/project-parameter/{id}/ and FastAPI answers 307 without
   // it. A redirected PATCH can lose its method or its body under CORS.
-  const response = await fetch(`${API_BASE_URL}/project-parameter/${project_parameter_id}/`, {
+  const response = await apiFetch(`${API_BASE_URL}/project-parameter/${project_parameter_id}/`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(parameterData),
@@ -289,6 +294,6 @@ export const apiUpdateProjectParameter = async (project_parameter_id: string, pa
  * with it (`ON DELETE CASCADE`), and nothing in the schema soft-deletes.
  */
 export const apiRemoveProjectParameter = async (project_parameter_id: string): Promise<void> => {
-  const response = await fetch(`${API_BASE_URL}/project-parameter/${project_parameter_id}/remove`, { method: 'DELETE' });
+  const response = await apiFetch(`${API_BASE_URL}/project-parameter/${project_parameter_id}/remove`, { method: 'DELETE' });
   if (!response.ok) throw new Error(await response.text());
 };

@@ -26,6 +26,7 @@ import type { CanonicalParameter } from '@/api/templates';
 import type { InputField } from '@/types';
 import { ParameterEditDialog } from './ParameterEditDialog';
 import { NewParameterDialog } from './NewParameterDialog';
+import { useControl } from '@/components/shell/ProjectAccessProvider';
 
 /**
  * The project's parameter schema (plan-A 6.5, AM14): this project's
@@ -49,6 +50,7 @@ export function ProjectParameters({ projectId }: { projectId: string }) {
   const [removing, setRemoving] = useState<InputField | null>(null);
   const [removeBusy, setRemoveBusy] = useState(false);
   const [showAvailable, setShowAvailable] = useState(false);
+  const adminCtl = useControl('parameterAdmin');
   const [adding, setAdding] = useState<string | null>(null);
   const [defining, setDefining] = useState(false);
 
@@ -118,16 +120,20 @@ export function ProjectParameters({ projectId }: { projectId: string }) {
           </Typography>
         </Typography>
         <SearchField value={query} onChange={setQuery} placeholder="Search parameters" aria-label="Search parameters" sx={{ flex: 1, minWidth: 180 }} />
+        <Tooltip title={adminCtl.reason ?? ''}>
+        <span>
         <Button
           size="small"
           variant="outlined"
           startIcon={<AddIcon />}
-          disabled={!canonical}
+          disabled={!canonical || !adminCtl.enabled}
           onClick={() => setShowAvailable(true)}
           aria-controls="available-parameters"
         >
           Add parameter
         </Button>
+        </span>
+        </Tooltip>
       </Stack>
 
       {REMOVE_PARAMETER_AVAILABLE ? (
@@ -232,7 +238,7 @@ export function ProjectParameters({ projectId }: { projectId: string }) {
                         <Typography variant="body2" sx={{ color: 'text.muted' }}>
                           {query.trim() ? 'No dictionary parameter matches.' : 'This project has every parameter in the dictionary.'}
                         </Typography>
-                        <Button size="small" startIcon={<AddIcon />} onClick={() => setDefining(true)} sx={{ mt: 0.5 }}>
+                        <Button size="small" startIcon={<AddIcon />} disabled={!adminCtl.enabled} onClick={() => setDefining(true)} sx={{ mt: 0.5 }}>
                           Define a new parameter
                         </Button>
                       </Box>
@@ -240,11 +246,11 @@ export function ProjectParameters({ projectId }: { projectId: string }) {
                       <Box>
                         <Box role="list">
                           {available.map((p) => (
-                            <AvailableItem key={p.id} parameter={p} busy={adding === p.id} disabled={adding !== null} onAdd={() => void addParameter(p)} />
+                            <AvailableItem key={p.id} parameter={p} busy={adding === p.id} disabled={adding !== null || !adminCtl.enabled} onAdd={() => void addParameter(p)} />
                           ))}
                         </Box>
                         <Box sx={{ px: 2, py: 1 }}>
-                          <Button size="small" startIcon={<AddIcon />} onClick={() => setDefining(true)}>Define a new parameter</Button>
+                          <Button size="small" startIcon={<AddIcon />} disabled={!adminCtl.enabled} onClick={() => setDefining(true)}>Define a new parameter</Button>
                         </Box>
                       </Box>
                     )}
@@ -316,6 +322,8 @@ function ParameterItem({
   onEdit: () => void;
   onRemove: () => void;
 }) {
+  const editCtl = useControl('metadataEdit');
+  const removeCtl = useControl('parameterAdmin');
   const meta = metaOf(field);
   const description = meta.description.trim();
   const fallback = canonical?.default_description ?? null;
@@ -362,15 +370,17 @@ function ParameterItem({
         )}
       </Box>
       <Stack direction="row" spacing={0.25} sx={{ flexShrink: 0 }}>
-        <Tooltip title="Edit alias, description and AI instructions">
-          <IconButton size="small" aria-label={`Edit ${meta.alias}`} onClick={onEdit}>
-            <EditOutlinedIcon fontSize="small" />
-          </IconButton>
+        <Tooltip title={editCtl.reason ?? 'Edit alias, description and AI instructions'}>
+          <span>
+            <IconButton size="small" aria-label={`Edit ${meta.alias}`} onClick={onEdit} disabled={!editCtl.enabled}>
+              <EditOutlinedIcon fontSize="small" />
+            </IconButton>
+          </span>
         </Tooltip>
         {REMOVE_PARAMETER_AVAILABLE && (
-          <Tooltip title={removalPaused ? 'Paused while an extraction is queued or running' : 'Remove from this project'}>
+          <Tooltip title={removeCtl.reason ?? (removalPaused ? 'Paused while an extraction is queued or running' : 'Remove from this project')}>
             <span>
-              <IconButton size="small" aria-label={`Remove ${meta.alias}`} onClick={onRemove} disabled={removalPaused} sx={{ '&:hover': { color: 'status.danger' } }}>
+              <IconButton size="small" aria-label={`Remove ${meta.alias}`} onClick={onRemove} disabled={removalPaused || !removeCtl.enabled} sx={{ '&:hover': { color: 'status.danger' } }}>
                 <DeleteOutlineIcon fontSize="small" />
               </IconButton>
             </span>

@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/http/apiFetch';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { config } from '@/api/config';
 import type { ProjectMetrics } from '@/types/audit';
@@ -30,7 +31,7 @@ export function useAdminData() {
       try {
         setIsLoading(true);
         setError(null);
-        const response = await fetch(`${config.api}/audit/projects`);
+        const response = await apiFetch(`${config.api}/audit/projects`);
 
         if (!response.ok) {
           throw new Error(`Failed to fetch projects: ${response.status}`);

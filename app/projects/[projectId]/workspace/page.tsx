@@ -36,6 +36,7 @@ import { useMatchInfo } from '@/lib/excel/matchNav';
 import { FrontendBatteryFileExport, exportReport, type ExportReport } from '@/static/battery-template';
 import type { SpecificationSource } from '@/types';
 import { mapFieldsToSpecs } from '@/lib/parameter-adapter';
+import { useControl } from '@/components/shell/ProjectAccessProvider';
 import { useCanStart, useJobTray, useJobs, useProjectActivity, useProjectData } from '@/lib/jobs/hooks';
 import {
   acceptRow, chooseAlternative, chooseCandidate, editRowValue, flagRow, removeFlag, reextractRow, retryRow, revertCorrectionRow, revertRowValue, saveRow,
@@ -79,6 +80,13 @@ export default function WorkspacePage() {
 
   const activity = useProjectActivity(projectId);
   const analyzeGate = useCanStart(projectId, 'extraction');
+  // Permissions, not role names: each control asks for what it needs (lib/permissions/access.ts).
+  const uploadCtl = useControl('upload');
+  const analyzeCtl = useControl('analyze');
+  const retryCtl = useControl('retryFlagged');
+  const saveCtl = useControl('save');
+  const approveCtl = useControl('approve');
+  const resolveCtl = useControl('resolveFlags');
   const tray = useJobTray();
   const jobs = useJobs();
   const uploadJobs = useMemo(
@@ -181,6 +189,7 @@ export default function WorkspacePage() {
   );
   const upload = useCallback(
     (picked: File[]) => {
+      if (!uploadCtl.enabled) return;
       const accepted = picked.filter((f) => /\.(pdf|xlsx|xlsm)$/i.test(f.name));
       const skipped = picked.length - accepted.length;
       if (skipped > 0) toast.show(`${skipped} file(s) skipped: only PDF and Excel (.xlsx, .xlsm) can be analysed.`, { severity: 'warning' });
@@ -192,7 +201,7 @@ export default function WorkspacePage() {
       startUpload(fresh);
       if (duplicates.length) setDuplicateFiles(duplicates);
     },
-    [projectId, documents, files, jobs, startUpload],
+    [projectId, documents, files, jobs, startUpload, uploadCtl.enabled],
   );
 
   const flaggedCount = fields.filter((f) => f.isFlagged).length;
@@ -317,7 +326,7 @@ export default function WorkspacePage() {
   );
   const reapprove = reapproveBanner(details ?? {});
   const resolveAll = resolveAllLabel(details?.open_flag_count);
-  const approveBlocked = approveBlockReason(approval);
+  const approveBlocked = approveCtl.reason ?? approveBlockReason(approval);
   const inFlightUploads = uploadJobs.some((j) => j.status === 'queued' || j.status === 'running');
   const noDocuments = !!details && documents.length === 0 && !inFlightUploads;
   const firstLoad = !details && detailsLoading;
@@ -349,7 +358,7 @@ export default function WorkspacePage() {
 
   return (
     <Box
-      {...(noDocuments ? {} : dropHandlers)}
+      {...(noDocuments || !uploadCtl.enabled ? {} : dropHandlers)}
       sx={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}
     >
       {/* ---- toolbar ---- */}
@@ -371,14 +380,18 @@ export default function WorkspacePage() {
             e.target.value = '';
           }}
         />
-        <Tooltip title={tray.running >= JOB_CAP ? 'This browser is busy; the upload will queue and start automatically.' : 'PDF and Excel (.xlsx, .xlsm). You can also drop files anywhere here.'}>
-          <Button size="small" variant="outlined" startIcon={<AddIcon />} onClick={() => fileInput.current?.click()}>
-            Add documents
-          </Button>
+        <Tooltip title={uploadCtl.reason ?? (tray.running >= JOB_CAP ? 'This browser is busy; the upload will queue and start automatically.' : 'PDF and Excel (.xlsx, .xlsm). You can also drop files anywhere here.')}>
+          <span>
+            <Button size="small" variant="outlined" startIcon={<AddIcon />} onClick={() => fileInput.current?.click()} disabled={!uploadCtl.enabled}>
+              Add documents
+            </Button>
+          </span>
         </Tooltip>
         <Tooltip
           title={
-            !analyzeGate.allowed && 'reason' in analyzeGate
+            analyzeCtl.reason
+              ? analyzeCtl.reason
+              : !analyzeGate.allowed && 'reason' in analyzeGate
               ? analyzeGate.reason
               : documents.length === 0
                 ? 'Add a document first'
@@ -394,13 +407,13 @@ export default function WorkspacePage() {
               onClick={handleAnalyze}
               loading={extractionBusy}
               loadingPosition="start"
-              disabled={documents.length === 0 || !analyzeGate.allowed}
+              disabled={documents.length === 0 || !analyzeGate.allowed || !analyzeCtl.enabled}
             >
               Analyze
             </Button>
           </span>
         </Tooltip>
-        <Tooltip title={!analyzeGate.allowed && 'reason' in analyzeGate && flaggedCount > 0 ? analyzeGate.reason : retryButton.tooltip}>
+        <Tooltip title={retryCtl.reason ?? (!analyzeGate.allowed && 'reason' in analyzeGate && flaggedCount > 0 ? analyzeGate.reason : retryButton.tooltip)}>
           <span>
             <Button
               size="small"
@@ -409,7 +422,7 @@ export default function WorkspacePage() {
               onClick={handleRetryFlagged}
               loading={extractionBusy}
               loadingPosition="start"
-              disabled={retryButton.disabled || documents.length === 0 || !analyzeGate.allowed}
+              disabled={retryButton.disabled || documents.length === 0 || !analyzeGate.allowed || !retryCtl.enabled}
             >
               {retryButton.label}
             </Button>
@@ -424,17 +437,21 @@ export default function WorkspacePage() {
           Runs
         </Button>
         <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-        <Tooltip title={unsaved > 0 ? `Save ${unsaved} edited parameter${unsaved === 1 ? '' : 's'}` : 'No unsaved changes'}>
+        <Tooltip title={saveCtl.reason ?? (unsaved > 0 ? `Save ${unsaved} edited parameter${unsaved === 1 ? '' : 's'}` : 'No unsaved changes')}>
           <span>
-            <Button size="small" startIcon={<SaveOutlinedIcon />} onClick={() => void handleSave()} loading={isSaving} loadingPosition="start" disabled={unsaved === 0}>
+            <Button size="small" startIcon={<SaveOutlinedIcon />} onClick={() => void handleSave()} loading={isSaving} loadingPosition="start" disabled={unsaved === 0 || !saveCtl.enabled}>
               {unsaved > 0 ? `Save (${unsaved})` : 'Save'}
             </Button>
           </span>
         </Tooltip>
         {resolveAll && (
-          <Button size="small" startIcon={<FlagOutlinedIcon />} onClick={() => setResolveOpen(true)} loading={isResolving} loadingPosition="start">
-            {resolveAll}
-          </Button>
+          <Tooltip title={resolveCtl.reason ?? ''}>
+            <span>
+              <Button size="small" startIcon={<FlagOutlinedIcon />} onClick={() => setResolveOpen(true)} loading={isResolving} loadingPosition="start" disabled={!resolveCtl.enabled}>
+                {resolveAll}
+              </Button>
+            </span>
+          </Tooltip>
         )}
         <Tooltip title={approveBlocked ?? (reapprove ? 'Save the current state as a new approval version' : 'Accept every pending parameter of this project')}>
           <span>
@@ -486,6 +503,7 @@ export default function WorkspacePage() {
           <Dropzone
             onFiles={upload}
             queuedHint={tray.running >= JOB_CAP}
+            disabledReason={uploadCtl.reason}
             sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', '& .MuiSvgIcon-root': { fontSize: 56 } }}
           />
         </Box>

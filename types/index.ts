@@ -97,6 +97,8 @@ export interface InputField {
   selectedSpecId?: string;
   isFlagged: boolean;
   flagReason: string | null;
+  /** Who raised the open flag (users.id); an auditor may remove only their own. */
+  flaggerId?: string | null;
   activeFlagId: string | null; // id of the active flag ticket; chained as parent on re-flag
   reviewAction: ReviewAction;
   /**

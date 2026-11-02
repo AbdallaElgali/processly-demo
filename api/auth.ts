@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/http/apiFetch';
 import { config } from './config';
 
 const AUTH_URL = `${config.api}/auth`;
@@ -37,7 +38,7 @@ export class UsernameTakenError extends Error {
 }
 
 export async function registerUser(input: UserRegistration): Promise<void> {
-  const response = await fetch(`${AUTH_URL}/register-user`, {
+  const response = await apiFetch(`${AUTH_URL}/register-user`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     // Only the two declared fields. The old form also sent `email` and

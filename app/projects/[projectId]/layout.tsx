@@ -2,18 +2,19 @@
 
 import { ReactNode, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Box } from '@mui/material';
+import { Box, Stack } from '@mui/material';
 import { useAuth } from '@/contexts/AuthContext';
 import { useHasMounted } from '@/hooks/useHasMounted';
 import { useLocalStorageFlag } from '@/hooks/useLocalStorageFlag';
 import { AppHeader } from '@/components/shell/AppHeader';
 import { Breadcrumb } from '@/components/shell/Breadcrumb';
+import { ProjectAccessProvider } from '@/components/shell/ProjectAccessProvider';
+import { ProjectRoleBadge } from '@/components/ui/RoleBadge';
 import { ProjectRail } from '@/components/shell/ProjectRail';
 import { useProjectData } from '@/lib/jobs/hooks';
 import { loadProjectDetails } from '@/lib/project-data/actions';
 import { projectsIndex } from '@/lib/project-data/projects-index';
 import { useProjectsIndex } from '@/lib/project-data/provider';
-import { ToastHost } from '@/components/ui/Toast';
 import { UnsavedChangesGuard } from '@/components/workspace/UnsavedChangesGuard';
 
 const RAIL_COLLAPSED_KEY = 'bda.rail.collapsed';
@@ -61,17 +62,25 @@ export default function ProjectLayout({ children }: { children: ReactNode }) {
     details?.alias_id ?? projects.find((p) => p.id === projectId)?.alias_id ?? null;
 
   return (
+    <ProjectAccessProvider projectId={projectId}>
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden', bgcolor: 'surface.canvas' }}>
-      <AppHeader breadcrumb={<Breadcrumb customer={customerName} project={projectName} />} />
+      <AppHeader
+        breadcrumb={
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+            <Breadcrumb customer={customerName} project={projectName} />
+            <ProjectRoleBadge />
+          </Stack>
+        }
+      />
       <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         <ProjectRail projectId={projectId} collapsed={collapsed} onToggleCollapsed={toggleCollapsed} />
         <Box component="main" sx={{ flex: 1, minWidth: 0, overflow: 'auto' }}>
           {children}
         </Box>
       </Box>
-      {/* One toast queue for every project screen; job runners and screens both post to it. */}
-      <ToastHost />
+      {/* The toast queue is mounted once in app/layout.tsx. */}
       <UnsavedChangesGuard projectId={projectId} />
     </Box>
+    </ProjectAccessProvider>
   );
 }

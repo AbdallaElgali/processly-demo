@@ -34,6 +34,7 @@ import { newerCandidateAvailable } from '@/lib/review/newer';
 import NewReleasesOutlinedIcon from '@mui/icons-material/NewReleasesOutlined';
 import { parseCandidateNumber } from '@/lib/excel/highlight';
 import { ConfidenceIndicator, QualifierTags, SecondaryFacts, StateBadge } from './indicators';
+import { useCanUnflag, useControl } from '@/components/shell/ProjectAccessProvider';
 import { SendFeedbackButton } from '@/components/feedback/SendFeedbackButton';
 import { ValueCell } from './ValueCell';
 import { WhyThisValue } from './WhyThisValue';
@@ -333,6 +334,8 @@ function RowDetail({
   const selected = state.selected;
   const locked = !!busy;
   const where = (s: Specification) => locationLabel(s.source, handlers.isSpreadsheet(s.source?.documentId));
+  const selectCtl = useControl('selectCandidate');
+  const editCtl = useControl('editValue');
 
   return (
     <Box
@@ -353,7 +356,8 @@ function RowDetail({
             onJump={(src) => handlers.onJumpToSource(src, field.id)}
             where={where}
             documentName={handlers.documentName}
-            disabled={locked}
+            disabled={locked || !selectCtl.enabled}
+            disabledReason={selectCtl.reason}
           />
           {field.isFlagged && field.specifications.length > 1 && (
             <Typography variant="caption" sx={{ color: 'text.muted', display: 'block', mt: 0.75 }}>
@@ -378,7 +382,7 @@ function RowDetail({
       </Stack>
 
       <Stack spacing={2.5} sx={{ minWidth: 0 }}>
-        <ValueEditor key={selected?.id ?? 'none'} field={field} spec={selected} disabled={locked} dirty={dirty} handlers={handlers} />
+        <ValueEditor key={selected?.id ?? 'none'} field={field} spec={selected} disabled={locked || !editCtl.enabled} disabledReason={editCtl.reason} dirty={dirty} handlers={handlers} />
         <ReviewActions field={field} busy={busy} correctionError={correctionError} handlers={handlers} />
       </Stack>
     </Box>
@@ -402,12 +406,15 @@ function ValueEditor({
   field,
   spec,
   disabled,
+  disabledReason,
   dirty,
   handlers,
 }: {
   field: InputField;
   spec: Specification | undefined;
   disabled: boolean;
+  /** Why the editor is read-only, when it is because of permissions. */
+  disabledReason?: string | null;
   dirty: boolean;
   handlers: ParameterRowHandlers;
 }) {
@@ -426,6 +433,7 @@ function ValueEditor({
   return (
     <Box>
       <SectionLabel>Value</SectionLabel>
+      <Tooltip title={disabledReason ?? ''}>
       <Stack direction="row" spacing={1}>
         <TextField
           size="small"
@@ -447,6 +455,7 @@ function ValueEditor({
           sx={{ width: 96 }}
         />
       </Stack>
+      </Tooltip>
       {notNumber && (
         <Typography variant="caption" sx={{ color: 'status.warning', display: 'block', mt: 0.5 }}>
           Not a number: it will be saved as text.
@@ -514,6 +523,10 @@ function ReviewActions({
 }) {
   const [hint, setHint] = useState('');
   const hintId = useId();
+  const reviewCtl = useControl('reviewRow');
+  const rowCtl = useControl('rowActions');
+  const flagCtl = useControl('flag');
+  const mayUnflag = useCanUnflag(field.flaggerId ?? null);
   const locked = !!busy;
   const correcting = busy?.kind === 'queued' || busy?.kind === 'correcting';
   const approved = field.reviewAction === 'ACCEPTED';
@@ -521,7 +534,7 @@ function ReviewActions({
   const actions = availableRowActions(field, { busy: locked, correcting });
   const badge = correctionBadge(field, correctionError);
   const text = hint.trim();
-  const canFlagOnly = !field.isFlagged && actions.retry;
+  const canFlagOnly = !field.isFlagged && actions.retry && flagCtl.enabled;
   const canRetry = actions.retry || (field.isFlagged && !locked && !correcting);
 
   return (
@@ -540,9 +553,13 @@ function ReviewActions({
         <Note tone={badge.kind === 'error' ? 'danger' : 'info'} icon={badge.kind === 'error' ? <ErrorOutlineIcon sx={{ fontSize: 16 }} /> : <AutoFixHighOutlinedIcon sx={{ fontSize: 16 }} />}>
           {badge.text}
           {actions.revert && (
-            <Button size="small" startIcon={<UndoIcon fontSize="small" />} onClick={() => handlers.onRevertCorrection(field.id)} sx={{ ml: 1, py: 0, minHeight: 0 }}>
-              Revert
-            </Button>
+            <Tooltip title={rowCtl.reason ?? ''}>
+              <span>
+                <Button size="small" startIcon={<UndoIcon fontSize="small" />} disabled={!rowCtl.enabled} onClick={() => handlers.onRevertCorrection(field.id)} sx={{ ml: 1, py: 0, minHeight: 0 }}>
+                  Revert
+                </Button>
+              </span>
+            </Tooltip>
           )}
         </Note>
       )}
@@ -570,7 +587,7 @@ function ReviewActions({
               </Typography>
             </Stack>
           ) : (
-            <Tooltip title={field.isFlagged ? 'Resolves the flag with the value shown above and saves this row' : 'Saves this row’s value now and marks it accepted'}>
+            <Tooltip title={reviewCtl.reason ?? (field.isFlagged ? 'Resolves the flag with the value shown above and saves this row' : 'Saves this row’s value now and marks it accepted')}>
               <span>
                 <Button
                   size="small"
@@ -578,7 +595,7 @@ function ReviewActions({
                   color={field.isFlagged ? 'primary' : 'success'}
                   disableElevation
                   startIcon={<DoneIcon fontSize="small" />}
-                  disabled={locked}
+                  disabled={locked || !reviewCtl.enabled}
                   loading={busy?.kind === 'accept'}
                   loadingPosition="start"
                   onClick={() => handlers.onAccept(field.id)}
@@ -588,7 +605,7 @@ function ReviewActions({
               </span>
             </Tooltip>
           )}
-          {field.isFlagged && (
+          {field.isFlagged && mayUnflag && (
             <Button size="small" color="error" disabled={locked} loading={busy?.kind === 'unflag'} onClick={() => handlers.onRemoveFlag(field.id)}>
               Remove flag
             </Button>
@@ -626,14 +643,14 @@ function ReviewActions({
                 </Button>
               )}
               {canRetry && (
-                <Tooltip title="Asks the AI to look at this value again, using your hint if you wrote one. Costs one model run.">
+                <Tooltip title={rowCtl.reason ?? 'Asks the AI to look at this value again, using your hint if you wrote one. Costs one model run.'}>
                   <span>
                     <Button
                       size="small"
                       variant="contained"
                       disableElevation
                       startIcon={<ReplayIcon fontSize="small" />}
-                      disabled={locked}
+                      disabled={locked || !rowCtl.enabled}
                       onClick={() => {
                         handlers.onRetry(field.id, text);
                         setHint('');
@@ -682,6 +699,7 @@ function CandidateList({
   where,
   documentName,
   disabled,
+  disabledReason,
 }: {
   field: InputField;
   selectedId: string | undefined;
@@ -690,6 +708,7 @@ function CandidateList({
   where: (s: Specification) => string | null;
   documentName: (documentId: string | null | undefined) => string | null;
   disabled: boolean;
+  disabledReason?: string | null;
 }) {
   const [open, setOpen] = useState<Set<string>>(() => new Set());
   const baseId = useId();
@@ -725,7 +744,7 @@ function CandidateList({
               <Button
                 role="radio"
                 aria-checked={selected}
-                title={selected || !valued ? undefined : 'Use this value (saves now)'}
+                title={disabledReason ?? (selected || !valued ? undefined : 'Use this value (saves now)')}
                 size="small"
                 disabled={disabled || selected || !valued}
                 onClick={() => onSelect(s.id)}

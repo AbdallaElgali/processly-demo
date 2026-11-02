@@ -135,6 +135,7 @@ export const dbParamToInputField = (p: ProjectParameter): InputField => {
 
     isFlagged: !!p.human_flagged,
     flagReason: p.flag_reason ?? null,
+    flaggerId: p.flagger_id ?? null,
     activeFlagId: p.active_flag_id ?? null,
     reviewAction: ((p.review_action as ReviewAction) || 'PENDING') as ReviewAction,
     isHumanModified: !!p.is_human_modified,

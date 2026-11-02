@@ -8,6 +8,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { ProjectDataProvider } from '@/lib/project-data/provider';
 import { RunningJobGuard } from '@/components/jobs/RunningJobGuard';
 import { ThemeRegistry } from '@/theme/ThemeRegistry';
+import { ToastHost } from '@/components/ui/Toast';
 
 // One font for the whole app. latin-ext carries the umlauts and eszett in the
 // German datasheets this tool reads (e.g. "Nennkapazitat" with an umlaut).
@@ -51,6 +52,7 @@ export default function RootLayout({
               <ProjectDataProvider>
                 <RunningJobGuard />
                 {children}
+                <ToastHost />
               </ProjectDataProvider>
             </AuthProvider>
           </ThemeRegistry>
